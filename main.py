@@ -14,26 +14,34 @@ KEY_ACTION = {
 }
 
 def play_episode(env, seed):
-    observation, info = env.reset(seed=seed)
+    _, _ = env.reset(seed=seed)
+    step_ms = 1000 / env.steps_per_second # default: step once every 200ms
+    total_elapsed = 0
+    elapsed = 0
+    last_action = Actions.nothing
     while True:
+        dt = env.clock_tick()
+        elapsed += dt
+        total_elapsed += dt
+        while elapsed >= step_ms:
+            elapsed -= step_ms
+            obs, reward, terminated, truncated, info = env.step(last_action)
+            print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}")
+            if terminated or truncated: return False
+            last_action = Actions.nothing
+
         for event in pygame.event.get():
             # close window to finish early
             if event.type == pygame.QUIT: return True
 
-            # increase step on key press
             if event.type == pygame.KEYDOWN:
-                action = KEY_ACTION.get(event.key, None)
-                if action is not None:
-                    obs, reward, terminated, truncated, info = env.step(action)
-                    done = terminated or truncated
-                    print(f"action={action}, reward={reward}, done={done}")
-                    if done: return False
+                last_action = KEY_ACTION.get(event.key, Actions.nothing)
 
         # constant rendering
         env.render()
 
 def play_game(seed, max_episodes):
-    env = GridWorldEnv(render_mode="human")
+    env = GridWorldEnv(render_mode="human", steps_per_second = 5)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i)
         if quit_game: break

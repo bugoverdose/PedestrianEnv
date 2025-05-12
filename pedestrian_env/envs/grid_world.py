@@ -4,21 +4,23 @@ from gymnasium import spaces
 import pygame
 import numpy as np
 
-
 class Actions(Enum):
-    up = 0
-    down = 1
-    right = 2
-    left = 3
-
+    nothing = 0
+    up = 1
+    down = 2
+    right = 3
+    left = 4
 
 class GridWorldEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"]}
 
-    def __init__(self, render_mode=None, size=5):
+    def __init__(self, render_mode=None, size=5, tick_on_render=False, steps_per_second = 5):
         if size < 5: raise Exception("size can not be less than 5")
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
+        self.tick_on_render = tick_on_render
+        self.steps_per_second = steps_per_second
+        self.metadata["render_fps"] = steps_per_second * 5 # render multiple times between each step
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2,
@@ -30,8 +32,7 @@ class GridWorldEnv(gym.Env):
             }
         )
 
-        # We have 4 actions, corresponding to "right", "up", "left", "down", "right"
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(5)
 
         """
         The following dictionary maps abstract actions from `self.action_space` to 
@@ -39,6 +40,7 @@ class GridWorldEnv(gym.Env):
         i.e. 0 corresponds to "right", 1 to "up" etc.
         """
         self._action_to_direction = {
+            Actions.nothing: np.array([0, 0]),
             Actions.up: np.array([0, -1]),
             Actions.down: np.array([0, 1]),
             Actions.right: np.array([1, 0]),
@@ -171,11 +173,15 @@ class GridWorldEnv(gym.Env):
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to
             # keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
-        else:  # rgb_array
+            if self.tick_on_render:
+                self.clock_tick()
+        elif self.render_mode == "rgb_array":
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
+
+    def clock_tick(self):
+        return self.clock.tick(self.metadata["render_fps"])
 
     def close(self):
         if self.window is not None:
