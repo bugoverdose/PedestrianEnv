@@ -16,6 +16,7 @@ class GridWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
     def __init__(self, render_mode=None, size=5):
+        if size < 5: raise Exception("size can not be less than 5")
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
@@ -58,13 +59,11 @@ class GridWorldEnv(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        return {"agent": self._agent_location, "target": self._target_location}
+        return {"agent": self._agent_location, "targets": self._target_locations}
 
     def _get_info(self):
         return {
-            "distance": np.linalg.norm(
-                self._agent_location - self._target_location, ord=1
-            )
+            "distance": max([np.linalg.norm(self._agent_location - target, ord=1) for target in self._target_locations])
         }
 
     def reset(self, seed=None, options=None):
@@ -72,15 +71,16 @@ class GridWorldEnv(gym.Env):
         super().reset(seed=seed)
 
         # Choose the agent's location uniformly at random
-        self._agent_location = self.np_random.integers(0, self.size, size=2, dtype=int)
+        self._agent_location = np.array([int(self.size / 2), self.size - 1], dtype=int)
 
-        # We will sample the target's location randomly until it does not
-        # coincide with the agent's location
-        self._target_location = self._agent_location
-        while np.array_equal(self._target_location, self._agent_location):
-            self._target_location = self.np_random.integers(
-                0, self.size, size=2, dtype=int
-            )
+        self._target_locations = []
+        for i in range(3):
+            self._target_locations.append(np.array([int(self.size / 2) + i - 1, 0], dtype=int))
+
+        extra_target_location = self._agent_location
+        while np.array_equal(extra_target_location, self._agent_location):
+            extra_target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
+        self._target_locations.append(extra_target_location)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -94,11 +94,11 @@ class GridWorldEnv(gym.Env):
         # Map the action (element of {0,1,2,3}) to the direction we walk in
         direction = self._action_to_direction[action]
         # We use `np.clip` to make sure we don't leave the grid
-        self._agent_location = np.clip(
-            self._agent_location + direction, 0, self.size - 1
-        )
+        self._agent_location = np.clip(self._agent_location + direction, 0, self.size - 1)
         # An episode is done iff the agent has reached the target
-        terminated = np.array_equal(self._agent_location, self._target_location)
+        terminated = 0
+        for target_location in self._target_locations:
+            terminated += np.array_equal(self._agent_location, target_location)
         reward = 1 if terminated else 0  # Binary sparse rewards
         observation = self._get_obs()
         info = self._get_info()
@@ -126,15 +126,17 @@ class GridWorldEnv(gym.Env):
             self.window_size / self.size
         )  # The size of a single grid square in pixels
 
-        # First we draw the target
-        pygame.draw.rect(
-            canvas,
-            (255, 0, 0),
-            pygame.Rect(
-                pix_square_size * self._target_location,
-                (pix_square_size, pix_square_size),
-            ),
-        )
+        # First we draw the targets
+        for target_location in self._target_locations:
+            pygame.draw.rect(
+                canvas,
+                (255, 0, 0),
+                pygame.Rect(
+                    pix_square_size * target_location,
+                    (pix_square_size, pix_square_size),
+                ),
+            )
+
         # Now we draw the agent
         pygame.draw.circle(
             canvas,
