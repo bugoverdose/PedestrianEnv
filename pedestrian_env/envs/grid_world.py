@@ -6,10 +6,10 @@ import numpy as np
 
 
 class Actions(Enum):
-    right = 0
-    up = 1
-    left = 2
-    down = 3
+    up = 0
+    down = 1
+    right = 2
+    left = 3
 
 
 class GridWorldEnv(gym.Env):
@@ -38,10 +38,10 @@ class GridWorldEnv(gym.Env):
         i.e. 0 corresponds to "right", 1 to "up" etc.
         """
         self._action_to_direction = {
-            Actions.right.value: np.array([1, 0]),
-            Actions.up.value: np.array([0, 1]),
-            Actions.left.value: np.array([-1, 0]),
-            Actions.down.value: np.array([0, -1]),
+            Actions.up: np.array([0, -1]),
+            Actions.down: np.array([0, 1]),
+            Actions.right: np.array([1, 0]),
+            Actions.left: np.array([-1, 0]),
         }
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
