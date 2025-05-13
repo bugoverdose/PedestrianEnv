@@ -1,1 +1,1 @@
-from pedestrian_env.envs.grid_world import GridWorldEnv
+from pedestrian_env.envs.grid_world import PedestrianEnv

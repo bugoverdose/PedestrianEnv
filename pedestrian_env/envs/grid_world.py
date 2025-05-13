@@ -13,7 +13,7 @@ class Actions(Enum):
     right = 3
     left = 4
 
-class GridWorldEnv(gym.Env):
+class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
 
     def __init__(self, title="Pedestrian Task", render_mode=None, size=5, tick_on_render=False, steps_per_second = 5):

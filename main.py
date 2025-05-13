@@ -1,4 +1,4 @@
-from pedestrian_env.envs.grid_world import GridWorldEnv, Actions
+from pedestrian_env.envs.grid_world import PedestrianEnv, Actions
 import pygame
 
 KEY_ACTION = {
@@ -41,7 +41,7 @@ def play_episode(env, seed):
         env.render()
 
 def play_game(seed, max_episodes):
-    env = GridWorldEnv(render_mode="human", steps_per_second = 5)
+    env = PedestrianEnv(render_mode="human", steps_per_second = 5)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i)
         if quit_game: break
