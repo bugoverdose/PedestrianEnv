@@ -5,6 +5,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.game_object import Car
+from pedestrian_env.envs.world import generate_rows
 
 class Actions(Enum):
     nothing = 0
@@ -68,6 +69,7 @@ class PedestrianEnv(gym.Env):
         self._agent_location = None
         self._target_locations = None
         self.cars = None
+        self.car_speeds_per_row = generate_rows(self.size)
 
     def _get_obs(self):
         return {"agent": self._agent_location, "targets": self._target_locations}
@@ -94,9 +96,14 @@ class PedestrianEnv(gym.Env):
         self._target_locations.append(extra_target_location)
 
         self.cars = []
-        for i in [2,4]:
+        for row_idx in range(self.size):
+            car_speed = self.car_speeds_per_row[row_idx]
+            if car_speed == 0: continue
             car_type_seed = self.np_random.integers(0, 11, size=1, dtype=int)[0]
-            self.cars.append(Car(0, self.size - i, self.pix_square_size, car_type_seed = car_type_seed))
+            if car_speed > 0:
+                self.cars.append(Car(0, row_idx, 1, self.pix_square_size, car_type_seed = car_type_seed))
+            elif car_speed < 0:
+                self.cars.append(Car(self.size-1, row_idx, -1, self.pix_square_size, car_type_seed = car_type_seed))
 
         observation = self._get_obs()
         info = self._get_info()

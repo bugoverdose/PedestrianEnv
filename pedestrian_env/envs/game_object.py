@@ -19,16 +19,19 @@ class GameObject:
 
 class Car(GameObject):
 
-    speed = 1
-
-    def __init__(self, x, y, pix_square_size, car_type_seed = 0):
+    def __init__(self, x, y, speed, pix_square_size, car_type_seed = 0):
         self.car_type = (car_type_seed % 12)
+        self.speed = speed
         super().__init__(f"sprites/cars/car-side-view{self.car_type}.png", x, y, pix_square_size, pix_square_size, pix_square_size)
+        if speed < 0:
+            self.image = pygame.transform.flip(self.image, flip_x=True, flip_y=False)
 
     def move(self, max_width):
         self.x += self.speed
-        if self.x >= max_width:
+        if self.speed > 0 and self.x >= max_width:
             self.x = 0
+        if self.speed < 0 and self.x <= 0:
+            self.x = max_width - 1
 
     def __str__(self):
         return f"Car{self.object_id}: type={self.car_type}, cur_pos=({self.x, self.y})"
