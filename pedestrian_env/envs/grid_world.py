@@ -19,20 +19,22 @@ class PedestrianEnv(gym.Env):
     def __init__(self, title="Pedestrian Task", render_mode=None, size=5, tick_on_render=False, steps_per_second = 5):
         if size < 5: raise Exception("size can not be less than 5")
         self.title = title
-        self.size = size  # The size of the square grid
+        self.width = size  # max width of the world
+        self.height = size  # max height of the world
         self.window_size = 512  # The size of the PyGame window
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = steps_per_second * 5 # render multiple times between each step
-        self.pix_square_size = (self.window_size / self.size) # The size of a single grid square in pixels
+        # TODO: change for width != height
+        self.pix_square_size = (self.window_size / max(self.width, self.height)) # The size of a single grid square in pixels
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2,
         # i.e. MultiDiscrete([size, size]).
         self.observation_space = spaces.Dict(
             {
-                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=np.int32),
-                "target": spaces.Box(0, size - 1, shape=(2,), dtype=np.int32),
+                "agent": spaces.Box(low=np.array([0, 0]), high=np.array([self.width - 1, self.height - 1]), dtype=np.int32),
+                "target": spaces.Box(low=np.array([0, 0]), high=np.array([self.width - 1, self.height - 1]), dtype=np.int32),
             }
         )
 
@@ -80,19 +82,21 @@ class PedestrianEnv(gym.Env):
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
 
-        # Choose the agent's location uniformly at random
-        self._agent_location = np.array([int(self.size / 2), self.size - 1], dtype=int)
+        self._agent_location = np.array([int(self.width / 2), self.height - 1], dtype=int)
 
         self._target_locations = []
         for i in range(3):
-            self._target_locations.append(np.array([int(self.size / 2) + i - 1, 0], dtype=int))
+            self._target_locations.append(np.array([int(self.width / 2) + i - 1, 0], dtype=int))
 
         extra_target_location = self._agent_location
         while np.array_equal(extra_target_location, self._agent_location):
-            extra_target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
+            extra_target_location = np.array([
+                self.np_random.integers(0, self.width, size=1, dtype=int)[0],
+                self.np_random.integers(0, self.height, size=1, dtype=int)[0]
+            ])
         self._target_locations.append(extra_target_location)
 
-        self.world = World(self.size, self.pix_square_size, self.np_random)
+        self.world = World(self.width, self.height, self.pix_square_size, self.np_random)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -104,12 +108,12 @@ class PedestrianEnv(gym.Env):
 
     def step(self, action):
         for car in self.world.cars:
-            car.move(self.size)
+            car.move(self.width)
 
         # Map the action (element of {0,1,2,3}) to the direction we walk in
         direction = self._action_to_direction[action]
         # We use `np.clip` to make sure we don't leave the grid
-        self._agent_location = np.clip(self._agent_location + direction, 0, self.size - 1)
+        self._agent_location = np.clip(self._agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
         if self.has_collided():
             terminated = 1
@@ -171,7 +175,7 @@ class PedestrianEnv(gym.Env):
             car.render(canvas)
 
         # Finally, add some gridlines
-        for x in range(self.size + 1):
+        for x in range(self.height + 1):
             pygame.draw.line(
                 canvas,
                 0,
@@ -179,6 +183,7 @@ class PedestrianEnv(gym.Env):
                 (self.window_size, self.pix_square_size * x),
                 width=3,
             )
+        for x in range(self.width + 1):
             pygame.draw.line(
                 canvas,
                 0,
