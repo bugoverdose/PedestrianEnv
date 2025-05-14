@@ -4,8 +4,7 @@ from gymnasium import spaces
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.game_object import Car
-from pedestrian_env.envs.world import generate_rows
+from pedestrian_env.envs.world import World
 
 class Actions(Enum):
     nothing = 0
@@ -26,7 +25,6 @@ class PedestrianEnv(gym.Env):
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = steps_per_second * 5 # render multiple times between each step
         self.pix_square_size = (self.window_size / self.size) # The size of a single grid square in pixels
-
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2,
@@ -68,8 +66,7 @@ class PedestrianEnv(gym.Env):
 
         self._agent_location = None
         self._target_locations = None
-        self.cars = None
-        self.car_speeds_per_row = []
+        self.world = None
 
     def _get_obs(self):
         return {"agent": self._agent_location, "targets": self._target_locations}
@@ -95,16 +92,7 @@ class PedestrianEnv(gym.Env):
             extra_target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
         self._target_locations.append(extra_target_location)
 
-        self.car_speeds_per_row = generate_rows(self.size, self.np_random)
-        self.cars = []
-        for row_idx in range(self.size):
-            car_speed = self.car_speeds_per_row[row_idx]
-            if car_speed == 0: continue
-            car_type_seed = self.np_random.integers(0, 11, size=1, dtype=int)[0]
-            if car_speed > 0:
-                self.cars.append(Car(0, row_idx, 1, self.pix_square_size, car_type_seed = car_type_seed))
-            elif car_speed < 0:
-                self.cars.append(Car(self.size-1, row_idx, -1, self.pix_square_size, car_type_seed = car_type_seed))
+        self.world = World(self.size, self.pix_square_size, self.np_random)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -115,7 +103,7 @@ class PedestrianEnv(gym.Env):
         return observation, info
 
     def step(self, action):
-        for car in self.cars:
+        for car in self.world.cars:
             car.move(self.size)
 
         # Map the action (element of {0,1,2,3}) to the direction we walk in
@@ -142,7 +130,7 @@ class PedestrianEnv(gym.Env):
         return observation, reward, terminated, False, info
 
     def has_collided(self):
-        for car in self.cars:
+        for car in self.world.cars:
             if np.array_equal(self._agent_location, [car.x, car.y]):
                 return True
         return False
@@ -179,7 +167,7 @@ class PedestrianEnv(gym.Env):
             self.pix_square_size / 3,
         )
 
-        for car in self.cars:
+        for car in self.world.cars:
             car.render(canvas)
 
         # Finally, add some gridlines
@@ -211,9 +199,7 @@ class PedestrianEnv(gym.Env):
             if self.tick_on_render:
                 self.clock_tick()
         elif self.render_mode == "rgb_array":
-            return np.transpose(
-                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
-            )
+            return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
