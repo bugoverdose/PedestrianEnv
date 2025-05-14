@@ -1,7 +1,4 @@
-import random
-from enum import Enum, auto
-
-def generate_rows(height, max_safe_consecutive=3):
+def generate_rows(height, random, max_safe_consecutive=3):
     roads = [0] # target area is safe
     safe_count = 1
 

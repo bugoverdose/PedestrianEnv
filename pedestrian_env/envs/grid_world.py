@@ -69,7 +69,7 @@ class PedestrianEnv(gym.Env):
         self._agent_location = None
         self._target_locations = None
         self.cars = None
-        self.car_speeds_per_row = generate_rows(self.size)
+        self.car_speeds_per_row = []
 
     def _get_obs(self):
         return {"agent": self._agent_location, "targets": self._target_locations}
@@ -95,6 +95,7 @@ class PedestrianEnv(gym.Env):
             extra_target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
         self._target_locations.append(extra_target_location)
 
+        self.car_speeds_per_row = generate_rows(self.size, self.np_random)
         self.cars = []
         for row_idx in range(self.size):
             car_speed = self.car_speeds_per_row[row_idx]
