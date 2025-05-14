@@ -1,10 +1,22 @@
-# PedestrianEnv
+# Project Pedestrian
 
-## Installation
+## Setup
 
-To install your new environment, run the following commands:
+Install and activate conda environment with following commands
 
-```{shell}
-cd pedestrian_env
-pip install -e .
+```bash
+conda env create -f pedestrian.yml
+conda activate pedestrian
+```
+
+Update dependencies or remove the created environment with following commands
+```bash
+conda env update -f pedestrian.yml
+conda remove -n pedestrian --all
+```
+
+## Play game
+
+```bash
+python main.py
 ```
