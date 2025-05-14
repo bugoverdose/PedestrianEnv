@@ -17,6 +17,9 @@ conda remove -n pedestrian --all
 
 ## Play game
 
+Below are example commands for running the game
+
 ```bash
 python main.py
+python main.py --max_episodes=10 --seed=1000
 ```

@@ -1,5 +1,7 @@
-from pedestrian_env.envs.grid_world import PedestrianEnv, Actions
 import pygame
+import argparse
+
+from pedestrian_env.envs.grid_world import PedestrianEnv, Actions
 
 KEY_ACTION = {
     pygame.K_UP: Actions.up,
@@ -48,4 +50,9 @@ def play_game(seed, max_episodes):
     env.close()
 
 if __name__ == "__main__":
-    play_game(seed=100, max_episodes=5)
+    arg_parser = argparse.ArgumentParser(description="Run for test")
+    arg_parser.add_argument('--seed', type=int, default=1000, help='initial seed used for each episode')
+    arg_parser.add_argument('--max_episodes', type=int, default=10, help='total number of episodes')
+    args = arg_parser.parse_args()
+
+    play_game(seed=args.seed, max_episodes=args.max_episodes)
