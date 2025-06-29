@@ -67,34 +67,20 @@ class PedestrianEnv(gym.Env):
         self.clock = None
 
         self._agent_location = None
-        self._target_locations = None
         self.world = None
 
     def _get_obs(self):
         return {"agent": self._agent_location, "targets": self._target_locations}
 
     def _get_info(self):
-        return {
-            "distance": max([np.linalg.norm(self._agent_location - target, ord=1) for target in self._target_locations])
-        }
+        return {}
+
 
     def reset(self, seed=None, options=None):
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
 
         self._agent_location = np.array([int(self.width / 2), self.height - 1], dtype=int)
-
-        self._target_locations = []
-        for i in range(3):
-            self._target_locations.append(np.array([int(self.width / 2) + i - 1, 0], dtype=int))
-
-        extra_target_location = self._agent_location
-        while np.array_equal(extra_target_location, self._agent_location):
-            extra_target_location = np.array([
-                self.np_random.integers(0, self.width, size=1, dtype=int)[0],
-                self.np_random.integers(0, self.height, size=1, dtype=int)[0]
-            ])
-        self._target_locations.append(extra_target_location)
 
         self.world = World(self.width, self.height, self.pix_square_size, self.np_random)
 
@@ -116,13 +102,12 @@ class PedestrianEnv(gym.Env):
         self._agent_location = np.clip(self._agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
         if self.has_collided():
-            terminated = 1
+            terminated = True
             reward = -10
         else:
-            # An episode is done iff the agent has reached the target
-            terminated = 0
-            for target_location in self._target_locations:
-                terminated += np.array_equal(self._agent_location, target_location)
+            # An episode is done iff the agent has reached the target lane
+            cur_y = self._agent_location[1]
+            terminated = cur_y == 0
             reward = 1 if terminated else 0
 
         observation = self._get_obs()
@@ -151,17 +136,6 @@ class PedestrianEnv(gym.Env):
 
         canvas = pygame.Surface((self.window_size, self.window_size))
         canvas.fill((255, 255, 255))
-
-        # First we draw the targets
-        for target_location in self._target_locations:
-            pygame.draw.rect(
-                canvas,
-                (255, 0, 0),
-                pygame.Rect(
-                    self.pix_square_size * target_location,
-                    (self.pix_square_size, self.pix_square_size),
-                ),
-            )
 
         # Now we draw the agent
         pygame.draw.circle(
