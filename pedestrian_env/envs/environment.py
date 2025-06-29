@@ -1,17 +1,11 @@
-from enum import Enum
 import gymnasium as gym
 from gymnasium import spaces
 import pygame
 import numpy as np
 
+from pedestrian_env.envs.action import Action
 from pedestrian_env.envs.world import World
 
-class Actions(Enum):
-    nothing = 0
-    up = 1
-    down = 2
-    right = 3
-    left = 4
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -46,11 +40,11 @@ class PedestrianEnv(gym.Env):
         i.e. 0 corresponds to "right", 1 to "up" etc.
         """
         self._action_to_direction = {
-            Actions.nothing: np.array([0, 0]),
-            Actions.up: np.array([0, -1]),
-            Actions.down: np.array([0, 1]),
-            Actions.right: np.array([1, 0]),
-            Actions.left: np.array([-1, 0]),
+            Action.nothing: np.array([0, 0]),
+            Action.up: np.array([0, -1]),
+            Action.down: np.array([0, 1]),
+            Action.right: np.array([1, 0]),
+            Action.left: np.array([-1, 0]),
         }
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]

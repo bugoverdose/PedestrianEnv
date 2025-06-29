@@ -1,18 +1,19 @@
 import pygame
 import argparse
 
-from pedestrian_env.envs.environment import PedestrianEnv, Actions
+from pedestrian_env.envs.environment import PedestrianEnv
+from pedestrian_env.envs.action import Action
 
 KEY_ACTION = {
-    pygame.K_UP: Actions.up,
-    pygame.K_DOWN: Actions.down,
-    pygame.K_RIGHT: Actions.right,
-    pygame.K_LEFT: Actions.left,
+    pygame.K_UP: Action.up,
+    pygame.K_DOWN: Action.down,
+    pygame.K_RIGHT: Action.right,
+    pygame.K_LEFT: Action.left,
 
-    pygame.K_w: Actions.up,
-    pygame.K_s: Actions.down,
-    pygame.K_d: Actions.right,
-    pygame.K_a: Actions.left,
+    pygame.K_w: Action.up,
+    pygame.K_s: Action.down,
+    pygame.K_d: Action.right,
+    pygame.K_a: Action.left,
 }
 
 def play_episode(env, seed):
@@ -20,7 +21,7 @@ def play_episode(env, seed):
     step_ms = 1000 / env.steps_per_second # default: step once every 200ms
     total_elapsed = 0
     elapsed = 0
-    last_action = Actions.nothing
+    last_action = Action.nothing
     while True:
         dt = env.clock_tick()
         elapsed += dt
@@ -31,7 +32,7 @@ def play_episode(env, seed):
             print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
                   f"cur_rewards={obs['cur_rewards']}, total_rewards={obs['total_rewards']}")
             if terminated or truncated: return False
-            last_action = Actions.nothing
+            last_action = Action.nothing
 
         # check if a key was being pressed down (needed for continuous movement)
         keys = pygame.key.get_pressed()
@@ -43,11 +44,11 @@ def play_episode(env, seed):
             # close window to finish early
             if event.type == pygame.QUIT: return True
 
-            if last_action == Actions.nothing:
+            if last_action == Action.nothing:
                 # check if started to press a key (needed for instant start)
                 if event.type == pygame.KEYDOWN:
-                    last_action = KEY_ACTION.get(event.key, Actions.nothing)
-                    if last_action != Actions.nothing: break
+                    last_action = KEY_ACTION.get(event.key, Action.nothing)
+                    if last_action != Action.nothing: break
             # else:
             #     # check if stopped to press a key (needed for instant stop)
             #     if event.type == pygame.KEYUP and KEY_ACTION.get(event.key) == last_action:
