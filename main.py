@@ -39,19 +39,21 @@ def play_episode(env, seed):
             if keys[key]:
                 last_action = action
                 break
-
         for event in pygame.event.get():
             # close window to finish early
             if event.type == pygame.QUIT: return True
 
             if last_action == Actions.nothing:
-                # check if started to press a key (needed for abrupt start)
+                # check if started to press a key (needed for instant start)
                 if event.type == pygame.KEYDOWN:
                     last_action = KEY_ACTION.get(event.key, Actions.nothing)
-            else:
-                # check if stopped to press a key (needed for abrupt stop)
-                if event.type == pygame.KEYUP and KEY_ACTION.get(event.key) == last_action:
-                    last_action = Actions.nothing
+                    if last_action != Actions.nothing: break
+            # else:
+            #     # check if stopped to press a key (needed for instant stop)
+            #     if event.type == pygame.KEYUP and KEY_ACTION.get(event.key) == last_action:
+            #         last_action = Actions.nothing
+            #         print("KEYUP")
+            #         break
 
         # constant rendering
         env.render()
