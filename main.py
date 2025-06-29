@@ -28,7 +28,8 @@ def play_episode(env, seed):
         while elapsed >= step_ms:
             elapsed -= step_ms
             obs, reward, terminated, truncated, info = env.step(last_action)
-            print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}")
+            print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
+                  f"cur_rewards={obs['cur_rewards']}, total_rewards={obs['total_rewards']}")
             if terminated or truncated: return False
             last_action = Actions.nothing
 

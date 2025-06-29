@@ -66,21 +66,47 @@ class PedestrianEnv(gym.Env):
         self.window = None
         self.clock = None
 
+        self._initial_player_y = None
         self._agent_location = None
         self.world = None
 
+        self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
+        self.cur_rewards = 0 # reward from the current ongoing episode
+
+    def _total_rewards(self):
+        return self.prev_rewards + self.cur_rewards
+
     def _get_obs(self):
-        return {"agent": self._agent_location, "targets": self._target_locations}
+        """
+        Returns:
+            observation (ObsType): An element of the environment's :attr:`observation_space` as the next observation due to the agent actions.
+                An example is a numpy array containing the positions and velocities of the pole in CartPole.
+        """
+        return {"agent": self._agent_location, "cur_rewards": self.cur_rewards, "total_rewards": self._total_rewards()}
 
     def _get_info(self):
+        """
+        Returns:
+            info (dict): Contains auxiliary diagnostic information (helpful for debugging, learning, and logging).
+                This might, for instance, contain: metrics that describe the agent's performance state, variables that are
+                hidden from observations, or individual reward terms that are combined to produce the total reward.
+                In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
+                however this is deprecated in favour of returning terminated and truncated variables.
+        """
         return {}
 
+    def _calculate_up_rewards(self):
+        return self._initial_player_y - self._agent_location[1]
 
     def reset(self, seed=None, options=None):
-        # We need the following line to seed self.np_random
+        # NOTE: following line is needed for self.np_random
         super().reset(seed=seed)
 
+        self.prev_rewards += self.cur_rewards
+        self.cur_rewards = 0
+
         self._agent_location = np.array([int(self.width / 2), self.height - 1], dtype=int)
+        self._initial_player_y = self._agent_location[1]
 
         self.world = World(self.width, self.height, self.pix_square_size, self.np_random)
 
@@ -93,22 +119,53 @@ class PedestrianEnv(gym.Env):
         return observation, info
 
     def step(self, action):
+        """Run one timestep of the environment's dynamics using the agent actions.
+
+        When the end of an episode is reached (``terminated or truncated``), it is necessary to call `reset` to
+        reset this environment's state for the next episode.
+
+        Args:
+            action (ActType): an action provided by the agent to update the environment state.
+
+        Returns:
+            observation (ObsType): An element of the environment's :attr:`observation_space` as the next observation due to the agent actions.
+                An example is a numpy array containing the positions and velocities of the pole in CartPole.
+            reward (SupportsFloat): The reward as a result of taking the action.
+            terminated (bool): Whether the agent reaches the terminal state (as defined under the MDP of the task)
+                which can be positive or negative. An example is reaching the goal state or moving into the lava from
+                the Sutton and Barto Gridworld. If true, the user needs to call :meth:`reset`.
+            truncated (bool): Whether the truncation condition outside the scope of the MDP is satisfied.
+                Typically, this is a timelimit, but could also be used to indicate an agent physically going out of bounds.
+                Can be used to end the episode prematurely before a terminal state is reached.
+                If true, the user needs to call :meth:`reset`.
+            info (dict): Contains auxiliary diagnostic information (helpful for debugging, learning, and logging).
+                This might, for instance, contain: metrics that describe the agent's performance state, variables that are
+                hidden from observations, or individual reward terms that are combined to produce the total reward.
+                In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
+                however this is deprecated in favour of returning terminated and truncated variables.
+        """
         for car in self.world.cars:
             car.move(self.width)
 
-        # Map the action (element of {0,1,2,3}) to the direction we walk in
+        prev_up_rewards = self._calculate_up_rewards()
+        # Map the action to the direction we walk in
         direction = self._action_to_direction[action]
         # We use `np.clip` to make sure we don't leave the grid
         self._agent_location = np.clip(self._agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
+        cur_up_rewards = self._calculate_up_rewards()
+        reward = cur_up_rewards - prev_up_rewards
         if self.has_collided():
             terminated = True
-            reward = -10
+            reward -= 1000
         else:
-            # An episode is done iff the agent has reached the target lane
+            # An episode is finished if the agent has reached the target lane
             cur_y = self._agent_location[1]
             terminated = cur_y == 0
-            reward = 1 if terminated else 0
+            if terminated:
+                reward += 100
+
+        self.cur_rewards += reward
 
         observation = self._get_obs()
         info = self._get_info()
