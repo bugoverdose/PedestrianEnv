@@ -24,7 +24,7 @@ class PedestrianEnv(gym.Env):
         self.window_size = 512  # The size of the PyGame window
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
-        self.metadata["render_fps"] = steps_per_second * 5 # render multiple times between each step
+        self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         # TODO: change for width != height
         self.pix_square_size = (self.window_size / max(self.width, self.height)) # The size of a single grid square in pixels
 

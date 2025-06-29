@@ -33,12 +33,25 @@ def play_episode(env, seed):
             if terminated or truncated: return False
             last_action = Actions.nothing
 
+        # check if a key was being pressed down (needed for continuous movement)
+        keys = pygame.key.get_pressed()
+        for key, action in KEY_ACTION.items():
+            if keys[key]:
+                last_action = action
+                break
+
         for event in pygame.event.get():
             # close window to finish early
             if event.type == pygame.QUIT: return True
 
-            if event.type == pygame.KEYDOWN:
-                last_action = KEY_ACTION.get(event.key, Actions.nothing)
+            if last_action == Actions.nothing:
+                # check if started to press a key (needed for abrupt start)
+                if event.type == pygame.KEYDOWN:
+                    last_action = KEY_ACTION.get(event.key, Actions.nothing)
+            else:
+                # check if stopped to press a key (needed for abrupt stop)
+                if event.type == pygame.KEYUP and KEY_ACTION.get(event.key) == last_action:
+                    last_action = Actions.nothing
 
         # constant rendering
         env.render()
