@@ -1,7 +1,7 @@
 import pygame
 import argparse
 
-from pedestrian_env.envs.grid_world import PedestrianEnv, Actions
+from pedestrian_env.envs.environment import PedestrianEnv, Actions
 
 KEY_ACTION = {
     pygame.K_UP: Actions.up,
