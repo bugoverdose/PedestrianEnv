@@ -77,20 +77,21 @@ class Agent(GameObject):
 class Car(GameObject):
     WIDTHS = [4, 5, 6]
     HEIGHT = 3 # NOTE: must be an odd number
+    HEIGHT_BUFFER = 0.1
 
     def __init__(self, initial_x, initial_y, car_width, speed, map_grid_width, pix_square_size, steps_per_second):
         super().__init__(speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_width
         self.width = self.car_grid_width * pix_square_size
-        self.height = self.HEIGHT * pix_square_size
+        self.height = (self.HEIGHT - 2 * self.HEIGHT_BUFFER) * pix_square_size
         self.color = (255, 0, 0)
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
         right_x = self.cur_location[0] + (self.car_grid_width/2)
-        top_y = self.cur_location[1] - (self.HEIGHT/2)
-        bottom_y = self.cur_location[1] + (self.HEIGHT/2)
+        top_y = self.cur_location[1] - (self.HEIGHT/2 - self.HEIGHT_BUFFER)
+        bottom_y = self.cur_location[1] + (self.HEIGHT/2 - self.HEIGHT_BUFFER)
         return left_x, right_x, top_y, bottom_y
 
     def update_target(self):
