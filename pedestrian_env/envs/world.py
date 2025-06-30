@@ -11,7 +11,7 @@ class RowType(Enum):
     CAR_GOING_LEFT = 3
 
 class World:
-    def __init__(self, grid_width, grid_height, pix_square_size, steps_per_second, random):
+    def __init__(self, grid_width, grid_height, pix_square_size, steps_per_second, random, debug):
         self.random = random
         self.grid_width = grid_width
         self.grid_height = grid_height
@@ -20,7 +20,7 @@ class World:
         self.map_height = self.grid_height * self.pix_square_size
 
         self.steps_per_second = steps_per_second
-        self.agent = Agent(grid_width, grid_height, pix_square_size, steps_per_second)
+        self.agent = Agent(grid_width, grid_height, pix_square_size, steps_per_second, debug)
         self.initial_player_y = self.agent.get_cur_y()
 
         self.row_types, self.safe_row_idx_list, self.lane_boundary_idx_list = self._generate_rows(grid_height)

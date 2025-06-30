@@ -60,8 +60,8 @@ def play_episode(env, seed):
         env.update_positions(dt)
         env.render()
 
-def play_game(seed, max_episodes):
-    env = PedestrianEnv(render_mode="human", width=20, height=20, camera_size=7, steps_per_second=10)
+def play_game(seed, max_episodes, debug):
+    env = PedestrianEnv(render_mode="human", width=20, height=20, camera_size=7, steps_per_second=10, debug=debug)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i)
         if quit_game: break
@@ -69,8 +69,9 @@ def play_game(seed, max_episodes):
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Run for test")
+    arg_parser.add_argument('--debug', action='store_true', help='enable debugging mode')
     arg_parser.add_argument('--seed', type=int, default=1000, help='initial seed used for each episode')
     arg_parser.add_argument('--max_episodes', type=int, default=10, help='total number of episodes')
     args = arg_parser.parse_args()
 
-    play_game(seed=args.seed, max_episodes=args.max_episodes)
+    play_game(seed=args.seed, max_episodes=args.max_episodes, debug=args.debug)

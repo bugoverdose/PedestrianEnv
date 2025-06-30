@@ -36,8 +36,10 @@ class GameObject:
 class Agent(GameObject):
     TARGET_LANE = 0
 
-    def __init__(self, width, height, pix_square_size, steps_per_second):
-        speed = 10 # 1 # NOTE: fast for development. change on actual run.
+    def __init__(self, width, height, pix_square_size, steps_per_second, debug):
+        speed = 2
+        if debug:
+            speed = 10
         super().__init__(speed, np.array([int(width / 2), height - 1], dtype=float), pix_square_size, steps_per_second)
         self.radius = 1/3
 
