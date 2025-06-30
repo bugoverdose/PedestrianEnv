@@ -106,11 +106,16 @@ class World:
     def _generate_cars(self, map_grid_width, map_grid_height, pix_square_size):
         cars = []
         for row_idx in range(map_grid_height):
+            is_right_car = self.row_types[row_idx] == RowType.CAR_GOING_RIGHT
+            is_left_car = self.row_types[row_idx] == RowType.CAR_GOING_LEFT
+            if not is_right_car and not is_left_car: continue
+
             initial_x = self.random.integers(0, map_grid_width)
-            if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT:
-                cars.append(Car(initial_x, row_idx, 1, map_grid_width, pix_square_size, self.steps_per_second))
-            elif self.row_types[row_idx] == RowType.CAR_GOING_LEFT:
-                cars.append(Car(initial_x, row_idx, -1, map_grid_width, pix_square_size, self.steps_per_second))
+            width = self.random.choice(Car.WIDTHS)
+            if is_right_car:
+                cars.append(Car(initial_x, row_idx, width, 1, map_grid_width, pix_square_size, self.steps_per_second))
+            else:
+                cars.append(Car(initial_x, row_idx, width, -1, map_grid_width, pix_square_size, self.steps_per_second))
         return cars
 
     def _check_collision(self, car):

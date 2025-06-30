@@ -17,7 +17,7 @@ class PedestrianEnv(gym.Env):
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
-        base_window_size = 1024
+        base_window_size = 2048
         self.pix_square_size = (base_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
         self.camera_size = camera_size * self.pix_square_size
         self.map_width = self.map_grid_width * self.pix_square_size

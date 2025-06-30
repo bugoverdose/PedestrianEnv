@@ -59,8 +59,8 @@ class Agent(GameObject):
     def update_target(self, direction):
         delta = direction * (self.speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
-                                       [1 + Car.WIDTH, self.TARGET_LANE],
-                                       [self.map_grid_width - 1 - Car.WIDTH, self.map_grid_height - 1])
+                                       [1 + max(Car.WIDTHS), self.TARGET_LANE],
+                                       [self.map_grid_width - 1 - max(Car.WIDTHS), self.map_grid_height - 1])
 
     def render(self, background):
         agent_center_x = self.cur_location[0] * self.pix_square_size
@@ -75,19 +75,20 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
-    WIDTH = 4
+    WIDTHS = [4, 5, 6]
     HEIGHT = 3 # NOTE: must be an odd number
 
-    def __init__(self, initial_x, initial_y, speed, map_grid_width, pix_square_size, steps_per_second):
+    def __init__(self, initial_x, initial_y, car_width, speed, map_grid_width, pix_square_size, steps_per_second):
         super().__init__(speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width
-        self.width = self.WIDTH * pix_square_size
+        self.car_grid_width = car_width
+        self.width = self.car_grid_width * pix_square_size
         self.height = self.HEIGHT * pix_square_size
         self.color = (255, 0, 0)
 
     def get_cur_pos(self):
-        left_x = self.cur_location[0] - (self.WIDTH/2)
-        right_x = self.cur_location[0] + (self.WIDTH/2)
+        left_x = self.cur_location[0] - (self.car_grid_width/2)
+        right_x = self.cur_location[0] + (self.car_grid_width/2)
         top_y = self.cur_location[1] - (self.HEIGHT/2)
         bottom_y = self.cur_location[1] + (self.HEIGHT/2)
         return left_x, right_x, top_y, bottom_y
