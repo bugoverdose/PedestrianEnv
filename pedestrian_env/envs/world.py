@@ -23,7 +23,7 @@ class World:
         self.agent = Agent(grid_width, grid_height, pix_square_size, steps_per_second)
         self.initial_player_y = self.agent.get_cur_y()
 
-        self.row_types = self._generate_rows(grid_height)
+        self.row_types, self.safe_row_idx_list, self.lane_boundary_idx_list = self._generate_rows(grid_height)
         self.cars = self._generate_cars(grid_width, grid_height, pix_square_size)
 
     def target_lane_reached(self):
@@ -46,26 +46,21 @@ class World:
 
     def render(self):
         canvas = pygame.Surface((self.map_width, self.map_height))
-        canvas.fill((255, 255, 255))
+        canvas.fill((89, 89, 89))
 
-        # add gridlines
         adjustment = 0.5 * self.pix_square_size
-        for x in range(self.grid_height + 2):
-            pygame.draw.line(
-                canvas,
-                0,
-                (0, self.pix_square_size * x + adjustment),
-                (self.map_width, self.pix_square_size * x + adjustment),
-                width=3,
-            )
-        for y in range(self.grid_width + 2):
-            pygame.draw.line(
-                canvas,
-                0,
-                (self.pix_square_size * y - adjustment, 0),
-                (self.pix_square_size * y - adjustment, self.map_height),
-                width=3,
-            )
+        for safe_row_idx in self.safe_row_idx_list:
+            pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size))
+
+        for boundary_idx in self.lane_boundary_idx_list:
+            for x in range(0, self.grid_width, 3):
+                pygame.draw.line(
+                    canvas,
+                    (250, 250, 250),
+                    (x * self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
+                    (x * self.pix_square_size + self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
+                    width=3,
+                )
 
         rendered_agent_position = self.agent.render(canvas)
         for car in self.cars:
@@ -91,7 +86,22 @@ class World:
                     continue
             rows.append(RowType.SAFE)
             consecutive_danger_lanes = 0
-        return [RowType.SAFE] + rows + [RowType.SAFE] # target area + lanes + starting area
+
+        total_rows = [RowType.SAFE] + rows + [RowType.SAFE] # target area + lanes + starting area
+
+        safe_row_idx_list = []
+        for idx in range(len(total_rows)):
+            if total_rows[idx] == RowType.SAFE:
+                safe_row_idx_list.append(idx)
+
+        lane_boundary_idx_list = []
+        for idx in range(1, len(total_rows)):
+            if total_rows[idx] != RowType.SAFE:
+                lane_boundary_idx_list.append(idx)
+            elif total_rows[idx] == RowType.SAFE and total_rows[idx-1] != RowType.SAFE:
+                lane_boundary_idx_list.pop()
+
+        return total_rows, safe_row_idx_list, lane_boundary_idx_list
 
     def _generate_cars(self, grid_width, grid_height, pix_square_size):
         cars = []
