@@ -3,7 +3,7 @@ from gymnasium import spaces
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.action import Action
+from pedestrian_env.envs.action import Action, ACTION_TO_DELTA
 from pedestrian_env.envs.world import World
 
 
@@ -11,7 +11,7 @@ class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
 
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=10, render_mode=None, tick_on_render=False, steps_per_second = 5):
-        if width < 5: raise Exception("size can not be less than 5")
+        if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
         self.width = width  # max width of the world
         self.height = height  # max height of the world
@@ -35,19 +35,6 @@ class PedestrianEnv(gym.Env):
         )
 
         self.action_space = spaces.Discrete(5)
-
-        """
-        The following dictionary maps abstract actions from `self.action_space` to 
-        the direction we will walk in if that action is taken.
-        i.e. 0 corresponds to "right", 1 to "up" etc.
-        """
-        self._action_to_direction = {
-            Action.nothing: np.array([0, 0]),
-            Action.up: np.array([0, -1]),
-            Action.down: np.array([0, 1]),
-            Action.right: np.array([1, 0]),
-            Action.left: np.array([-1, 0]),
-        }
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -137,7 +124,7 @@ class PedestrianEnv(gym.Env):
 
         prev_up_rewards = self.world.calculate_up_rewards()
         # Map the action to the direction we walk in
-        direction = self._action_to_direction[action]
+        direction = ACTION_TO_DELTA[action]
         # We use `np.clip` to make sure we don't leave the grid
         self.world.agent_location = np.clip(self.world.agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
@@ -208,7 +195,7 @@ class PedestrianEnv(gym.Env):
 
         camera_rect = pygame.Rect(0, 0, self.camera_size, self.camera_size)
         camera_rect.center = agent_position
-        camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from, going out-of-bounds
+        camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
