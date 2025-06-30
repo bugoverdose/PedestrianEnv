@@ -10,7 +10,7 @@ from pedestrian_env.envs.world import World
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
 
-    def __init__(self, width=10, height=10, title="Pedestrian Task", render_mode=None, tick_on_render=False, steps_per_second = 5):
+    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=10, render_mode=None, tick_on_render=False, steps_per_second = 5):
         if width < 5: raise Exception("size can not be less than 5")
         self.title = title
         self.width = width  # max width of the world
@@ -18,8 +18,9 @@ class PedestrianEnv(gym.Env):
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
-        self.window_size = 1024  # The size of the PyGame window
-        self.pix_square_size = (self.window_size / max(self.width, self.height)) # The size of a single grid square in pixels
+        base_window_size = 1024
+        self.pix_square_size = (base_window_size / max(self.width, self.height)) # The size of a single grid square in pixels
+        self.camera_size = camera_size * self.pix_square_size
         self.map_width = self.width * self.pix_square_size
         self.map_height = self.height * self.pix_square_size
 
@@ -168,7 +169,7 @@ class PedestrianEnv(gym.Env):
             pygame.init()
             pygame.display.set_caption(self.title)
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.map_width, self.map_height))
+            self.window = pygame.display.set_mode((self.camera_size, self.camera_size))
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
@@ -176,10 +177,11 @@ class PedestrianEnv(gym.Env):
         canvas.fill((255, 255, 255))
 
         # Now we draw the agent
+        agent_position = (self.world.agent_location + 0.5) * self.pix_square_size
         pygame.draw.circle(
             canvas,
             (0, 0, 255),
-            (self.world.agent_location + 0.5) * self.pix_square_size,
+            agent_position,
             self.pix_square_size / 3,
         )
 
@@ -204,9 +206,14 @@ class PedestrianEnv(gym.Env):
                 width=3,
             )
 
+        camera_rect = pygame.Rect(0, 0, self.camera_size, self.camera_size)
+        camera_rect.center = agent_position
+        camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from, going out-of-bounds
+
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, canvas.get_rect())
+            self.window.blit(canvas, (0, 0), area=camera_rect)
+
             pygame.event.pump()
             pygame.display.update()
 
