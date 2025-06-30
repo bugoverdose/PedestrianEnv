@@ -1,10 +1,28 @@
+import numpy as np
+
 from pedestrian_env.envs.game_object import Car
 
 class World:
     def __init__(self, width, height, pix_square_size, random):
         self.random = random
+
+        self.agent_location = np.array([int(width / 2), height - 1], dtype=int)
+        self.initial_player_y = self.get_agent_cur_y()
+
         self.car_speeds_per_row = self._generate_rows(height)
         self.cars = self._generate_cars(width, height, pix_square_size)
+
+    def get_agent_cur_y(self):
+        return self.agent_location[1]
+
+    def calculate_up_rewards(self):
+        return self.initial_player_y - self.agent_location[1]
+
+    def has_collided(self):
+        for car in self.cars:
+            if np.array_equal(self.agent_location, [car.x, car.y]):
+                return True
+        return False
 
     def _generate_rows(self, height, max_safe_consecutive=3):
         rows = [0] # target area is safe

@@ -60,8 +60,6 @@ class PedestrianEnv(gym.Env):
         self.window = None
         self.clock = None
 
-        self._initial_player_y = None
-        self._agent_location = None
         self.world = None
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
@@ -76,7 +74,7 @@ class PedestrianEnv(gym.Env):
             observation (ObsType): An element of the environment's :attr:`observation_space` as the next observation due to the agent actions.
                 An example is a numpy array containing the positions and velocities of the pole in CartPole.
         """
-        return {"agent": self._agent_location, "cur_rewards": self.cur_rewards, "total_rewards": self._total_rewards()}
+        return {"agent": self.world.agent_location, "cur_rewards": self.cur_rewards, "total_rewards": self._total_rewards()}
 
     def _get_info(self):
         """
@@ -89,18 +87,12 @@ class PedestrianEnv(gym.Env):
         """
         return {}
 
-    def _calculate_up_rewards(self):
-        return self._initial_player_y - self._agent_location[1]
-
     def reset(self, seed=None, options=None):
         # NOTE: following line is needed for self.np_random
         super().reset(seed=seed)
 
         self.prev_rewards += self.cur_rewards
         self.cur_rewards = 0
-
-        self._agent_location = np.array([int(self.width / 2), self.height - 1], dtype=int)
-        self._initial_player_y = self._agent_location[1]
 
         self.world = World(self.width, self.height, self.pix_square_size, self.np_random)
 
@@ -141,20 +133,20 @@ class PedestrianEnv(gym.Env):
         for car in self.world.cars:
             car.move(self.width)
 
-        prev_up_rewards = self._calculate_up_rewards()
+        prev_up_rewards = self.world.calculate_up_rewards()
         # Map the action to the direction we walk in
         direction = self._action_to_direction[action]
         # We use `np.clip` to make sure we don't leave the grid
-        self._agent_location = np.clip(self._agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
+        self.world.agent_location = np.clip(self.world.agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
-        cur_up_rewards = self._calculate_up_rewards()
+        cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
-        if self.has_collided():
+        if self.world.has_collided():
             terminated = True
             reward -= 1000
         else:
             # An episode is finished if the agent has reached the target lane
-            cur_y = self._agent_location[1]
+            cur_y = self.world.get_agent_cur_y()
             terminated = cur_y == 0
             if terminated:
                 reward += 100
@@ -168,12 +160,6 @@ class PedestrianEnv(gym.Env):
             self.render()
 
         return observation, reward, terminated, False, info
-
-    def has_collided(self):
-        for car in self.world.cars:
-            if np.array_equal(self._agent_location, [car.x, car.y]):
-                return True
-        return False
 
     def render(self):
         if self.render_mode is None: return
@@ -192,7 +178,7 @@ class PedestrianEnv(gym.Env):
         pygame.draw.circle(
             canvas,
             (0, 0, 255),
-            (self._agent_location + 0.5) * self.pix_square_size,
+            (self.world.agent_location + 0.5) * self.pix_square_size,
             self.pix_square_size / 3,
         )
 
