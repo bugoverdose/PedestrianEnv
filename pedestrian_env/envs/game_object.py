@@ -1,4 +1,48 @@
 import pygame
+import numpy as np
+
+class Agent:
+
+    def __init__(self, width, height, pix_square_size):
+        self.cur_location = np.array([int(width / 2), height - 1], dtype=float)
+        self.target_location = self.cur_location
+        self.pix_square_size = pix_square_size
+
+    def get_cur_y(self):
+        return self.cur_location[1]
+
+    def update_position(self, dt):
+        agent_speed = 1.0
+        tx, ty = self.target_location
+        cx, cy = self.cur_location
+
+        dx = tx - cx
+        dy = ty - cy
+        if abs(dx) < 0.1:
+            self.cur_location[0] = tx
+            dx = 0
+        if abs(dy) < 0.1:
+            self.cur_location[1] = ty
+            dy = 0
+        if dx == 0 and dy == 0: return
+
+        step_dist = agent_speed * (dt / 1000.0) # dt in ms
+        dist = (dx ** 2 + dy ** 2) ** 0.5
+        ratio = min(1.0, step_dist / dist)
+        self.cur_location[0] += dx * ratio
+        self.cur_location[1] += dy * ratio
+
+    def render(self, background):
+        agent_x = (self.cur_location[0] + 0.5) * self.pix_square_size
+        agent_y = (self.cur_location[1] + 0.5) * self.pix_square_size
+        agent_position = (agent_x, agent_y)
+        pygame.draw.circle(
+            background,
+            (0, 0, 255),
+            agent_position,
+            self.pix_square_size / 3,
+        )
+        return agent_position
 
 class GameObject:
 
@@ -15,7 +59,7 @@ class GameObject:
         self.pix_square_size = pix_square_size
 
     def render(self, background):
-        background.blit(self.image, (self.x * self.pix_square_size, self.y * self.pix_square_size))
+        pass
 
 class Car(GameObject):
 
@@ -35,3 +79,6 @@ class Car(GameObject):
 
     def __str__(self):
         return f"Car{self.object_id}: type={self.car_type}, cur_pos=({self.x, self.y})"
+
+    def render(self, background):
+        background.blit(self.image, (self.x * self.pix_square_size, self.y * self.pix_square_size))

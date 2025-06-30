@@ -63,7 +63,7 @@ class PedestrianEnv(gym.Env):
             observation (ObsType): An element of the environment's :attr:`observation_space` as the next observation due to the agent actions.
                 An example is a numpy array containing the positions and velocities of the pole in CartPole.
         """
-        return {"agent": self.world.agent_location, "cur_rewards": self.cur_rewards, "total_rewards": self._total_rewards()}
+        return {"agent": self.world.agent.cur_location, "cur_rewards": self.cur_rewards, "total_rewards": self._total_rewards()}
 
     def _get_info(self):
         """
@@ -126,7 +126,7 @@ class PedestrianEnv(gym.Env):
         # Map the action to the direction we walk in
         direction = ACTION_TO_DELTA[action]
         # We use `np.clip` to make sure we don't leave the grid
-        self.world.agent_target_location = np.clip(self.world.agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
+        self.world.agent.target_location = np.clip(self.world.agent.cur_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
@@ -135,8 +135,7 @@ class PedestrianEnv(gym.Env):
             reward -= 1000
         else:
             # An episode is finished if the agent has reached the target lane
-            cur_y = self.world.get_agent_cur_y()
-            terminated = cur_y == 0
+            terminated = self.world.target_lane_reached()
             if terminated:
                 reward += 100
 
@@ -166,17 +165,7 @@ class PedestrianEnv(gym.Env):
         canvas = pygame.Surface((self.map_width, self.map_height))
         canvas.fill((255, 255, 255))
 
-        # Now we draw the agent
-        agent_x = (self.world.agent_location[0] + 0.5) * self.pix_square_size
-        agent_y = (self.world.agent_location[1] + 0.5) * self.pix_square_size
-        agent_position = (agent_x, agent_y) # agent_position = (self.world.agent_location + 0.5) * self.pix_square_size
-        pygame.draw.circle(
-            canvas,
-            (0, 0, 255),
-            agent_position,
-            self.pix_square_size / 3,
-        )
-
+        rendered_agent_position = self.world.agent.render(canvas)
         for car in self.world.cars:
             car.render(canvas)
 
@@ -199,7 +188,7 @@ class PedestrianEnv(gym.Env):
             )
 
         camera_rect = pygame.Rect(0, 0, self.camera_size, self.camera_size)
-        camera_rect.center = agent_position
+        camera_rect.center = rendered_agent_position
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         if self.render_mode == "human":

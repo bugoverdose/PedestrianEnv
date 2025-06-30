@@ -1,50 +1,30 @@
 import numpy as np
 
-from pedestrian_env.envs.game_object import Car
+from pedestrian_env.envs.game_object import Agent, Car
 
 class World:
     def __init__(self, width, height, pix_square_size, random):
         self.random = random
-
-        self.agent_location = np.array([int(width / 2), height - 1], dtype=float)
-        self.agent_target_location = self.agent_location
-        self.initial_player_y = self.get_agent_cur_y()
+        self.agent = Agent(width, height, pix_square_size)
+        self.initial_player_y = self.agent.get_cur_y()
 
         self.car_speeds_per_row = self._generate_rows(height)
         self.cars = self._generate_cars(width, height, pix_square_size)
 
+    def target_lane_reached(self):
+        cur_y = self.agent.get_cur_y()
+        return cur_y == 0
+
     def update_positions(self, dt):
-        agent_speed = 1.0
-        tx, ty = self.agent_target_location
-        cx, cy = self.agent_location
-
-        dx = tx - cx
-        dy = ty - cy
-        if abs(dx) < 0.1:
-            self.agent_location[0] = tx
-            dx = 0
-        if abs(dy) < 0.1:
-            self.agent_location[1] = ty
-            dy = 0
-        if dx == 0 and dy == 0: return
-
-        step_dist = agent_speed * (dt / 1000.0) # dt in ms
-        dist = (dx ** 2 + dy ** 2) ** 0.5
-        ratio = min(1.0, step_dist / dist)
-        if dx != 0:
-            self.agent_location[0] += dx * ratio
-        if dy != 0:
-            self.agent_location[1] += dy * ratio
-
-    def get_agent_cur_y(self):
-        return self.agent_location[1]
+        self.agent.update_position(dt)
 
     def calculate_up_rewards(self):
-        return self.initial_player_y - self.agent_location[1]
+        return self.initial_player_y - self.agent.get_cur_y()
 
+    # TODO: fix bug after vehicle re-implementation
     def has_collided(self):
         for car in self.cars:
-            if np.array_equal(self.agent_location, [car.x, car.y]):
+            if np.array_equal(self.agent.cur_location, [car.x, car.y]):
                 return True
         return False
 
