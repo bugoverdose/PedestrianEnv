@@ -10,17 +10,18 @@ from pedestrian_env.envs.world import World
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
 
-    def __init__(self, title="Pedestrian Task", render_mode=None, size=5, tick_on_render=False, steps_per_second = 5):
-        if size < 5: raise Exception("size can not be less than 5")
+    def __init__(self, width=10, height=10, title="Pedestrian Task", render_mode=None, tick_on_render=False, steps_per_second = 5):
+        if width < 5: raise Exception("size can not be less than 5")
         self.title = title
-        self.width = size  # max width of the world
-        self.height = size  # max height of the world
-        self.window_size = 512  # The size of the PyGame window
+        self.width = width  # max width of the world
+        self.height = height  # max height of the world
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
-        # TODO: change for width != height
+        self.window_size = 1024  # The size of the PyGame window
         self.pix_square_size = (self.window_size / max(self.width, self.height)) # The size of a single grid square in pixels
+        self.map_width = self.width * self.pix_square_size
+        self.map_height = self.height * self.pix_square_size
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2,
@@ -167,11 +168,11 @@ class PedestrianEnv(gym.Env):
             pygame.init()
             pygame.display.set_caption(self.title)
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
+            self.window = pygame.display.set_mode((self.map_width, self.map_height))
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
-        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas = pygame.Surface((self.map_width, self.map_height))
         canvas.fill((255, 255, 255))
 
         # Now we draw the agent
@@ -191,7 +192,7 @@ class PedestrianEnv(gym.Env):
                 canvas,
                 0,
                 (0, self.pix_square_size * x),
-                (self.window_size, self.pix_square_size * x),
+                (self.map_width, self.pix_square_size * x),
                 width=3,
             )
         for x in range(self.width + 1):
@@ -199,7 +200,7 @@ class PedestrianEnv(gym.Env):
                 canvas,
                 0,
                 (self.pix_square_size * x, 0),
-                (self.pix_square_size * x, self.window_size),
+                (self.pix_square_size * x, self.map_height),
                 width=3,
             )
 
