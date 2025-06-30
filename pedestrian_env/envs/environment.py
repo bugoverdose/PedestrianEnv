@@ -126,7 +126,7 @@ class PedestrianEnv(gym.Env):
         # Map the action to the direction we walk in
         direction = ACTION_TO_DELTA[action]
         # We use `np.clip` to make sure we don't leave the grid
-        self.world.agent_location = np.clip(self.world.agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
+        self.world.agent_target_location = np.clip(self.world.agent_location + direction, [0, 0], [self.width - 1, self.height - 1])
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
@@ -150,6 +150,9 @@ class PedestrianEnv(gym.Env):
 
         return observation, reward, terminated, False, info
 
+    def update_positions(self, dt):
+        self.world.update_positions(dt)
+
     def render(self):
         if self.render_mode is None: return
         if self.window is None and self.render_mode == "human":
@@ -164,7 +167,9 @@ class PedestrianEnv(gym.Env):
         canvas.fill((255, 255, 255))
 
         # Now we draw the agent
-        agent_position = (self.world.agent_location + 0.5) * self.pix_square_size
+        agent_x = (self.world.agent_location[0] + 0.5) * self.pix_square_size
+        agent_y = (self.world.agent_location[1] + 0.5) * self.pix_square_size
+        agent_position = (agent_x, agent_y) # agent_position = (self.world.agent_location + 0.5) * self.pix_square_size
         pygame.draw.circle(
             canvas,
             (0, 0, 255),
