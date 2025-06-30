@@ -61,14 +61,16 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
+    WIDTH = 4
+    HEIGHT = 3 # NOTE: must be an odd number
 
-    def __init__(self, x, y, speed, grid_width, pix_square_size, steps_per_second, car_type_seed=0):
-        super().__init__(speed * 0.5, np.array([x, y], dtype=float), pix_square_size, steps_per_second)
+    def __init__(self, initial_x, initial_y, speed, grid_width, pix_square_size, steps_per_second, car_type_seed=0):
+        super().__init__(speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.car_type = (car_type_seed % 12)
 
         self.grid_width = grid_width
-        self.width = pix_square_size
-        self.height = pix_square_size
+        self.width = self.WIDTH * pix_square_size
+        self.height = self.HEIGHT * pix_square_size
 
         self.object_id = id(self) % 1000
         object_image = pygame.image.load(f"sprites/cars/car-side-view{self.car_type}.png")
