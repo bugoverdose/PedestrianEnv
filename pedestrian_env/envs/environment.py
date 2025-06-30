@@ -23,13 +23,14 @@ class PedestrianEnv(gym.Env):
         self.map_width = self.grid_width * self.pix_square_size
         self.map_height = self.grid_height * self.pix_square_size
 
-        # Observations are dictionaries with the agent's and the target's location.
-        # Each location is encoded as an element of {0, ..., `size`}^2,
-        # i.e. MultiDiscrete([size, size]).
         self.observation_space = spaces.Dict(
             {
-                "agent": spaces.Box(low=np.array([0, 0]), high=np.array([self.grid_width - 1, self.grid_height - 1]), dtype=np.int32),
-                "target": spaces.Box(low=np.array([0, 0]), high=np.array([self.grid_width - 1, self.grid_height - 1]), dtype=np.int32),
+                "agent": spaces.Box(
+                    low=np.array([0.0, 0.0]),
+                    high=np.array([self.grid_width, self.grid_height]),
+                    dtype=np.float32 # continuous space
+                ),
+                # TODO: add nearby car info
             }
         )
 
