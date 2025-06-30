@@ -59,8 +59,8 @@ class Agent(GameObject):
     def update_target(self, direction):
         delta = direction * (self.speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
-                                       [1 + max(Car.WIDTHS), self.TARGET_LANE],
-                                       [self.map_grid_width - 1 - max(Car.WIDTHS), self.map_grid_height - 1])
+                                       [1 + Car.MAX_WIDTH, self.TARGET_LANE],
+                                       [self.map_grid_width - 1 - Car.MAX_WIDTH, self.map_grid_height - 1])
 
     def render(self, background):
         agent_center_x = self.cur_location[0] * self.pix_square_size
@@ -75,23 +75,25 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
-    WIDTHS = [4, 5, 6]
-    HEIGHT = 3 # NOTE: must be an odd number
+    MAX_WIDTH = 4
+    MAX_HEIGHT = 2
+    CAR_SIZES = {1: [(1, 1.5), (1,2)], 2: [(2, 2.5), (2,3), (2, 3.5), (2,4)]} # key=height, value=(height, width)
     HEIGHT_BUFFER = 0.1
 
-    def __init__(self, initial_x, initial_y, car_width, speed, map_grid_width, pix_square_size, steps_per_second):
+    def __init__(self, initial_x, initial_y, car_width, car_height, speed, map_grid_width, pix_square_size, steps_per_second):
         super().__init__(speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_width
         self.car_width = self.car_grid_width * pix_square_size
-        self.car_height = (self.HEIGHT - 2 * self.HEIGHT_BUFFER) * pix_square_size
+        self.car_height = car_height - 2 * self.HEIGHT_BUFFER
+        self.car_height_pix = self.car_height * pix_square_size
         self.color = (255, 0, 0)
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
         right_x = self.cur_location[0] + (self.car_grid_width/2)
-        top_y = self.cur_location[1] - (self.HEIGHT/2 - self.HEIGHT_BUFFER)
-        bottom_y = self.cur_location[1] + (self.HEIGHT/2 - self.HEIGHT_BUFFER)
+        top_y = self.cur_location[1] - (self.car_height/2)
+        bottom_y = self.cur_location[1] + (self.car_height/2)
         return left_x, right_x, top_y, bottom_y
 
     def update_target(self):
@@ -110,20 +112,20 @@ class Car(GameObject):
         top_y_pix = top_y * self.pix_square_size
 
         # draw car
-        radius = self.car_height/2
+        radius = self.car_height_pix/2
         rect_width = self.car_width * 1.05 - radius
         if self.speed > 0:
-            car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height)
-            pygame.draw.rect(background, self.color, car_rect, border_radius=30)
-            pygame.draw.circle(background, self.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height / 2)
+            car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height_pix)
+            pygame.draw.rect(background, self.color, car_rect, border_radius=10)
+            pygame.draw.circle(background, self.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
         else:
-            car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height)
-            pygame.draw.rect(background, self.color, car_rect, border_radius=30)
-            pygame.draw.circle(background, self.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height / 2)
+            car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height_pix)
+            pygame.draw.rect(background, self.color, car_rect, border_radius=10)
+            pygame.draw.circle(background, self.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
 
         # draw window
-        window_width = self.HEIGHT/3 * self.pix_square_size
-        window_height = (self.HEIGHT * 0.7) * self.pix_square_size
+        window_width = self.car_height_pix/3
+        window_height = (self.car_height_pix * 0.7)
         if self.speed > 0:
             window_x = (right_x * self.pix_square_size) - window_width - window_width*1
         else:

@@ -6,9 +6,8 @@ from pedestrian_env.envs.game_object import Agent, Car
 
 class RowType(Enum):
     SAFE = 0
-    DANGER = 1
-    CAR_GOING_RIGHT = 2
-    CAR_GOING_LEFT = 3
+    CAR_GOING_RIGHT = 1
+    CAR_GOING_LEFT = 2
 
 class World:
     def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, random, debug):
@@ -23,7 +22,7 @@ class World:
         self.agent = Agent(map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug)
         self.initial_player_y = self.agent.get_cur_y()
 
-        self.row_types, self.safe_row_idx_list, self.lane_boundary_idx_list = self._generate_rows(map_grid_height)
+        self._generate_rows(map_grid_height)
         self.cars = self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
 
     def target_lane_reached(self):
@@ -69,54 +68,75 @@ class World:
 
         return canvas, rendered_agent_position
 
-    def _generate_rows(self, map_grid_height, max_consecutive_danger_lanes=2):
+    def _generate_rows(self, map_grid_height, max_consecutive_danger_lanes=4):
         rows = []
         consecutive_danger_lanes = 0
         while len(rows) < map_grid_height - 2:
             available_rows = (map_grid_height - 2) - len(rows)
-            if available_rows >= Car.HEIGHT and consecutive_danger_lanes < max_consecutive_danger_lanes:
-                row_type = self.random.choice([RowType.SAFE, RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
-                if row_type != RowType.SAFE:
-                    danger_zones = int((Car.HEIGHT - 1) / 2)
-                    for _ in range(danger_zones):
-                        rows.append(RowType.DANGER)
-                    rows.append(row_type)
-                    for _ in range(danger_zones):
-                        rows.append(RowType.DANGER)
-                    consecutive_danger_lanes += 1
+            if available_rows >= Car.MAX_HEIGHT and consecutive_danger_lanes < max_consecutive_danger_lanes:
+                row_type = self.random.choice([RowType.SAFE, 1, 2])
+                if row_type == 1:
+                    rows.append(RowType.CAR_GOING_RIGHT)
+                    rows.append(RowType.CAR_GOING_RIGHT)
+                    consecutive_danger_lanes += 2
+                    continue
+                elif row_type == 2:
+                    rows.append(RowType.CAR_GOING_LEFT)
+                    rows.append(RowType.CAR_GOING_LEFT)
+                    consecutive_danger_lanes += 2
                     continue
             rows.append(RowType.SAFE)
             consecutive_danger_lanes = 0
 
         total_rows = [RowType.SAFE] + rows + [RowType.SAFE] # target area + lanes + starting area
 
-        safe_row_idx_list = []
+        self.safe_row_idx_list = []
         for idx in range(len(total_rows)):
             if total_rows[idx] == RowType.SAFE:
-                safe_row_idx_list.append(idx)
+                self.safe_row_idx_list.append(idx)
 
-        # NOTE: change logic if car height changes
-        lane_boundary_idx_list = []
+        self.lane_boundary_idx_list = []
         for idx in range(len(total_rows)-1):
-            if total_rows[idx] == RowType.DANGER and total_rows[idx+1] == RowType.DANGER:
-                lane_boundary_idx_list.append(idx)
+            if total_rows[idx] != RowType.SAFE and total_rows[idx+1] != RowType.SAFE:
+                self.lane_boundary_idx_list.append(idx)
 
-        return total_rows, safe_row_idx_list, lane_boundary_idx_list
+        self.max_height_dic = {}
+        for row_idx in range(len(total_rows)):
+            if total_rows[row_idx] == RowType.SAFE: continue
+            self.max_height_dic[row_idx] = 1
+            prev_row_idx = row_idx - 1
+            while prev_row_idx >= 0:
+                if total_rows[prev_row_idx] != total_rows[row_idx]: break
+                self.max_height_dic[prev_row_idx] = min(self.max_height_dic[prev_row_idx] + 1, Car.MAX_HEIGHT)
+                prev_row_idx -= 1
+        self.row_types = total_rows
 
     def _generate_cars(self, map_grid_width, map_grid_height, pix_square_size):
         cars = []
         for row_idx in range(map_grid_height):
-            is_right_car = self.row_types[row_idx] == RowType.CAR_GOING_RIGHT
-            is_left_car = self.row_types[row_idx] == RowType.CAR_GOING_LEFT
-            if not is_right_car and not is_left_car: continue
-
+            if self.row_types[row_idx] == RowType.SAFE: continue
             initial_x = self.random.integers(0, map_grid_width)
-            width = self.random.choice(Car.WIDTHS)
-            if is_right_car:
-                cars.append(Car(initial_x, row_idx, width, 1, map_grid_width, pix_square_size, self.steps_per_second))
-            else:
-                cars.append(Car(initial_x, row_idx, width, -1, map_grid_width, pix_square_size, self.steps_per_second))
-        return cars
+            height = self.random.choice(list(range(1, self.max_height_dic[row_idx] + 1)))
+            width = self.random.choice(Car.CAR_SIZES[height])[1]
+            speed = 1 if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
+            row_idx += (height - 1) * 0.5
+            cars.append(Car(initial_x, row_idx, width, height, speed, map_grid_width, pix_square_size, self.steps_per_second))
+
+        self.random.shuffle(cars)
+        non_overlapping_cars = []
+        for car in cars:
+            if all(not self._check_overlapping(car, other) for other in non_overlapping_cars):
+                non_overlapping_cars.append(car)
+        return non_overlapping_cars
+
+    def _check_overlapping(self, car1, car2):
+        l1, r1, t1, b1 = car1.get_cur_pos()
+        l2, r2, t2, b2 = car2.get_cur_pos()
+        if r1 <= l2 or r2 <= l1:
+            return False
+        if b1 <= t2 or b2 <= t1:
+            return False
+        return True
 
     def _check_collision(self, car):
         cx, cy, radius = self.agent.get_cur_pos() # circle
