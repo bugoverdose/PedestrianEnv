@@ -39,9 +39,15 @@ class Agent(GameObject):
     def __init__(self, width, height, pix_square_size, steps_per_second):
         speed = 10 # 1 # NOTE: fast for development. change on actual run.
         super().__init__(speed, np.array([int(width / 2), height - 1], dtype=float), pix_square_size, steps_per_second)
+        self.radius = 1/3
+
+    def get_cur_pos(self):
+        x = self.cur_location[0]
+        y = self.cur_location[1]
+        return x, y, self.radius
 
     def get_cur_y(self):
-        return self.target_location[1]
+        return self.cur_location[1]
 
     def get_target_y(self):
         return self.target_location[1]
@@ -51,14 +57,14 @@ class Agent(GameObject):
         self.target_location = np.clip(self.cur_location + delta, [1 + Car.WIDTH, self.TARGET_LANE], [map_width - 1 - Car.WIDTH, map_height - 1])
 
     def render(self, background):
-        agent_center_x = (self.cur_location[0]) * self.pix_square_size
-        agent_center_y = (self.cur_location[1]) * self.pix_square_size
+        agent_center_x = self.cur_location[0] * self.pix_square_size
+        agent_center_y = self.cur_location[1] * self.pix_square_size
         agent_position = (agent_center_x, agent_center_y)
         pygame.draw.circle(
             background,
             (0, 0, 255),
             agent_position,
-            self.pix_square_size / 3,
+            self.pix_square_size * self.radius,
         )
         return agent_position
 
@@ -73,6 +79,13 @@ class Car(GameObject):
         self.height = self.HEIGHT * pix_square_size
         self.color = (255, 0, 0)
 
+    def get_cur_pos(self):
+        left_x = self.cur_location[0] - (self.WIDTH/2)
+        right_x = self.cur_location[0] + (self.WIDTH/2)
+        top_y = self.cur_location[1] - (self.HEIGHT/2)
+        bottom_y = self.cur_location[1] + (self.HEIGHT/2)
+        return left_x, right_x, top_y, bottom_y
+
     def update_target(self, map_width):
         if self.speed > 0 and self.cur_location[0] >= map_width:
             self.cur_location[0] = 0
@@ -81,10 +94,8 @@ class Car(GameObject):
         self.target_location[0] = self.cur_location[0] + self.speed * (1 / self.steps_per_second)
 
     def render(self, background):
-        left_x = self.cur_location[0] - (self.WIDTH/2)
-        top_y = self.cur_location[1] - (self.HEIGHT/2)
-        car_rect = pygame.Rect(left_x * self.pix_square_size, top_y * self.pix_square_size,
-                               self.width, self.height)
+        left_x, _, top_y, _ = self.get_cur_pos()
+        car_rect = pygame.Rect(left_x * self.pix_square_size, top_y * self.pix_square_size, self.width, self.height)
         pygame.draw.rect(background, self.color, car_rect)
         self.update_target(self.grid_width)
 

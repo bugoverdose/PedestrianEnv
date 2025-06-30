@@ -1,5 +1,5 @@
+import math
 from enum import Enum
-import numpy as np
 
 from pedestrian_env.envs.game_object import Agent, Car
 
@@ -31,10 +31,9 @@ class World:
     def calculate_up_rewards(self):
         return int(self.steps_per_second * (self.initial_player_y - self.agent.get_target_y()))
 
-    # TODO: fix bug after vehicle re-implementation
     def has_collided(self):
         for car in self.cars:
-            if np.array_equal(self.agent.cur_location, [car.cur_location[0], car.cur_location[1]]):
+            if self._check_collision(car):
                 return True
         return False
 
@@ -67,3 +66,11 @@ class World:
             elif self.row_types[row_idx] == RowType.CAR_GOING_LEFT:
                 cars.append(Car(initial_x, row_idx, -1, grid_width, pix_square_size, self.steps_per_second))
         return cars
+
+    def _check_collision(self, car):
+        cx, cy, radius = self.agent.get_cur_pos() # circle
+        left_x, right_x, top_y, bottom_y = car.get_cur_pos() # rectangle
+        closest_x = max(left_x, min(cx, right_x))
+        closest_y = max(top_y, min(cy, bottom_y))
+        distance = math.sqrt((closest_x - cx) ** 2 + (closest_y - cy) ** 2)
+        return distance < radius
