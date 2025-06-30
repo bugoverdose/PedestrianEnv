@@ -9,7 +9,7 @@ from pedestrian_env.envs.world import World
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
 
-    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=10, render_mode=None, tick_on_render=False, steps_per_second = 5):
+    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 5):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
         self.grid_width = width

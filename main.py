@@ -61,7 +61,7 @@ def play_episode(env, seed):
         env.render()
 
 def play_game(seed, max_episodes):
-    env = PedestrianEnv(render_mode="human", width=10, height=20, steps_per_second=5)
+    env = PedestrianEnv(render_mode="human", width=10, height=20, camera_size=7, steps_per_second=10)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i)
         if quit_game: break
