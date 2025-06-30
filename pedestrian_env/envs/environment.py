@@ -12,23 +12,23 @@ class PedestrianEnv(gym.Env):
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 5, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
-        self.grid_width = width
-        self.grid_height = height
+        self.map_grid_width = width
+        self.map_grid_height = height
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         base_window_size = 1024
-        self.pix_square_size = (base_window_size / max(self.grid_width, self.grid_height)) # The size of a single grid square in pixels
+        self.pix_square_size = (base_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
         self.camera_size = camera_size * self.pix_square_size
-        self.map_width = self.grid_width * self.pix_square_size
-        self.map_height = self.grid_height * self.pix_square_size
+        self.map_width = self.map_grid_width * self.pix_square_size
+        self.map_height = self.map_grid_height * self.pix_square_size
         self.debug = debug
 
         self.observation_space = spaces.Dict(
             {
                 "agent": spaces.Box(
                     low=np.array([0.0, 0.0]),
-                    high=np.array([self.grid_width, self.grid_height]),
+                    high=np.array([self.map_grid_width, self.map_grid_height]),
                     dtype=np.float32 # continuous space
                 ),
                 # TODO: add nearby car info
@@ -84,7 +84,7 @@ class PedestrianEnv(gym.Env):
         self.prev_rewards += self.cur_rewards
         self.cur_rewards = 0
 
-        self.world = World(self.grid_width, self.grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
+        self.world = World(self.map_grid_width, self.map_grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -123,7 +123,7 @@ class PedestrianEnv(gym.Env):
         prev_up_rewards = self.world.calculate_up_rewards()
         direction = ACTION_TO_DELTA[action]
         # We use `np.clip` to make sure the agent doesn't leave the grid
-        self.world.agent.update_target(direction, self.grid_width, self.grid_height)
+        self.world.agent.update_target(direction)
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards

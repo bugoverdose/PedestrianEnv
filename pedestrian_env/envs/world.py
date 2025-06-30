@@ -11,20 +11,20 @@ class RowType(Enum):
     CAR_GOING_LEFT = 3
 
 class World:
-    def __init__(self, grid_width, grid_height, pix_square_size, steps_per_second, random, debug):
+    def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, random, debug):
         self.random = random
-        self.grid_width = grid_width
-        self.grid_height = grid_height
+        self.map_grid_width = map_grid_width
+        self.map_grid_height = map_grid_height
         self.pix_square_size = pix_square_size
-        self.map_width = self.grid_width * self.pix_square_size
-        self.map_height = self.grid_height * self.pix_square_size
+        self.map_width = self.map_grid_width * self.pix_square_size
+        self.map_height = self.map_grid_height * self.pix_square_size
 
         self.steps_per_second = steps_per_second
-        self.agent = Agent(grid_width, grid_height, pix_square_size, steps_per_second, debug)
+        self.agent = Agent(map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug)
         self.initial_player_y = self.agent.get_cur_y()
 
-        self.row_types, self.safe_row_idx_list, self.lane_boundary_idx_list = self._generate_rows(grid_height)
-        self.cars = self._generate_cars(grid_width, grid_height, pix_square_size)
+        self.row_types, self.safe_row_idx_list, self.lane_boundary_idx_list = self._generate_rows(map_grid_height)
+        self.cars = self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -53,7 +53,7 @@ class World:
             pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size))
 
         for boundary_idx in self.lane_boundary_idx_list:
-            for x in range(0, self.grid_width, 5):
+            for x in range(0, self.map_grid_width, 5):
                 start_x = x * self.pix_square_size
                 pygame.draw.line(
                     canvas,
@@ -69,11 +69,11 @@ class World:
 
         return canvas, rendered_agent_position
 
-    def _generate_rows(self, grid_height, max_consecutive_danger_lanes=2):
+    def _generate_rows(self, map_grid_height, max_consecutive_danger_lanes=2):
         rows = []
         consecutive_danger_lanes = 0
-        while len(rows) < grid_height - 2:
-            available_rows = (grid_height - 2) - len(rows)
+        while len(rows) < map_grid_height - 2:
+            available_rows = (map_grid_height - 2) - len(rows)
             if available_rows >= Car.HEIGHT and consecutive_danger_lanes < max_consecutive_danger_lanes:
                 row_type = self.random.choice([RowType.SAFE, RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
                 if row_type != RowType.SAFE:
@@ -103,14 +103,14 @@ class World:
 
         return total_rows, safe_row_idx_list, lane_boundary_idx_list
 
-    def _generate_cars(self, grid_width, grid_height, pix_square_size):
+    def _generate_cars(self, map_grid_width, map_grid_height, pix_square_size):
         cars = []
-        for row_idx in range(grid_height):
-            initial_x = self.random.integers(0, grid_width)
+        for row_idx in range(map_grid_height):
+            initial_x = self.random.integers(0, map_grid_width)
             if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT:
-                cars.append(Car(initial_x, row_idx, 1, grid_width, pix_square_size, self.steps_per_second))
+                cars.append(Car(initial_x, row_idx, 1, map_grid_width, pix_square_size, self.steps_per_second))
             elif self.row_types[row_idx] == RowType.CAR_GOING_LEFT:
-                cars.append(Car(initial_x, row_idx, -1, grid_width, pix_square_size, self.steps_per_second))
+                cars.append(Car(initial_x, row_idx, -1, map_grid_width, pix_square_size, self.steps_per_second))
         return cars
 
     def _check_collision(self, car):
