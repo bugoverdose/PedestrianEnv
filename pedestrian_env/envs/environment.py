@@ -3,9 +3,8 @@ from gymnasium import spaces
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.action import Action, ACTION_TO_DELTA
+from pedestrian_env.envs.action import ACTION_TO_DELTA
 from pedestrian_env.envs.world import World
-
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -13,24 +12,24 @@ class PedestrianEnv(gym.Env):
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=10, render_mode=None, tick_on_render=False, steps_per_second = 5):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
-        self.width = width  # max width of the world
-        self.height = height  # max height of the world
+        self.grid_width = width
+        self.grid_height = height
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         base_window_size = 1024
-        self.pix_square_size = (base_window_size / max(self.width, self.height)) # The size of a single grid square in pixels
+        self.pix_square_size = (base_window_size / max(self.grid_width, self.grid_height)) # The size of a single grid square in pixels
         self.camera_size = camera_size * self.pix_square_size
-        self.map_width = self.width * self.pix_square_size
-        self.map_height = self.height * self.pix_square_size
+        self.map_width = self.grid_width * self.pix_square_size
+        self.map_height = self.grid_height * self.pix_square_size
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2,
         # i.e. MultiDiscrete([size, size]).
         self.observation_space = spaces.Dict(
             {
-                "agent": spaces.Box(low=np.array([0, 0]), high=np.array([self.width - 1, self.height - 1]), dtype=np.int32),
-                "target": spaces.Box(low=np.array([0, 0]), high=np.array([self.width - 1, self.height - 1]), dtype=np.int32),
+                "agent": spaces.Box(low=np.array([0, 0]), high=np.array([self.grid_width - 1, self.grid_height - 1]), dtype=np.int32),
+                "target": spaces.Box(low=np.array([0, 0]), high=np.array([self.grid_width - 1, self.grid_height - 1]), dtype=np.int32),
             }
         )
 
@@ -83,7 +82,7 @@ class PedestrianEnv(gym.Env):
         self.prev_rewards += self.cur_rewards
         self.cur_rewards = 0
 
-        self.world = World(self.width, self.height, self.pix_square_size, self.np_random)
+        self.world = World(self.grid_width, self.grid_height, self.pix_square_size, self.steps_per_second, self.np_random)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -119,14 +118,13 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
-        for car in self.world.cars:
-            car.move(self.width)
+        # for car in self.world.cars:
+        #     car.update_target(self.grid_width)
 
         prev_up_rewards = self.world.calculate_up_rewards()
-        # Map the action to the direction we walk in
         direction = ACTION_TO_DELTA[action]
-        # We use `np.clip` to make sure we don't leave the grid
-        self.world.agent.target_location = np.clip(self.world.agent.cur_location + direction, [0, 0], [self.width - 1, self.height - 1])
+        # We use `np.clip` to make sure the agent doesn't leave the grid
+        self.world.agent.update_target(direction, self.grid_width, self.grid_height)
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
@@ -170,7 +168,7 @@ class PedestrianEnv(gym.Env):
             car.render(canvas)
 
         # Finally, add some gridlines
-        for x in range(self.height + 1):
+        for x in range(self.grid_height + 1):
             pygame.draw.line(
                 canvas,
                 0,
@@ -178,7 +176,7 @@ class PedestrianEnv(gym.Env):
                 (self.map_width, self.pix_square_size * x),
                 width=3,
             )
-        for x in range(self.width + 1):
+        for x in range(self.grid_width + 1):
             pygame.draw.line(
                 canvas,
                 0,
