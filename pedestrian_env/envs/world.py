@@ -53,12 +53,13 @@ class World:
             pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size))
 
         for boundary_idx in self.lane_boundary_idx_list:
-            for x in range(0, self.grid_width, 3):
+            for x in range(0, self.grid_width, 5):
+                start_x = x * self.pix_square_size
                 pygame.draw.line(
                     canvas,
                     (250, 250, 250),
-                    (x * self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
-                    (x * self.pix_square_size + self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
+                    (start_x, self.pix_square_size * boundary_idx + adjustment),
+                    (start_x + 2 * self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
                     width=3,
                 )
 
@@ -94,12 +95,11 @@ class World:
             if total_rows[idx] == RowType.SAFE:
                 safe_row_idx_list.append(idx)
 
+        # NOTE: change logic if car height changes
         lane_boundary_idx_list = []
-        for idx in range(1, len(total_rows)):
-            if total_rows[idx] != RowType.SAFE:
+        for idx in range(len(total_rows)-1):
+            if total_rows[idx] == RowType.DANGER and total_rows[idx+1] == RowType.DANGER:
                 lane_boundary_idx_list.append(idx)
-            elif total_rows[idx] == RowType.SAFE and total_rows[idx-1] != RowType.SAFE:
-                lane_boundary_idx_list.pop()
 
         return total_rows, safe_row_idx_list, lane_boundary_idx_list
 
