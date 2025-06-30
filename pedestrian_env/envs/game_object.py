@@ -34,9 +34,11 @@ class GameObject:
         pass
 
 class Agent(GameObject):
+    TARGET_LANE = 0
 
     def __init__(self, width, height, pix_square_size, steps_per_second):
-        super().__init__(1, np.array([int(width / 2), height - 1], dtype=float), pix_square_size, steps_per_second)
+        speed = 10 # 1 # NOTE: fast for development. change on actual run.
+        super().__init__(speed, np.array([int(width / 2), height - 1], dtype=float), pix_square_size, steps_per_second)
 
     def get_cur_y(self):
         return self.target_location[1]
@@ -45,8 +47,8 @@ class Agent(GameObject):
         return self.target_location[1]
 
     def update_target(self, direction, map_width, map_height):
-        delta = direction * (1 / self.steps_per_second)
-        self.target_location = np.clip(self.cur_location + delta, [0, 0], [map_width - 1, map_height - 1])
+        delta = direction * (self.speed / self.steps_per_second)
+        self.target_location = np.clip(self.cur_location + delta, [1 + Car.WIDTH, self.TARGET_LANE], [map_width - 1 - Car.WIDTH, map_height - 1])
 
     def render(self, background):
         agent_center_x = (self.cur_location[0]) * self.pix_square_size

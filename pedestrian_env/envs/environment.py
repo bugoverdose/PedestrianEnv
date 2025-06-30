@@ -163,27 +163,28 @@ class PedestrianEnv(gym.Env):
         canvas = pygame.Surface((self.map_width, self.map_height))
         canvas.fill((255, 255, 255))
 
+        # add gridlines
+        adjustment = 0.5 * self.pix_square_size
+        for x in range(self.grid_height + 2):
+            pygame.draw.line(
+                canvas,
+                0,
+                (0, self.pix_square_size * x + adjustment),
+                (self.map_width, self.pix_square_size * x + adjustment),
+                width=3,
+            )
+        for y in range(self.grid_width + 2):
+            pygame.draw.line(
+                canvas,
+                0,
+                (self.pix_square_size * y - adjustment, 0),
+                (self.pix_square_size * y - adjustment, self.map_height),
+                width=3,
+            )
+
         rendered_agent_position = self.world.agent.render(canvas)
         for car in self.world.cars:
             car.render(canvas)
-
-        # Finally, add some gridlines
-        for x in range(self.grid_height + 1):
-            pygame.draw.line(
-                canvas,
-                0,
-                (0, self.pix_square_size * x),
-                (self.map_width, self.pix_square_size * x),
-                width=3,
-            )
-        for x in range(self.grid_width + 1):
-            pygame.draw.line(
-                canvas,
-                0,
-                (self.pix_square_size * x, 0),
-                (self.pix_square_size * x, self.map_height),
-                width=3,
-            )
 
         camera_rect = pygame.Rect(0, 0, self.camera_size, self.camera_size)
         camera_rect.center = rendered_agent_position

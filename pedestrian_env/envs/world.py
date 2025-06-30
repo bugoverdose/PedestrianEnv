@@ -21,7 +21,7 @@ class World:
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
-        return cur_y == 0
+        return cur_y == Agent.TARGET_LANE
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
