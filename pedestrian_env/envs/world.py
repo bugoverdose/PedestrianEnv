@@ -49,7 +49,7 @@ class World:
 
         adjustment = 0.5 * self.pix_square_size
         for safe_row_idx in self.safe_row_idx_list:
-            pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size))
+            pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size + 1))
 
         for boundary_idx in self.lane_boundary_idx_list:
             for x in range(0, self.map_grid_width, 5):
