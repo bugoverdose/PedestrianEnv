@@ -118,9 +118,6 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
-        # for car in self.world.cars:
-        #     car.update_target(self.grid_width)
-
         prev_up_rewards = self.world.calculate_up_rewards()
         direction = ACTION_TO_DELTA[action]
         # We use `np.clip` to make sure the agent doesn't leave the grid
@@ -160,31 +157,7 @@ class PedestrianEnv(gym.Env):
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
-        canvas = pygame.Surface((self.map_width, self.map_height))
-        canvas.fill((255, 255, 255))
-
-        # add gridlines
-        adjustment = 0.5 * self.pix_square_size
-        for x in range(self.grid_height + 2):
-            pygame.draw.line(
-                canvas,
-                0,
-                (0, self.pix_square_size * x + adjustment),
-                (self.map_width, self.pix_square_size * x + adjustment),
-                width=3,
-            )
-        for y in range(self.grid_width + 2):
-            pygame.draw.line(
-                canvas,
-                0,
-                (self.pix_square_size * y - adjustment, 0),
-                (self.pix_square_size * y - adjustment, self.map_height),
-                width=3,
-            )
-
-        rendered_agent_position = self.world.agent.render(canvas)
-        for car in self.world.cars:
-            car.render(canvas)
+        canvas, rendered_agent_position = self.world.render()
 
         camera_rect = pygame.Rect(0, 0, self.camera_size, self.camera_size)
         camera_rect.center = rendered_agent_position

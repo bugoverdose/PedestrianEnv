@@ -1,5 +1,6 @@
 import math
 from enum import Enum
+import pygame
 
 from pedestrian_env.envs.game_object import Agent, Car
 
@@ -12,6 +13,12 @@ class RowType(Enum):
 class World:
     def __init__(self, grid_width, grid_height, pix_square_size, steps_per_second, random):
         self.random = random
+        self.grid_width = grid_width
+        self.grid_height = grid_height
+        self.pix_square_size = pix_square_size
+        self.map_width = self.grid_width * self.pix_square_size
+        self.map_height = self.grid_height * self.pix_square_size
+
         self.steps_per_second = steps_per_second
         self.agent = Agent(grid_width, grid_height, pix_square_size, steps_per_second)
         self.initial_player_y = self.agent.get_cur_y()
@@ -36,6 +43,35 @@ class World:
             if self._check_collision(car):
                 return True
         return False
+
+    def render(self):
+        canvas = pygame.Surface((self.map_width, self.map_height))
+        canvas.fill((255, 255, 255))
+
+        # add gridlines
+        adjustment = 0.5 * self.pix_square_size
+        for x in range(self.grid_height + 2):
+            pygame.draw.line(
+                canvas,
+                0,
+                (0, self.pix_square_size * x + adjustment),
+                (self.map_width, self.pix_square_size * x + adjustment),
+                width=3,
+            )
+        for y in range(self.grid_width + 2):
+            pygame.draw.line(
+                canvas,
+                0,
+                (self.pix_square_size * y - adjustment, 0),
+                (self.pix_square_size * y - adjustment, self.map_height),
+                width=3,
+            )
+
+        rendered_agent_position = self.agent.render(canvas)
+        for car in self.cars:
+            car.render(canvas)
+
+        return canvas, rendered_agent_position
 
     def _generate_rows(self, grid_height, max_consecutive_danger_lanes=2):
         rows = []
