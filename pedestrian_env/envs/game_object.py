@@ -49,9 +49,9 @@ class Agent(GameObject):
         self.target_location = np.clip(self.cur_location + delta, [0, 0], [map_width - 1, map_height - 1])
 
     def render(self, background):
-        agent_x = (self.cur_location[0] + 0.5) * self.pix_square_size
-        agent_y = (self.cur_location[1] + 0.5) * self.pix_square_size
-        agent_position = (agent_x, agent_y)
+        agent_center_x = (self.cur_location[0]) * self.pix_square_size
+        agent_center_y = (self.cur_location[1]) * self.pix_square_size
+        agent_position = (agent_center_x, agent_center_y)
         pygame.draw.circle(
             background,
             (0, 0, 255),
@@ -64,20 +64,12 @@ class Car(GameObject):
     WIDTH = 4
     HEIGHT = 3 # NOTE: must be an odd number
 
-    def __init__(self, initial_x, initial_y, speed, grid_width, pix_square_size, steps_per_second, car_type_seed=0):
+    def __init__(self, initial_x, initial_y, speed, grid_width, pix_square_size, steps_per_second):
         super().__init__(speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
-        self.car_type = (car_type_seed % 12)
-
         self.grid_width = grid_width
         self.width = self.WIDTH * pix_square_size
         self.height = self.HEIGHT * pix_square_size
-
-        self.object_id = id(self) % 1000
-        object_image = pygame.image.load(f"sprites/cars/car-side-view{self.car_type}.png")
-        self.image = pygame.transform.scale(object_image, (self.width, self.height))
-
-        if speed < 0:
-            self.image = pygame.transform.flip(self.image, flip_x=True, flip_y=False)
+        self.color = (255, 0, 0)
 
     def update_target(self, map_width):
         if self.speed > 0 and self.cur_location[0] >= map_width:
@@ -87,8 +79,12 @@ class Car(GameObject):
         self.target_location[0] = self.cur_location[0] + self.speed * (1 / self.steps_per_second)
 
     def render(self, background):
-        background.blit(self.image, (self.cur_location[0] * self.pix_square_size, self.cur_location[1] * self.pix_square_size))
+        left_x = self.cur_location[0] - (self.WIDTH/2)
+        top_y = self.cur_location[1] - (self.HEIGHT/2)
+        car_rect = pygame.Rect(left_x * self.pix_square_size, top_y * self.pix_square_size,
+                               self.width, self.height)
+        pygame.draw.rect(background, self.color, car_rect)
         self.update_target(self.grid_width)
 
     def __str__(self):
-        return f"Car{self.object_id}: type={self.car_type}, cur_pos=({self.cur_location[0], self.cur_location[1]})"
+        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]})"

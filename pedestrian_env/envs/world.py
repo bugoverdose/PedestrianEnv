@@ -61,10 +61,9 @@ class World:
     def _generate_cars(self, grid_width, grid_height, pix_square_size):
         cars = []
         for row_idx in range(grid_height):
+            initial_x = self.random.integers(0, grid_width)
             if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT:
-                car_type_seed = self.random.integers(0, 11, size=1, dtype=int)[0]
-                cars.append(Car(0, row_idx, 1, grid_width, pix_square_size, self.steps_per_second, car_type_seed=car_type_seed))
+                cars.append(Car(initial_x, row_idx, 1, grid_width, pix_square_size, self.steps_per_second))
             elif self.row_types[row_idx] == RowType.CAR_GOING_LEFT:
-                car_type_seed = self.random.integers(0, 11, size=1, dtype=int)[0]
-                cars.append(Car(grid_width - 1, row_idx, -1, grid_width, pix_square_size, self.steps_per_second, car_type_seed=car_type_seed))
+                cars.append(Car(initial_x, row_idx, -1, grid_width, pix_square_size, self.steps_per_second))
         return cars
