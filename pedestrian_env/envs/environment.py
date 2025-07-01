@@ -11,6 +11,9 @@ class PedestrianEnv(gym.Env):
     EXTRA_WIDTH = 500
     EXTRA_HEIGHT = 400
 
+    DEATH_PENALTY = 100
+    GAME_TIME = 60_000 # ms
+
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 5, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
@@ -56,6 +59,7 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
+        self.time_left = self.GAME_TIME
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards
@@ -131,12 +135,12 @@ class PedestrianEnv(gym.Env):
         reward = cur_up_rewards - prev_up_rewards
         if self.world.has_collided():
             terminated = True
-            reward -= 1000
+            reward -= self.DEATH_PENALTY
         else:
             # An episode is finished if the agent has reached the target lane
             terminated = self.world.target_lane_reached()
             if terminated:
-                reward += 100
+                reward += self.get_time_left()
 
         self.cur_rewards += reward
 
@@ -191,6 +195,14 @@ class PedestrianEnv(gym.Env):
             text_surface = font.render(f"Current Score: {self.cur_rewards}", True, (255, 255, 255))
             self.window.blit(text_surface, (right_ui_x, bottom_y))
 
+            # clear and update time left
+            bg_rect = pygame.Rect(0 , 0, total_window_width, self.EXTRA_HEIGHT/2)
+            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
+
+            font = pygame.font.SysFont(None, 32)
+            text_surface = font.render(f"Time Left: {self.get_time_left()}", True, (255, 255, 255))
+            self.window.blit(text_surface, (right_ui_x, top_y))
+
             pygame.event.pump()
             pygame.display.update()
             # We need to ensure that human-rendering occurs at the predefined framerate.
@@ -203,6 +215,12 @@ class PedestrianEnv(gym.Env):
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
+
+    def get_time_left(self):
+        return int(self.time_left/1000)
+
+    def update_time_left(self, elapsed_time):
+        self.time_left = self.GAME_TIME - elapsed_time
 
     def close(self):
         if self.window is not None:
