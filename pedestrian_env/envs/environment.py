@@ -8,6 +8,8 @@ from pedestrian_env.envs.world import World
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
+    EXTRA_WIDTH = 500
+    EXTRA_HEIGHT = 400
 
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 5, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
@@ -151,11 +153,14 @@ class PedestrianEnv(gym.Env):
 
     def render(self):
         if self.render_mode is None: return
+        total_window_width = self.camera_size + self.EXTRA_WIDTH
+        total_window_height = self.camera_size + self.EXTRA_HEIGHT
+
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.set_caption(self.title)
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.camera_size, self.camera_size))
+            self.window = pygame.display.set_mode((total_window_width, total_window_height))
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
@@ -166,12 +171,28 @@ class PedestrianEnv(gym.Env):
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         if self.render_mode == "human":
-            # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, (0, 0), area=camera_rect)
+            # add game screen
+            self.window.blit(canvas, (self.EXTRA_WIDTH/2, self.EXTRA_HEIGHT/2), area=camera_rect)
+
+            left_ui_x = total_window_width * 0.2
+            right_ui_x = total_window_width * 0.7
+            top_y = total_window_height * 0.15
+            bottom_y = total_window_height * 0.85
+
+            # clear and update score area
+            bg_rect = pygame.Rect(0 , total_window_height - self.EXTRA_HEIGHT/2, total_window_width, self.EXTRA_HEIGHT/2)
+            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
+
+            font = pygame.font.SysFont(None, 32)
+            text_surface = font.render(f"Total Score: {self._total_rewards()}", True, (255, 255, 255))
+            self.window.blit(text_surface, (left_ui_x, bottom_y))
+
+            font = pygame.font.SysFont(None, 32)
+            text_surface = font.render(f"Current Score: {self.cur_rewards}", True, (255, 255, 255))
+            self.window.blit(text_surface, (right_ui_x, bottom_y))
 
             pygame.event.pump()
             pygame.display.update()
-
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to
             # keep the framerate stable.
