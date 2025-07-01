@@ -213,8 +213,9 @@ class PedestrianEnv(gym.Env):
             bg_rect = pygame.Rect(0 , total_window_height - self.EXTRA_HEIGHT/2, total_window_width, self.EXTRA_HEIGHT/2)
             pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
 
+            # NOTE: show only the sum of previous scores because it's confusing when both cur rewards and total rewards are constantly changing
             font = pygame.font.SysFont(None, 32)
-            text_surface = font.render(f"Total Score: {self._total_rewards()}", True, (255, 255, 255))
+            text_surface = font.render(f"Total Score: {self.prev_rewards}", True, (255, 255, 255))
             self.window.blit(text_surface, (left_ui_x, bottom_y))
 
             font = pygame.font.SysFont(None, 32)
