@@ -44,6 +44,8 @@ class Agent(GameObject):
         self.radius = 1/3
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
+        self.is_dead = False
+        # TODO: self.last_direction = np.array([0, -1])
 
     def get_cur_pos(self):
         x = self.cur_location[0]
@@ -57,21 +59,37 @@ class Agent(GameObject):
         return self.target_location[1]
 
     def update_target(self, direction):
+        # TODO: self.last_direction = direction
         delta = direction * (self.speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
                                        [1 + Car.MAX_WIDTH, self.TARGET_LANE],
                                        [self.map_grid_width - 1 - Car.MAX_WIDTH, self.map_grid_height - 1])
 
+    def set_dead(self):
+        self.is_dead = True
+        self.target_location = self.cur_location
+
     def render(self, background):
         agent_center_x = self.cur_location[0] * self.pix_square_size
         agent_center_y = self.cur_location[1] * self.pix_square_size
         agent_position = (agent_center_x, agent_center_y)
-        pygame.draw.circle(
-            background,
-            (0, 0, 255),
-            agent_position,
-            self.pix_square_size * self.radius,
-        )
+        if self.is_dead:
+            radius_x = int(self.pix_square_size * self.radius * 1.4)
+            radius_y = int(self.pix_square_size * self.radius * 0.4)
+            flattened_rect = pygame.Rect(
+                agent_center_x - radius_x,
+                agent_center_y - radius_y,
+                radius_x * 2,
+                radius_y * 2
+            )
+            pygame.draw.ellipse(background, (0, 0, 255), flattened_rect)
+        else:
+            pygame.draw.circle(
+                background,
+                (0, 0, 255),
+                agent_position,
+                self.pix_square_size * self.radius,
+            )
         return agent_position
 
 class Car(GameObject):

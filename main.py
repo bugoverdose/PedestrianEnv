@@ -22,17 +22,23 @@ def play_episode(env, seed):
     total_elapsed = 0
     elapsed = 0
     last_action = Action.NOTHING
+    game_over = False
+    game_over_info = None
     while True:
         dt = env.clock_tick()
         elapsed += dt
         total_elapsed += dt
         while elapsed >= step_ms:
             elapsed -= step_ms
+            if game_over: break
             obs, reward, terminated, truncated, info = env.step(last_action)
             print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
                   f"cur_rewards={obs['cur_rewards']}, total_rewards={obs['total_rewards']}")
-            if terminated or truncated: return False
+            if terminated or truncated:
+                game_over = True
+                game_over_info = info
             last_action = Action.NOTHING
+        if game_over: break
 
         # check if a key was being pressed down (needed for continuous movement)
         keys = pygame.key.get_pressed()
@@ -42,7 +48,7 @@ def play_episode(env, seed):
                 break
         for event in pygame.event.get():
             # close window to finish early
-            if event.type == pygame.QUIT: return True
+            if event.type == pygame.QUIT: return True, False, False, 0
 
             if last_action == Action.NOTHING:
                 # check if started to press a key (needed for instant start)
@@ -60,11 +66,21 @@ def play_episode(env, seed):
         env.update_positions(dt)
         env.update_time_left(total_elapsed)
         env.render()
+    if game_over_info["is_dead"]:
+        elapsed = 0
+        while elapsed < 5000:
+            dt = env.clock_tick()
+            elapsed += dt
+            env.update_positions(dt)
+            env.update_time_left(total_elapsed)
+            env.render()
+
+    return False, game_over_info["is_dead"], game_over_info["time_up"], game_over_info["game_over_score"]
 
 def play_game(seed, max_episodes, debug):
     env = PedestrianEnv(render_mode="human", width=25, height=20, camera_size=7, steps_per_second=10, debug=debug)
     for i in range(max_episodes):
-        quit_game = play_episode(env, seed + i)
+        quit_game, is_dead, time_up, game_over_score = play_episode(env, seed + i)
         if quit_game: break
     env.close()
 

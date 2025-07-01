@@ -13,7 +13,7 @@ class PedestrianEnv(gym.Env):
 
     DEATH_PENALTY = 100
 
-    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 5, debug=False):
+    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
         self.map_grid_width = width
@@ -62,6 +62,8 @@ class PedestrianEnv(gym.Env):
         if debug:
             self.GAME_TIME = 10_000
         self.time_left = self.GAME_TIME
+        self.game_over = False
+        self.game_over_score = 0
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards
@@ -83,7 +85,18 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
-        return {}
+        info = {
+            "is_dead": False,
+            "time_up": False,
+            "game_over_score": self.game_over_score,
+        }
+        if not self.game_over:
+            return info
+        if self.game_over_score < 0:
+            info["is_dead"] = True
+        if self.game_over_score == 0:
+            info["time_up"] = True
+        return info
 
     def reset(self, seed=None, options=None):
         # NOTE: following line is needed for self.np_random
@@ -91,6 +104,9 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards += self.cur_rewards
         self.cur_rewards = 0
+        self.time_left = self.GAME_TIME
+        self.game_over = False
+        self.game_over_score = 0
 
         self.world = World(self.map_grid_width, self.map_grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
 
@@ -137,14 +153,20 @@ class PedestrianEnv(gym.Env):
         reward = cur_up_rewards - prev_up_rewards
         if self.world.has_collided():
             terminated = True
+            self.world.agent.set_dead()
             reward -= self.DEATH_PENALTY
-        elif self.get_time_left() <= 0:
+            self.game_over_score = -self.DEATH_PENALTY
+        elif self.get_time_left_sec() <= 0:
             terminated = True
+            self.game_over_score = 0
         else:
             # An episode is finished if the agent has reached the target lane
             terminated = self.world.target_lane_reached()
             if terminated:
-                reward += self.get_time_left()
+                fast_over_reward = self.get_time_left_sec()
+                reward += fast_over_reward
+                self.game_over_score = fast_over_reward
+        self.game_over = terminated
 
         self.cur_rewards += reward
 
@@ -204,7 +226,7 @@ class PedestrianEnv(gym.Env):
             pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
 
             font = pygame.font.SysFont(None, 32)
-            text_surface = font.render(f"Time Left: {self.get_time_left()}", True, (255, 255, 255))
+            text_surface = font.render(f"Time Left: {self.get_time_left_sec()}", True, (255, 255, 255))
             self.window.blit(text_surface, (right_ui_x, top_y))
 
             pygame.event.pump()
@@ -220,10 +242,11 @@ class PedestrianEnv(gym.Env):
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
 
-    def get_time_left(self):
+    def get_time_left_sec(self):
         return int(self.time_left/1000)
 
     def update_time_left(self, elapsed_time):
+        if self.game_over: return
         self.time_left = self.GAME_TIME - elapsed_time
 
     def close(self):
