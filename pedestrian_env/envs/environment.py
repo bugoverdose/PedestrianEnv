@@ -12,7 +12,6 @@ class PedestrianEnv(gym.Env):
     EXTRA_HEIGHT = 400
 
     DEATH_PENALTY = 100
-    GAME_TIME = 60_000 # ms
 
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 5, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
@@ -59,6 +58,9 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
+        self.GAME_TIME = 60_000 # ms
+        if debug:
+            self.GAME_TIME = 10_000
         self.time_left = self.GAME_TIME
 
     def _total_rewards(self):
@@ -136,6 +138,8 @@ class PedestrianEnv(gym.Env):
         if self.world.has_collided():
             terminated = True
             reward -= self.DEATH_PENALTY
+        elif self.get_time_left() <= 0:
+            terminated = True
         else:
             # An episode is finished if the agent has reached the target lane
             terminated = self.world.target_lane_reached()
