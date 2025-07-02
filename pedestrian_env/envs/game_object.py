@@ -100,7 +100,7 @@ class Car(GameObject):
     HEIGHT_BUFFER = 0.1
     BODY_COLOR = (255, 0, 0)
 
-    def __init__(self, initial_x, initial_y, car_width, car_height, max_speed, map_grid_width, pix_square_size, steps_per_second):
+    def __init__(self, initial_x, initial_y, car_width, car_height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second):
         super().__init__(max_speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_width
@@ -110,6 +110,7 @@ class Car(GameObject):
         self.color = self.BODY_COLOR
         self.max_speed = max_speed
         self.go_right = max_speed > 0
+        self.crosswalk = crosswalk
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
@@ -156,4 +157,4 @@ class Car(GameObject):
         pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
 
     def __str__(self):
-        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]})"
+        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), ({self.crosswalk}))"

@@ -116,6 +116,10 @@ class PedestrianEnv(gym.Env):
         if self.render_mode == "human":
             self.render()
 
+        if self.debug:
+            for car in self.world.cars:
+                print(car)
+
         return self._get_obs(), self._get_info()
 
     def step(self, action):

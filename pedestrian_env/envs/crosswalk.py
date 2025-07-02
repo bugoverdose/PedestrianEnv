@@ -13,6 +13,9 @@ class CrossWalk:
         self.col = col
         self.is_active = False
 
+    def __str__(self):
+        return f"CrossWalk(active={self.is_active}, row=({self.row1}~{self.row2}), col={self.col})"
+
 # first-class object for simplicity
 class CrossWalks:
     def __init__(self, elements):

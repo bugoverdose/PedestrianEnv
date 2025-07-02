@@ -22,8 +22,8 @@ class World:
         self.initial_player_y = self.agent.get_cur_y()
 
         self._generate_rows(map_grid_height)
-        self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
         self.crosswalks = CrossWalks.generate_crosswalks(self.agent, self.row_types, self.random)
+        self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -33,6 +33,7 @@ class World:
         self.agent.update_position(dt)
         self.crosswalks.update_activation(self.agent)
         for car in self.cars:
+            car.update_target()
             car.update_position(dt)
 
     def calculate_up_rewards(self):
@@ -91,7 +92,6 @@ class World:
         rendered_agent_position = self.agent.render(canvas)
         for car in self.cars:
             car.render(canvas)
-            car.update_target()
 
         return canvas, rendered_agent_position
 
@@ -156,7 +156,12 @@ class World:
             width = self.random.choice(Car.CAR_SIZES[height])[1]
             max_speed = 1 if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
             row_idx += (height - 1) * 0.5
-            cars.append(Car(initial_x, row_idx, width, height, max_speed, map_grid_width, pix_square_size, self.steps_per_second))
+            crosswalk = None
+            for cur in self.crosswalks.elements:
+                if cur.row1 <= row_idx <= cur.row2:
+                    crosswalk = cur
+                    break
+            cars.append(Car(initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, self.steps_per_second))
 
         self.random.shuffle(cars)
         non_overlapping_cars = []
