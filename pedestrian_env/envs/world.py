@@ -10,8 +10,9 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class World:
-    GRAY_COLOR = (89, 89, 89)
-    WHITE_COLOR = (250, 250, 250)
+    ROAD_GRAY_COLOR = (89, 89, 89)
+    ROAD_WHITE_COLOR = (250, 250, 250)
+    SAFE_WHITE_COLOR = (217, 217, 217)
 
     def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, random, debug):
         self.random = random
@@ -49,17 +50,17 @@ class World:
 
     def render(self):
         canvas = pygame.Surface((self.map_width, self.map_height))
-        canvas.fill(self.GRAY_COLOR)
+        canvas.fill(self.ROAD_GRAY_COLOR)
 
         adjustment = 0.5 * self.pix_square_size
         for safe_row_idx in self.safe_row_idx_list:
-            pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size + 1))
+            pygame.draw.rect(canvas, self.SAFE_WHITE_COLOR, (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size + 1))
 
         for other_direction_idx in self.other_direction_boundary_idx_list:
             start_x = 0
             pygame.draw.line(
                 canvas,
-                self.WHITE_COLOR,
+                self.ROAD_WHITE_COLOR,
                 (start_x, self.pix_square_size * other_direction_idx + adjustment),
                 (self.map_width, self.pix_square_size * other_direction_idx + adjustment),
                 width=3,
@@ -70,7 +71,7 @@ class World:
                 start_x = x * self.pix_square_size
                 pygame.draw.line(
                     canvas,
-                    self.WHITE_COLOR,
+                    self.ROAD_WHITE_COLOR,
                     (start_x, self.pix_square_size * boundary_idx + adjustment),
                     (start_x + 2 * self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
                     width=6,
@@ -82,7 +83,7 @@ class World:
             start_y = row1 * self.pix_square_size - adjustment
             end_y = row2 * self.pix_square_size + adjustment
             # NOTE: cover up background (-1 pixel at top and bottom, +self.pix_square_size at left and right)
-            pygame.draw.rect(canvas, self.GRAY_COLOR, (start_x - self.pix_square_size, start_y + 1, self.pix_square_size * 3, end_y - start_y - 2))
+            pygame.draw.rect(canvas, self.ROAD_GRAY_COLOR, (start_x - self.pix_square_size, start_y + 1, self.pix_square_size * 3, end_y - start_y - 2))
 
             stripe_count = 3 * (row2 - row1 + 1)
             stripe_thickness = self.pix_square_size / 3
@@ -90,7 +91,7 @@ class World:
                 for j in range(2):
                     if i % 2 == j: continue
                     stripe_rect = pygame.Rect(start_x + (self.pix_square_size/2 * j), start_y + i * stripe_thickness, self.pix_square_size/2, stripe_thickness)
-                    pygame.draw.rect(canvas, self.WHITE_COLOR, stripe_rect)
+                    pygame.draw.rect(canvas, self.ROAD_WHITE_COLOR, stripe_rect)
 
         rendered_agent_position = self.agent.render(canvas)
         for car in self.cars:

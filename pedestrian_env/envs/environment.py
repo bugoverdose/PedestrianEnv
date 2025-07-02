@@ -8,6 +8,12 @@ from pedestrian_env.envs.world import World
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
+    OFF_SCREEN_BLACK_COLOR = (0, 0, 0)
+    UI_TEXT_WHITE_COLOR = (255, 255, 255)
+    AGENT_DEAD_TEXT_COLOR = (255, 0, 0)
+    SUCCESS_TEXT_COLOR = (0, 255, 0)
+    TIME_OVER_TEXT_COLOR = (0, 0, 255)
+
     EXTRA_WIDTH = 500
     EXTRA_HEIGHT = 400
 
@@ -205,20 +211,20 @@ class PedestrianEnv(gym.Env):
 
                 if self.game_end_extra_score < 0:
                     game_status_desc = "YOU DIED"
-                    game_status_color = (255, 0, 0)
+                    game_status_color = self.AGENT_DEAD_TEXT_COLOR
                 elif self.game_end_extra_score > 0:
                     game_status_desc = "SUCCESS"
-                    game_status_color = (0, 255, 0)
+                    game_status_color = self.SUCCESS_TEXT_COLOR
                 else:
                     game_status_desc = "TOO SLOW"
-                    game_status_color = (0, 0, 255)
+                    game_status_color = self.TIME_OVER_TEXT_COLOR
                 self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
 
             # clear and update score area
             bg_rect = pygame.Rect(0 , total_window_height - top_game_y, total_window_width, top_game_y)
-            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
+            pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
             # NOTE: show the sum of previous scores as total score (because it's confusing when both cur rewards and total rewards are constantly changing)
-            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}",(255, 255, 255), 32)
+            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}",self.UI_TEXT_WHITE_COLOR, 32)
 
             cur_score = self.cur_rewards
             if self.game_end_extra_score < 0:
@@ -227,12 +233,12 @@ class PedestrianEnv(gym.Env):
             elif self.game_end_extra_score > 0:
                 cur_score -= self.game_end_extra_score
                 self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.game_end_extra_score}",(0, 255, 0), 32)
-            self.render_text(right_ui_x, bottom_y, f"Current Score: {cur_score}",(255, 255, 255), 32)
+            self.render_text(right_ui_x, bottom_y, f"Current Score: {cur_score}",self.UI_TEXT_WHITE_COLOR, 32)
 
             # clear and update time left
             bg_rect = pygame.Rect(0 , 0, total_window_width, top_game_y)
-            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
-            self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}",(255, 255, 255), 32)
+            pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
+            self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}",self.UI_TEXT_WHITE_COLOR, 32)
 
             pygame.event.pump()
             pygame.display.update()

@@ -35,6 +35,7 @@ class GameObject:
 
 class Agent(GameObject):
     TARGET_LANE = 0
+    BODY_COLOR = (0, 0, 255)
 
     def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
         speed = 2
@@ -84,11 +85,11 @@ class Agent(GameObject):
                 radius_x * 2,
                 radius_y * 2
             )
-            pygame.draw.ellipse(background, (0, 0, 255), flattened_rect)
+            pygame.draw.ellipse(background, self.BODY_COLOR, flattened_rect)
         else:
             pygame.draw.circle(
                 background,
-                (0, 0, 255),
+                self.BODY_COLOR,
                 agent_position,
                 self.pix_square_size * self.radius,
             )
@@ -99,6 +100,7 @@ class Car(GameObject):
     MAX_HEIGHT = 2
     CAR_SIZES = {1: [(1, 1.5), (1,2)], 2: [(2, 2.5), (2,3), (2, 3.5), (2,4)]} # key=height, value=(height, width)
     HEIGHT_BUFFER = 0.1
+    BODY_COLOR = (255, 0, 0)
 
     def __init__(self, initial_x, initial_y, car_width, car_height, speed, map_grid_width, pix_square_size, steps_per_second):
         super().__init__(speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
@@ -107,7 +109,7 @@ class Car(GameObject):
         self.car_width = self.car_grid_width * pix_square_size
         self.car_height = car_height - 2 * self.HEIGHT_BUFFER
         self.car_height_pix = self.car_height * pix_square_size
-        self.color = (255, 0, 0)
+        self.color = self.BODY_COLOR
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
