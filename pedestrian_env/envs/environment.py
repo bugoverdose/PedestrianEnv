@@ -223,7 +223,7 @@ class PedestrianEnv(gym.Env):
             # NOTE: show the sum of previous scores as total score (because it's confusing when both cur rewards and total rewards are constantly changing)
             self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}",(255, 255, 255), 32)
 
-            cur_score = 0
+            cur_score = self.cur_rewards
             if self.game_end_extra_score < 0:
                 cur_score += self.DEATH_PENALTY
                 self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"-{self.DEATH_PENALTY}",(255, 0, 0), 32)
