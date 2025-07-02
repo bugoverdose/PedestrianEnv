@@ -18,27 +18,22 @@ KEY_ACTION = {
 
 def play_episode(env, seed):
     _, _ = env.reset(seed=seed)
-    step_ms = 1000 / env.steps_per_second # default: step once every 200ms
-    ingame_total_elapsed = 0
+    total_elapsed = 0
     elapsed = 0
     last_action = Action.NOTHING
-    game_over = False
-    game_over_info = None
     while True:
         dt = env.clock_tick()
         elapsed += dt
-        ingame_total_elapsed += dt
-        while elapsed >= step_ms:
-            elapsed -= step_ms
-            if game_over: break
+        total_elapsed += dt
+        while elapsed >= env.step_ms:
+            elapsed -= env.step_ms
             obs, reward, terminated, truncated, info = env.step(last_action)
-            print(f"total_elapsed={ingame_total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
+            print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
                   f"cur_rewards={obs['cur_rewards']}, total_rewards={obs['total_rewards']}")
             if terminated or truncated:
-                game_over = True
-                game_over_info = info
+                env.render_game_over()
+                return False
             last_action = Action.NOTHING
-        if game_over: break
 
         # check if a key was being pressed down (needed for continuous movement)
         keys = pygame.key.get_pressed()
@@ -64,25 +59,8 @@ def play_episode(env, seed):
 
         # constant update and rendering
         env.update_positions(dt)
-        env.update_time_left(ingame_total_elapsed)
+        env.update_time_left(total_elapsed)
         env.render()
-
-    # rest time before next episode
-    elapsed = 0
-    game_end_elapsed = 0
-    while game_end_elapsed < 5000:
-        dt = env.clock_tick()
-        elapsed += dt
-        game_end_elapsed += dt
-        while elapsed >= step_ms:
-            elapsed -= step_ms
-            if env.world.has_collided():
-                env.world.agent.set_dead()
-        env.update_positions(dt)
-        env.update_time_left(ingame_total_elapsed)
-        env.render()
-
-    return False
 
 def play_game(seed, max_episodes, debug):
     env = PedestrianEnv(render_mode="human", width=25, height=20, camera_size=7, steps_per_second=10, debug=debug)

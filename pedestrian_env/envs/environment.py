@@ -13,6 +13,9 @@ class PedestrianEnv(gym.Env):
 
     DEATH_PENALTY = 100
 
+    DEFAULT_GAME_TIME = 60_000
+    DEFAULT_GAMEOVER_REST_TIME = 3_000
+
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
@@ -20,6 +23,7 @@ class PedestrianEnv(gym.Env):
         self.map_grid_height = height
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
+        self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         base_window_size = 2048
         self.pix_square_size = (base_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
@@ -58,7 +62,7 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
-        self.GAME_TIME = 61_000 # ms
+        self.GAME_TIME = self.DEFAULT_GAME_TIME + 1_000
         if debug:
             self.GAME_TIME = 11_000
         self.time_left = self.GAME_TIME
@@ -251,6 +255,20 @@ class PedestrianEnv(gym.Env):
         else:
             text_location = (x, y)
         self.window.blit(text_surface, text_location)
+
+    def render_game_over(self):
+        elapsed = 0
+        total_elapsed = 0
+        while total_elapsed < self.DEFAULT_GAMEOVER_REST_TIME:
+            dt = self.clock_tick()
+            elapsed += dt
+            total_elapsed += dt
+            while elapsed >= self.step_ms:
+                elapsed -= self.step_ms
+                if self.world.has_collided():
+                    self.world.agent.set_dead()
+            self.update_positions(dt)
+            self.render()
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
