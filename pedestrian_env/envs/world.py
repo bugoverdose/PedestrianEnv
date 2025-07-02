@@ -1,14 +1,8 @@
 import math
-from enum import Enum
 import pygame
 
-from pedestrian_env.envs.crosswalk import CrossWalk, CrossWalks
+from pedestrian_env.envs.crosswalk import CrossWalks, RowType
 from pedestrian_env.envs.game_object import Agent, Car
-
-class RowType(Enum):
-    SAFE = 0
-    CAR_GOING_RIGHT = 1
-    CAR_GOING_LEFT = 2
 
 class World:
     ROAD_GRAY_COLOR = (89, 89, 89)
@@ -29,7 +23,7 @@ class World:
 
         self._generate_rows(map_grid_height)
         self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
-        self._generate_crosswalks()
+        self.crosswalks = CrossWalks.generate_crosswalks(self.agent, self.row_types, self.random)
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -79,8 +73,7 @@ class World:
                     width=6,
                 )
 
-        for crosswalk_idx in range(len(self.crosswalks.elements)):
-            crosswalk = self.crosswalks.elements[crosswalk_idx]
+        for crosswalk in self.crosswalks.elements:
             start_x = crosswalk.col * self.pix_square_size - adjustment
             start_y = crosswalk.row1 * self.pix_square_size - adjustment
             end_y = crosswalk.row2 * self.pix_square_size + adjustment
@@ -171,28 +164,6 @@ class World:
             if all(not self._check_overlapping(car, other) for other in non_overlapping_cars):
                 non_overlapping_cars.append(car)
         self.cars = non_overlapping_cars
-
-    def _generate_crosswalks(self):
-        danger_zones = []
-        danger_start_idx = None
-        for row_idx in range(len(self.row_types)):
-            row_type = self.row_types[row_idx]
-            if danger_start_idx is None:
-                if row_type != RowType.SAFE:
-                    danger_start_idx = row_idx
-                continue
-            if row_type == RowType.SAFE:
-                danger_zones.append([danger_start_idx, row_idx-1])
-                danger_start_idx = None
-
-        crosswalk_num = int(len(danger_zones) * 0.5)
-        crosswalk_rows = self.random.choice(danger_zones, size=crosswalk_num, replace=False)
-        crosswalks = []
-        for i in range(crosswalk_num):
-            [row1, row2] = crosswalk_rows[i]
-            col = self.random.integers(self.agent.MIN_X, self.agent.MAX_X+1)
-            crosswalks.append(CrossWalk(row1, row2, col))
-        self.crosswalks = CrossWalks(crosswalks)
 
     def _check_overlapping(self, car1, car2):
         l1, r1, t1, b1 = car1.get_cur_pos()
