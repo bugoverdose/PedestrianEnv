@@ -58,9 +58,9 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
-        self.GAME_TIME = 60_000 # ms
+        self.GAME_TIME = 61_000 # ms
         if debug:
-            self.GAME_TIME = 10_000
+            self.GAME_TIME = 11_000
         self.time_left = self.GAME_TIME
         self.game_over = False
         self.early_finish_reward = 0
@@ -209,6 +209,17 @@ class PedestrianEnv(gym.Env):
                 dark_screen.fill((0, 0, 0, alpha))
                 self.window.blit(dark_screen, (left_game_x, top_game_y), area=camera_rect)
 
+                if self.world.agent.is_dead:
+                    game_status_desc = "YOU DIED"
+                    game_status_color = (255, 0, 0)
+                elif self.get_time_left_sec() > 0:
+                    game_status_desc = "SUCCESS"
+                    game_status_color = (0, 255, 0)
+                else:
+                    game_status_desc = "TOO SLOW"
+                    game_status_color = (0, 0, 255)
+                self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
+
             # clear and update score area
             bg_rect = pygame.Rect(0 , total_window_height - top_game_y, total_window_width, top_game_y)
             pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
@@ -218,7 +229,7 @@ class PedestrianEnv(gym.Env):
             cur_score = 0
             if self.world.agent.is_dead:
                 cur_score += self.DEATH_PENALTY
-                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.DEATH_PENALTY}",(255, 0, 0), 32)
+                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"-{self.DEATH_PENALTY}",(255, 0, 0), 32)
             elif self.early_finish_reward > 0:
                 cur_score -= self.early_finish_reward
                 self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.early_finish_reward}",(0, 255, 0), 32)
@@ -239,10 +250,14 @@ class PedestrianEnv(gym.Env):
         elif self.render_mode == "rgb_array":
             return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
 
-    def render_text(self, x, y, text, color, font_size=32):
+    def render_text(self, x, y, text, color, font_size=32, center=False):
         font = pygame.font.SysFont(None, font_size)
         text_surface = font.render(text, True, color)
-        self.window.blit(text_surface, (x, y))
+        if center:
+            text_location = text_surface.get_rect(center=(x, y))
+        else:
+            text_location = (x, y)
+        self.window.blit(text_surface, text_location)
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
