@@ -45,6 +45,8 @@ class Agent(GameObject):
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
         self.is_dead = False
+        self.MIN_X = 1 + Car.MAX_WIDTH
+        self.MAX_X = self.map_grid_width - 1 - Car.MAX_WIDTH
         # TODO: self.last_direction = np.array([0, -1])
 
     def get_cur_pos(self):
@@ -62,8 +64,8 @@ class Agent(GameObject):
         # TODO: self.last_direction = direction
         delta = direction * (self.speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
-                                       [1 + Car.MAX_WIDTH, self.TARGET_LANE],
-                                       [self.map_grid_width - 1 - Car.MAX_WIDTH, self.map_grid_height - 1])
+                                       [self.MIN_X, self.TARGET_LANE],
+                                       [self.MAX_X, self.map_grid_height - 1])
 
     def set_dead(self):
         self.is_dead = True

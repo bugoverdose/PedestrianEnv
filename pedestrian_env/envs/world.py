@@ -10,6 +10,9 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class World:
+    GRAY_COLOR = (89, 89, 89)
+    WHITE_COLOR = (250, 250, 250)
+
     def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, random, debug):
         self.random = random
         self.map_grid_width = map_grid_width
@@ -23,7 +26,8 @@ class World:
         self.initial_player_y = self.agent.get_cur_y()
 
         self._generate_rows(map_grid_height)
-        self.cars = self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
+        self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
+        self._generate_crosswalks()
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -45,7 +49,7 @@ class World:
 
     def render(self):
         canvas = pygame.Surface((self.map_width, self.map_height))
-        canvas.fill((89, 89, 89))
+        canvas.fill(self.GRAY_COLOR)
 
         adjustment = 0.5 * self.pix_square_size
         for safe_row_idx in self.safe_row_idx_list:
@@ -56,11 +60,27 @@ class World:
                 start_x = x * self.pix_square_size
                 pygame.draw.line(
                     canvas,
-                    (250, 250, 250),
+                    self.WHITE_COLOR,
                     (start_x, self.pix_square_size * boundary_idx + adjustment),
                     (start_x + 2 * self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
                     width=3,
                 )
+
+        for crosswalk_idx in range(len(self.crosswalks)):
+            [row1, row2, col] = self.crosswalks[crosswalk_idx]
+            start_x = col * self.pix_square_size - adjustment
+            start_y = row1 * self.pix_square_size - adjustment
+            end_y = row2 * self.pix_square_size + adjustment
+            # NOTE: cover up background (-1 pixel at top and bottom, +self.pix_square_size at left and right)
+            pygame.draw.rect(canvas, self.GRAY_COLOR, (start_x - self.pix_square_size, start_y + 1, self.pix_square_size * 3, end_y - start_y - 2))
+
+            stripe_count = 3 * (row2 - row1 + 1)
+            stripe_thickness = self.pix_square_size / 3
+            for i in range(stripe_count):
+                for j in range(2):
+                    if i % 2 == j: continue
+                    stripe_rect = pygame.Rect(start_x + (self.pix_square_size/2 * j), start_y + i * stripe_thickness, self.pix_square_size/2, stripe_thickness)
+                    pygame.draw.rect(canvas, self.WHITE_COLOR, stripe_rect)
 
         rendered_agent_position = self.agent.render(canvas)
         for car in self.cars:
@@ -127,7 +147,28 @@ class World:
         for car in cars:
             if all(not self._check_overlapping(car, other) for other in non_overlapping_cars):
                 non_overlapping_cars.append(car)
-        return non_overlapping_cars
+        self.cars = non_overlapping_cars
+
+    def _generate_crosswalks(self):
+        danger_zones = []
+        danger_start_idx = None
+        for row_idx in range(len(self.row_types)):
+            row_type = self.row_types[row_idx]
+            if danger_start_idx is None:
+                if row_type != RowType.SAFE:
+                    danger_start_idx = row_idx
+                continue
+            if row_type == RowType.SAFE:
+                danger_zones.append([danger_start_idx, row_idx-1])
+                danger_start_idx = None
+
+        crosswalk_num = int(len(danger_zones) * 0.5)
+        crosswalk_rows = self.random.choice(danger_zones, size=crosswalk_num, replace=False)
+        self.crosswalks = []
+        for i in range(crosswalk_num):
+            [row1, row2] = crosswalk_rows[i]
+            col = self.random.integers(self.agent.MIN_X, self.agent.MAX_X+1)
+            self.crosswalks.append([row1, row2, col])
 
     def _check_overlapping(self, car1, car2):
         l1, r1, t1, b1 = car1.get_cur_pos()
