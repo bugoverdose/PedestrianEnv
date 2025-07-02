@@ -55,6 +55,16 @@ class World:
         for safe_row_idx in self.safe_row_idx_list:
             pygame.draw.rect(canvas, (217, 217, 217), (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size + 1))
 
+        for other_direction_idx in self.other_direction_boundary_idx_list:
+            start_x = 0
+            pygame.draw.line(
+                canvas,
+                self.WHITE_COLOR,
+                (start_x, self.pix_square_size * other_direction_idx + adjustment),
+                (self.map_width, self.pix_square_size * other_direction_idx + adjustment),
+                width=3,
+            )
+
         for boundary_idx in self.lane_boundary_idx_list:
             for x in range(0, self.map_grid_width, 5):
                 start_x = x * self.pix_square_size
@@ -63,7 +73,7 @@ class World:
                     self.WHITE_COLOR,
                     (start_x, self.pix_square_size * boundary_idx + adjustment),
                     (start_x + 2 * self.pix_square_size, self.pix_square_size * boundary_idx + adjustment),
-                    width=3,
+                    width=6,
                 )
 
         for crosswalk_idx in range(len(self.crosswalks)):
@@ -119,6 +129,15 @@ class World:
         for idx in range(len(total_rows)-1):
             if total_rows[idx] != RowType.SAFE and total_rows[idx+1] != RowType.SAFE:
                 self.lane_boundary_idx_list.append(idx)
+
+        self.other_direction_boundary_idx_list = []
+        for idx in range(len(total_rows)-1):
+            if total_rows[idx] == RowType.CAR_GOING_RIGHT and total_rows[idx+1] == RowType.CAR_GOING_LEFT:
+                self.other_direction_boundary_idx_list.append(idx)
+                self.lane_boundary_idx_list.remove(idx)
+            if total_rows[idx] == RowType.CAR_GOING_LEFT and total_rows[idx+1] == RowType.CAR_GOING_RIGHT:
+                self.other_direction_boundary_idx_list.append(idx)
+                self.lane_boundary_idx_list.remove(idx)
 
         self.max_height_dic = {}
         for row_idx in range(len(total_rows)):
