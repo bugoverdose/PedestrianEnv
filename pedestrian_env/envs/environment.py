@@ -107,13 +107,10 @@ class PedestrianEnv(gym.Env):
 
         self.world = World(self.map_grid_width, self.map_grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
 
-        observation = self._get_obs()
-        info = self._get_info()
-
         if self.render_mode == "human":
             self.render()
 
-        return observation, info
+        return self._get_obs(), self._get_info()
 
     def step(self, action):
         """Run one timestep of the environment's dynamics using the agent actions.
