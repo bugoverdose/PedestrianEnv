@@ -155,7 +155,5 @@ class Car(GameObject):
         window_y = (self.cur_location[1] * self.pix_square_size) - window_height/2
         pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
 
-        self.update_target()
-
     def __str__(self):
         return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]})"
