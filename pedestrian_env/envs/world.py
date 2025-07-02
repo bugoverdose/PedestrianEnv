@@ -29,6 +29,7 @@ class World:
         self._generate_rows(map_grid_height)
         self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
         self._generate_crosswalks()
+        self.active_crosswalks = []
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -36,6 +37,7 @@ class World:
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
+        self.update_crosswalk_activation()
         for car in self.cars:
             car.update_position(dt)
 
@@ -47,6 +49,23 @@ class World:
             if self._check_collision(car):
                 return True
         return False
+
+    def update_crosswalk_activation(self):
+        self.active_crosswalks = []
+        agent_x, agent_y, agent_radius = self.agent.get_cur_pos()
+        for crosswalk in self.crosswalks:
+            [row1, row2, col] = crosswalk
+            start_y = row1 - 1
+            end_y = row2 + 1
+            x = col
+            if start_y <= agent_y <= end_y:
+                distance = abs(agent_x - x) # check only row distance if in the same danger zone
+            else:
+                dy = min(abs(agent_y - start_y), abs(agent_y - end_y))
+                dx = abs(agent_x - x)
+                distance = math.hypot(dx, dy)
+            if distance <= agent_radius:
+                self.active_crosswalks.append(crosswalk) # TODO: implement Crosswalk class
 
     def render(self):
         canvas = pygame.Surface((self.map_width, self.map_height))
