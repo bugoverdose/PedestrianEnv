@@ -115,6 +115,7 @@ class Car(GameObject):
         self.max_speed = max_speed
         self.go_right = max_speed > 0
         self.crosswalk = crosswalk
+        self.nearby_cars = [] # all the cars in the overlapping lane
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
@@ -123,11 +124,33 @@ class Car(GameObject):
         bottom_y = self.cur_location[1] + (self.car_height/2)
         return left_x, right_x, top_y, bottom_y
 
+    def get_front_back_x(self):
+        left_x = self.cur_location[0] - (self.car_grid_width/2)
+        right_x = self.cur_location[0] + (self.car_grid_width/2)
+        if self.go_right:
+            return right_x, left_x
+        return left_x, right_x
+
     def update_target(self):
+        # teleport to start of the lane when reached the end
         if self.go_right and self.cur_location[0] >= self.map_grid_width:
             self.cur_location[0] = 0
         if not self.go_right and self.cur_location[0] <= 0:
             self.cur_location[0] = self.map_grid_width - 1
+
+        # stop in the current location when another car is in front of the car
+        if len(self.nearby_cars) > 0:
+            threshold = 0.1
+            front_x1, back_x1, = self.get_front_back_x()
+            for other_car in self.nearby_cars:
+                front_x2, back_x2 = other_car.get_front_back_x()
+                # when other car is in front of me & the back of the other car is too close
+                if front_x1 < front_x2:
+                    front_dist = back_x2 - front_x1
+                    if front_dist <= threshold:
+                        self.target_location[0] = self.cur_location[0]
+                        return
+
         self.target_location[0] = self.cur_location[0] + self.cur_speed * (1 / self.steps_per_second)
 
     def render(self, background):
@@ -207,13 +230,17 @@ class Cars:
                     crosswalk = cur
                     break
             cars.append(Car(initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second))
-
-        random.shuffle(cars)
-        non_overlapping_cars = []
-        for car in cars:
-            if all(not Cars._check_overlapping(car, other) for other in non_overlapping_cars):
-                non_overlapping_cars.append(car)
-        return Cars(agent, non_overlapping_cars)
+        for i in range(len(cars)):
+            cur_car = cars[i]
+            _, _, top_y1, bottom_y1 = cur_car.get_cur_pos()
+            for j in range(len(cars)):
+                if i == j: continue
+                other_car = cars[j]
+                other_car.get_cur_pos()
+                _, _, top_y2, bottom_y2 = other_car.get_cur_pos()
+                if max(top_y1, top_y2) <= min(bottom_y1, bottom_y2):
+                    cur_car.nearby_cars.append(other_car) # overlapping lane
+        return Cars(agent, cars)
 
     @staticmethod
     def _check_overlapping(car1, car2):
