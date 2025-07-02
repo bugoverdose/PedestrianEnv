@@ -32,7 +32,7 @@ class World:
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
-        self.crosswalks.update_activation(self.agent)
+        self.crosswalks.update_activation()
         self.cars.update_positions(dt)
 
     def calculate_up_rewards(self):

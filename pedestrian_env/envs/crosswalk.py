@@ -7,18 +7,25 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class CrossWalk:
-    def __init__(self, row1, row2, col):
+    def __init__(self, row1, row2, col, threshold_distance):
         self.row1 = row1
         self.row2 = row2
         self.col = col
+        self.threshold_distance = threshold_distance
         self.is_active = False
+
+    def get_left_right(self):
+        left = self.col - self.threshold_distance
+        right = self.col + self.threshold_distance
+        return left, right
 
     def __str__(self):
         return f"CrossWalk(active={self.is_active}, row=({self.row1}~{self.row2}), col={self.col})"
 
 # first-class object for simplicity
 class CrossWalks:
-    def __init__(self, elements):
+    def __init__(self, agent, elements):
+        self.agent = agent
         self.elements = elements
 
     @staticmethod
@@ -38,15 +45,15 @@ class CrossWalks:
         crosswalk_num = int(len(danger_zones) * 0.5)
         crosswalk_rows = random.choice(danger_zones, size=crosswalk_num, replace=False)
         crosswalks = []
+        _, _, agent_radius = agent.get_cur_pos()
         for i in range(crosswalk_num):
             [row1, row2] = crosswalk_rows[i]
             col = random.integers(agent.MIN_X, agent.MAX_X+1)
-            crosswalks.append(CrossWalk(row1, row2, col))
-        return CrossWalks(crosswalks)
+            crosswalks.append(CrossWalk(row1, row2, col, agent_radius * 1.5))
+        return CrossWalks(agent, crosswalks)
 
-    def update_activation(self, agent):
-        agent_x, agent_y, agent_radius = agent.get_cur_pos()
-        threshold_distance = agent_radius * 1.5
+    def update_activation(self):
+        agent_x, agent_y, _ = self.agent.get_cur_pos()
         for crosswalk in self.elements:
             start_y = crosswalk.row1 - 1
             end_y = crosswalk.row2 + 1
@@ -56,4 +63,4 @@ class CrossWalks:
                 dy = min(abs(agent_y - start_y), abs(agent_y - end_y))
                 dx = abs(agent_x - crosswalk.col)
                 distance = math.hypot(dx, dy)
-            crosswalk.is_active = distance <= threshold_distance
+            crosswalk.is_active = distance <= crosswalk.threshold_distance
