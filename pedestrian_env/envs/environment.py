@@ -63,7 +63,7 @@ class PedestrianEnv(gym.Env):
             self.GAME_TIME = 10_000
         self.time_left = self.GAME_TIME
         self.game_over = False
-        self.game_over_score = 0
+        self.early_finish_reward = 0
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards
@@ -85,18 +85,11 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
-        info = {
-            "is_dead": False,
-            "time_up": False,
-            "game_over_score": self.game_over_score,
+        return {
+            "is_dead": self.world.agent.is_dead,
+            "time_left_ms": self.time_left,
+            "early_finish_reward": self.early_finish_reward,
         }
-        if not self.game_over:
-            return info
-        if self.game_over_score < 0:
-            info["is_dead"] = True
-        if self.game_over_score == 0:
-            info["time_up"] = True
-        return info
 
     def reset(self, seed=None, options=None):
         # NOTE: following line is needed for self.np_random
@@ -106,7 +99,7 @@ class PedestrianEnv(gym.Env):
         self.cur_rewards = 0
         self.time_left = self.GAME_TIME
         self.game_over = False
-        self.game_over_score = 0
+        self.early_finish_reward = 0
 
         self.world = World(self.map_grid_width, self.map_grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
 
@@ -155,17 +148,15 @@ class PedestrianEnv(gym.Env):
             terminated = True
             self.world.agent.set_dead()
             reward -= self.DEATH_PENALTY
-            self.game_over_score = -self.DEATH_PENALTY
         elif self.get_time_left_sec() <= 0:
             terminated = True
-            self.game_over_score = 0
         else:
             # An episode is finished if the agent has reached the target lane
             terminated = self.world.target_lane_reached()
             if terminated:
-                fast_over_reward = self.get_time_left_sec()
-                reward += fast_over_reward
-                self.game_over_score = fast_over_reward
+                early_finish_reward = self.get_time_left_sec()
+                reward += early_finish_reward
+                self.early_finish_reward = early_finish_reward
         self.game_over = terminated
 
         self.cur_rewards += reward
@@ -208,6 +199,7 @@ class PedestrianEnv(gym.Env):
             right_ui_x = total_window_width * 0.7
             top_y = total_window_height * 0.15
             bottom_y = total_window_height * 0.85
+            extra_score_text_width = 155
 
             # clear and update score area
             bg_rect = pygame.Rect(0 , total_window_height - self.EXTRA_HEIGHT/2, total_window_width, self.EXTRA_HEIGHT/2)
@@ -218,14 +210,22 @@ class PedestrianEnv(gym.Env):
             text_surface = font.render(f"Total Score: {self.prev_rewards}", True, (255, 255, 255))
             self.window.blit(text_surface, (left_ui_x, bottom_y))
 
-            if self._get_info()["is_dead"]:
+            if self.world.agent.is_dead:
                 font = pygame.font.SysFont(None, 32)
                 text_surface = font.render(f"Current Score: {self.cur_rewards + self.DEATH_PENALTY}", True, (255, 255, 255))
                 self.window.blit(text_surface, (right_ui_x, bottom_y))
 
                 font = pygame.font.SysFont(None, 32)
                 text_surface = font.render(f"-{self.DEATH_PENALTY}", True, (255, 0, 0))
-                self.window.blit(text_surface, (right_ui_x + 155, bottom_y+32))
+                self.window.blit(text_surface, (right_ui_x + extra_score_text_width, bottom_y+32))
+            elif self.early_finish_reward > 0:
+                font = pygame.font.SysFont(None, 32)
+                text_surface = font.render(f"Current Score: {self.cur_rewards - self.early_finish_reward}", True, (255, 255, 255))
+                self.window.blit(text_surface, (right_ui_x, bottom_y))
+
+                font = pygame.font.SysFont(None, 32)
+                text_surface = font.render(f"+{self.early_finish_reward}", True, (0, 255, 0))
+                self.window.blit(text_surface, (right_ui_x + extra_score_text_width, bottom_y+32))
             else:
                 font = pygame.font.SysFont(None, 32)
                 text_surface = font.render(f"Current Score: {self.cur_rewards}", True, (255, 255, 255))
@@ -263,3 +263,4 @@ class PedestrianEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
+

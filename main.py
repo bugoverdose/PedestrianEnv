@@ -66,16 +66,17 @@ def play_episode(env, seed):
         env.update_positions(dt)
         env.update_time_left(total_elapsed)
         env.render()
-    if game_over_info["is_dead"]:
-        elapsed = 0
-        while elapsed < 5000:
-            dt = env.clock_tick()
-            elapsed += dt
+    elapsed = 0
+    while elapsed < 5000:
+        dt = env.clock_tick()
+        elapsed += dt
+        if game_over_info["is_dead"]:
+            # NOTE: let the cars move around on game over
             env.update_positions(dt)
-            env.update_time_left(total_elapsed)
-            env.render()
+        env.update_time_left(total_elapsed)
+        env.render()
 
-    return False #, game_over_info["is_dead"], game_over_info["time_up"], game_over_info["game_over_score"]
+    return False
 
 def play_game(seed, max_episodes, debug):
     env = PedestrianEnv(render_mode="human", width=25, height=20, camera_size=7, steps_per_second=10, debug=debug)
