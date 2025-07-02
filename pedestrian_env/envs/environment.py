@@ -192,58 +192,42 @@ class PedestrianEnv(gym.Env):
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         if self.render_mode == "human":
-            # add game screen
-            self.window.blit(canvas, (self.EXTRA_WIDTH/2, self.EXTRA_HEIGHT/2), area=camera_rect)
-
             left_ui_x = total_window_width * 0.2
             right_ui_x = total_window_width * 0.7
             top_y = total_window_height * 0.15
             bottom_y = total_window_height * 0.85
             extra_score_text_width = 155
+            left_game_x = self.EXTRA_WIDTH/2
+            top_game_y = self.EXTRA_HEIGHT/2
 
-            # clear and update score area
-            bg_rect = pygame.Rect(0 , total_window_height - self.EXTRA_HEIGHT/2, total_window_width, self.EXTRA_HEIGHT/2)
-            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
-
-            # NOTE: show only the sum of previous scores because it's confusing when both cur rewards and total rewards are constantly changing
-            font = pygame.font.SysFont(None, 32)
-            text_surface = font.render(f"Total Score: {self.prev_rewards}", True, (255, 255, 255))
-            self.window.blit(text_surface, (left_ui_x, bottom_y))
-
-            if self.world.agent.is_dead:
-                font = pygame.font.SysFont(None, 32)
-                text_surface = font.render(f"Current Score: {self.cur_rewards + self.DEATH_PENALTY}", True, (255, 255, 255))
-                self.window.blit(text_surface, (right_ui_x, bottom_y))
-
-                font = pygame.font.SysFont(None, 32)
-                text_surface = font.render(f"-{self.DEATH_PENALTY}", True, (255, 0, 0))
-                self.window.blit(text_surface, (right_ui_x + extra_score_text_width, bottom_y+32))
-            elif self.early_finish_reward > 0:
-                font = pygame.font.SysFont(None, 32)
-                text_surface = font.render(f"Current Score: {self.cur_rewards - self.early_finish_reward}", True, (255, 255, 255))
-                self.window.blit(text_surface, (right_ui_x, bottom_y))
-
-                font = pygame.font.SysFont(None, 32)
-                text_surface = font.render(f"+{self.early_finish_reward}", True, (0, 255, 0))
-                self.window.blit(text_surface, (right_ui_x + extra_score_text_width, bottom_y+32))
-            else:
-                font = pygame.font.SysFont(None, 32)
-                text_surface = font.render(f"Current Score: {self.cur_rewards}", True, (255, 255, 255))
-                self.window.blit(text_surface, (right_ui_x, bottom_y))
-
-            # clear and update time left
-            bg_rect = pygame.Rect(0 , 0, total_window_width, self.EXTRA_HEIGHT/2)
-            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
-
-            font = pygame.font.SysFont(None, 32)
-            text_surface = font.render(f"Time Left: {self.get_time_left_sec()}", True, (255, 255, 255))
-            self.window.blit(text_surface, (right_ui_x, top_y))
+            # add game screen
+            self.window.blit(canvas, (left_game_x, top_game_y), area=camera_rect)
 
             if self.game_over:
                 dark_screen = pygame.Surface((self.world.map_width, self.world.map_height), pygame.SRCALPHA)
                 alpha = 128 # 50% transparency
                 dark_screen.fill((0, 0, 0, alpha))
-                self.window.blit(dark_screen, (self.EXTRA_WIDTH/2, self.EXTRA_HEIGHT/2), area=camera_rect)
+                self.window.blit(dark_screen, (left_game_x, top_game_y), area=camera_rect)
+
+            # clear and update score area
+            bg_rect = pygame.Rect(0 , total_window_height - top_game_y, total_window_width, top_game_y)
+            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
+            # NOTE: show the sum of previous scores as total score (because it's confusing when both cur rewards and total rewards are constantly changing)
+            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}",(255, 255, 255), 32)
+
+            cur_score = 0
+            if self.world.agent.is_dead:
+                cur_score += self.DEATH_PENALTY
+                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.DEATH_PENALTY}",(255, 0, 0), 32)
+            elif self.early_finish_reward > 0:
+                cur_score -= self.early_finish_reward
+                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.early_finish_reward}",(0, 255, 0), 32)
+            self.render_text(right_ui_x, bottom_y, f"Current Score: {cur_score}",(255, 255, 255), 32)
+
+            # clear and update time left
+            bg_rect = pygame.Rect(0 , 0, total_window_width, top_game_y)
+            pygame.draw.rect(self.window, (0, 0, 0), bg_rect)
+            self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}",(255, 255, 255), 32)
 
             pygame.event.pump()
             pygame.display.update()
@@ -254,6 +238,11 @@ class PedestrianEnv(gym.Env):
                 self.clock_tick()
         elif self.render_mode == "rgb_array":
             return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
+
+    def render_text(self, x, y, text, color, font_size=32):
+        font = pygame.font.SysFont(None, font_size)
+        text_surface = font.render(text, True, color)
+        self.window.blit(text_surface, (x, y))
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
