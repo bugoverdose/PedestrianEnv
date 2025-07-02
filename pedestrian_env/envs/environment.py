@@ -239,6 +239,12 @@ class PedestrianEnv(gym.Env):
             text_surface = font.render(f"Time Left: {self.get_time_left_sec()}", True, (255, 255, 255))
             self.window.blit(text_surface, (right_ui_x, top_y))
 
+            if self.game_over:
+                dark_screen = pygame.Surface((self.world.map_width, self.world.map_height), pygame.SRCALPHA)
+                alpha = 128 # 50% transparency
+                dark_screen.fill((0, 0, 0, alpha))
+                self.window.blit(dark_screen, (self.EXTRA_WIDTH/2, self.EXTRA_HEIGHT/2), area=camera_rect)
+
             pygame.event.pump()
             pygame.display.update()
             # We need to ensure that human-rendering occurs at the predefined framerate.
