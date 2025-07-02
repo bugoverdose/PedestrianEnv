@@ -218,9 +218,18 @@ class PedestrianEnv(gym.Env):
             text_surface = font.render(f"Total Score: {self.prev_rewards}", True, (255, 255, 255))
             self.window.blit(text_surface, (left_ui_x, bottom_y))
 
-            font = pygame.font.SysFont(None, 32)
-            text_surface = font.render(f"Current Score: {self.cur_rewards}", True, (255, 255, 255))
-            self.window.blit(text_surface, (right_ui_x, bottom_y))
+            if self._get_info()["is_dead"]:
+                font = pygame.font.SysFont(None, 32)
+                text_surface = font.render(f"Current Score: {self.cur_rewards + self.DEATH_PENALTY}", True, (255, 255, 255))
+                self.window.blit(text_surface, (right_ui_x, bottom_y))
+
+                font = pygame.font.SysFont(None, 32)
+                text_surface = font.render(f"-{self.DEATH_PENALTY}", True, (255, 0, 0))
+                self.window.blit(text_surface, (right_ui_x + 155, bottom_y+32))
+            else:
+                font = pygame.font.SysFont(None, 32)
+                text_surface = font.render(f"Current Score: {self.cur_rewards}", True, (255, 255, 255))
+                self.window.blit(text_surface, (right_ui_x, bottom_y))
 
             # clear and update time left
             bg_rect = pygame.Rect(0 , 0, total_window_width, self.EXTRA_HEIGHT/2)

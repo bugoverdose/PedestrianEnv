@@ -48,7 +48,7 @@ def play_episode(env, seed):
                 break
         for event in pygame.event.get():
             # close window to finish early
-            if event.type == pygame.QUIT: return True, False, False, 0
+            if event.type == pygame.QUIT: return True
 
             if last_action == Action.NOTHING:
                 # check if started to press a key (needed for instant start)
@@ -75,12 +75,12 @@ def play_episode(env, seed):
             env.update_time_left(total_elapsed)
             env.render()
 
-    return False, game_over_info["is_dead"], game_over_info["time_up"], game_over_info["game_over_score"]
+    return False #, game_over_info["is_dead"], game_over_info["time_up"], game_over_info["game_over_score"]
 
 def play_game(seed, max_episodes, debug):
     env = PedestrianEnv(render_mode="human", width=25, height=20, camera_size=7, steps_per_second=10, debug=debug)
     for i in range(max_episodes):
-        quit_game, is_dead, time_up, game_over_score = play_episode(env, seed + i)
+        quit_game = play_episode(env, seed + i)
         if quit_game: break
     env.close()
 
