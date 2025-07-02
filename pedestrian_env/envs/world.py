@@ -158,9 +158,9 @@ class World:
             initial_x = self.random.integers(0, map_grid_width)
             height = self.random.choice(list(range(1, self.max_height_dic[row_idx] + 1)))
             width = self.random.choice(Car.CAR_SIZES[height])[1]
-            speed = 1 if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
+            max_speed = 1 if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
             row_idx += (height - 1) * 0.5
-            cars.append(Car(initial_x, row_idx, width, height, speed, map_grid_width, pix_square_size, self.steps_per_second))
+            cars.append(Car(initial_x, row_idx, width, height, max_speed, map_grid_width, pix_square_size, self.steps_per_second))
 
         self.random.shuffle(cars)
         non_overlapping_cars = []
