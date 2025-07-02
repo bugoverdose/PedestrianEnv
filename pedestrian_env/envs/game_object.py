@@ -1,5 +1,9 @@
+import math
+
 import pygame
 import numpy as np
+
+from pedestrian_env.envs.crosswalk import RowType
 
 class GameObject:
 
@@ -157,4 +161,72 @@ class Car(GameObject):
         pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
 
     def __str__(self):
-        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), ({self.crosswalk}))"
+        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), crosswalk=({self.crosswalk}))"
+
+class Cars:
+    def __init__(self, agent, elements):
+        self.agent = agent
+        self.elements = elements
+
+    def update_positions(self, dt):
+        for car in self.elements:
+            car.update_target()
+            car.update_position(dt)
+
+    def render(self, background):
+        for car in self.elements:
+            car.render(background)
+
+    def has_hit_agent(self):
+        for car in self.elements:
+            if self._check_collision(car):
+                return True
+        return False
+
+    def _check_collision(self, car):
+        cx, cy, radius = self.agent.get_cur_pos() # circle
+        left_x, right_x, top_y, bottom_y = car.get_cur_pos() # rectangle
+        closest_x = max(left_x, min(cx, right_x))
+        closest_y = max(top_y, min(cy, bottom_y))
+        distance = math.sqrt((closest_x - cx) ** 2 + (closest_y - cy) ** 2)
+        return distance < radius
+
+    @staticmethod
+    def generate_cars(agent, row_types, max_height_dic, crosswalks, pix_square_size, map_grid_width, map_grid_height, steps_per_second, random):
+        cars = []
+        for row_idx in range(map_grid_height):
+            if row_types[row_idx] == RowType.SAFE: continue
+            initial_x = random.integers(0, map_grid_width)
+            height = random.choice(list(range(1, max_height_dic[row_idx] + 1)))
+            width = random.choice(Car.CAR_SIZES[height])[1]
+            max_speed = 1 if row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
+            row_idx += (height - 1) * 0.5
+            crosswalk = None
+            for cur in crosswalks.elements:
+                if cur.row1 <= row_idx <= cur.row2:
+                    crosswalk = cur
+                    break
+            cars.append(Car(initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second))
+
+        random.shuffle(cars)
+        non_overlapping_cars = []
+        for car in cars:
+            if all(not Cars._check_overlapping(car, other) for other in non_overlapping_cars):
+                non_overlapping_cars.append(car)
+        return Cars(agent, non_overlapping_cars)
+
+    @staticmethod
+    def _check_overlapping(car1, car2):
+        l1, r1, t1, b1 = car1.get_cur_pos()
+        l2, r2, t2, b2 = car2.get_cur_pos()
+        if r1 <= l2 or r2 <= l1:
+            return False
+        if b1 <= t2 or b2 <= t1:
+            return False
+        return True
+
+    def __str__(self):
+        string = ""
+        for car in self.elements:
+            string += f"{car}\n"
+        return string[:-1]

@@ -117,8 +117,7 @@ class PedestrianEnv(gym.Env):
             self.render()
 
         if self.debug:
-            for car in self.world.cars:
-                print(car)
+            print(self.world.cars)
 
         return self._get_obs(), self._get_info()
 
@@ -155,7 +154,7 @@ class PedestrianEnv(gym.Env):
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
-        if self.world.has_collided():
+        if self.world.cars.has_hit_agent():
             terminated = True
             self.world.agent.set_dead()
             reward -= self.DEATH_PENALTY
@@ -272,7 +271,7 @@ class PedestrianEnv(gym.Env):
             total_elapsed += dt
             while elapsed >= self.step_ms:
                 elapsed -= self.step_ms
-                if self.world.has_collided():
+                if self.world.cars.has_hit_agent():
                     self.world.agent.set_dead()
             self.update_positions(dt)
             self.render()

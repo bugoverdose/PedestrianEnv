@@ -2,7 +2,7 @@ import math
 import pygame
 
 from pedestrian_env.envs.crosswalk import CrossWalks, RowType
-from pedestrian_env.envs.game_object import Agent, Car
+from pedestrian_env.envs.game_object import Agent, Car, Cars
 
 class World:
     ROAD_GRAY_COLOR = (89, 89, 89)
@@ -23,7 +23,8 @@ class World:
 
         self._generate_rows(map_grid_height)
         self.crosswalks = CrossWalks.generate_crosswalks(self.agent, self.row_types, self.random)
-        self._generate_cars(map_grid_width, map_grid_height, pix_square_size)
+        self.cars = Cars.generate_cars(self.agent, self.row_types, self.max_height_dic, self.crosswalks,
+                                       pix_square_size, map_grid_width, map_grid_height, steps_per_second, random)
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -32,18 +33,10 @@ class World:
     def update_positions(self, dt):
         self.agent.update_position(dt)
         self.crosswalks.update_activation(self.agent)
-        for car in self.cars:
-            car.update_target()
-            car.update_position(dt)
+        self.cars.update_positions(dt)
 
     def calculate_up_rewards(self):
         return int(self.steps_per_second * (self.initial_player_y - self.agent.get_target_y()))
-
-    def has_collided(self):
-        for car in self.cars:
-            if self._check_collision(car):
-                return True
-        return False
 
     def render(self):
         canvas = pygame.Surface((self.map_width, self.map_height))
@@ -90,8 +83,7 @@ class World:
                     pygame.draw.rect(canvas, self.ROAD_WHITE_COLOR, stripe_rect)
 
         rendered_agent_position = self.agent.render(canvas)
-        for car in self.cars:
-            car.render(canvas)
+        self.cars.render(canvas)
 
         return canvas, rendered_agent_position
 
@@ -146,43 +138,3 @@ class World:
                 self.max_height_dic[prev_row_idx] = min(self.max_height_dic[prev_row_idx] + 1, Car.MAX_HEIGHT)
                 prev_row_idx -= 1
         self.row_types = total_rows
-
-    def _generate_cars(self, map_grid_width, map_grid_height, pix_square_size):
-        cars = []
-        for row_idx in range(map_grid_height):
-            if self.row_types[row_idx] == RowType.SAFE: continue
-            initial_x = self.random.integers(0, map_grid_width)
-            height = self.random.choice(list(range(1, self.max_height_dic[row_idx] + 1)))
-            width = self.random.choice(Car.CAR_SIZES[height])[1]
-            max_speed = 1 if self.row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
-            row_idx += (height - 1) * 0.5
-            crosswalk = None
-            for cur in self.crosswalks.elements:
-                if cur.row1 <= row_idx <= cur.row2:
-                    crosswalk = cur
-                    break
-            cars.append(Car(initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, self.steps_per_second))
-
-        self.random.shuffle(cars)
-        non_overlapping_cars = []
-        for car in cars:
-            if all(not self._check_overlapping(car, other) for other in non_overlapping_cars):
-                non_overlapping_cars.append(car)
-        self.cars = non_overlapping_cars
-
-    def _check_overlapping(self, car1, car2):
-        l1, r1, t1, b1 = car1.get_cur_pos()
-        l2, r2, t2, b2 = car2.get_cur_pos()
-        if r1 <= l2 or r2 <= l1:
-            return False
-        if b1 <= t2 or b2 <= t1:
-            return False
-        return True
-
-    def _check_collision(self, car):
-        cx, cy, radius = self.agent.get_cur_pos() # circle
-        left_x, right_x, top_y, bottom_y = car.get_cur_pos() # rectangle
-        closest_x = max(left_x, min(cx, right_x))
-        closest_y = max(top_y, min(cy, bottom_y))
-        distance = math.sqrt((closest_x - cx) ** 2 + (closest_y - cy) ** 2)
-        return distance < radius
