@@ -19,7 +19,7 @@ KEY_ACTION = {
 def play_episode(env, seed):
     _, _ = env.reset(seed=seed)
     step_ms = 1000 / env.steps_per_second # default: step once every 200ms
-    total_elapsed = 0
+    ingame_total_elapsed = 0
     elapsed = 0
     last_action = Action.NOTHING
     game_over = False
@@ -27,12 +27,12 @@ def play_episode(env, seed):
     while True:
         dt = env.clock_tick()
         elapsed += dt
-        total_elapsed += dt
+        ingame_total_elapsed += dt
         while elapsed >= step_ms:
             elapsed -= step_ms
             if game_over: break
             obs, reward, terminated, truncated, info = env.step(last_action)
-            print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
+            print(f"total_elapsed={ingame_total_elapsed}, action={last_action}, reward={reward}, cur_pos={obs['agent']}, "
                   f"cur_rewards={obs['cur_rewards']}, total_rewards={obs['total_rewards']}")
             if terminated or truncated:
                 game_over = True
@@ -64,16 +64,22 @@ def play_episode(env, seed):
 
         # constant update and rendering
         env.update_positions(dt)
-        env.update_time_left(total_elapsed)
+        env.update_time_left(ingame_total_elapsed)
         env.render()
+
+    # rest time before next episode
     elapsed = 0
-    while elapsed < 5000:
+    game_end_elapsed = 0
+    while game_end_elapsed < 5000:
         dt = env.clock_tick()
         elapsed += dt
-        if game_over_info["is_dead"]:
-            # NOTE: let the cars move around on game over
-            env.update_positions(dt)
-        env.update_time_left(total_elapsed)
+        game_end_elapsed += dt
+        while elapsed >= step_ms:
+            elapsed -= step_ms
+            if env.world.has_collided():
+                env.world.agent.set_dead()
+        env.update_positions(dt)
+        env.update_time_left(ingame_total_elapsed)
         env.render()
 
     return False

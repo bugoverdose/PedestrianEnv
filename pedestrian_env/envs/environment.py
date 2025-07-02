@@ -63,7 +63,7 @@ class PedestrianEnv(gym.Env):
             self.GAME_TIME = 11_000
         self.time_left = self.GAME_TIME
         self.game_over = False
-        self.early_finish_reward = 0
+        self.game_end_extra_score = 0
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards
@@ -88,7 +88,7 @@ class PedestrianEnv(gym.Env):
         return {
             "is_dead": self.world.agent.is_dead,
             "time_left_ms": self.time_left,
-            "early_finish_reward": self.early_finish_reward,
+            "game_end_extra_score": self.game_end_extra_score,
         }
 
     def reset(self, seed=None, options=None):
@@ -99,7 +99,7 @@ class PedestrianEnv(gym.Env):
         self.cur_rewards = 0
         self.time_left = self.GAME_TIME
         self.game_over = False
-        self.early_finish_reward = 0
+        self.game_end_extra_score = 0
 
         self.world = World(self.map_grid_width, self.map_grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
 
@@ -148,26 +148,19 @@ class PedestrianEnv(gym.Env):
             terminated = True
             self.world.agent.set_dead()
             reward -= self.DEATH_PENALTY
+            self.game_end_extra_score = -self.DEATH_PENALTY
         elif self.get_time_left_sec() <= 0:
             terminated = True
         else:
             # An episode is finished if the agent has reached the target lane
             terminated = self.world.target_lane_reached()
             if terminated:
-                early_finish_reward = self.get_time_left_sec()
-                reward += early_finish_reward
-                self.early_finish_reward = early_finish_reward
+                game_end_extra_score = self.get_time_left_sec()
+                reward += game_end_extra_score
+                self.game_end_extra_score = game_end_extra_score
         self.game_over = terminated
-
         self.cur_rewards += reward
-
-        observation = self._get_obs()
-        info = self._get_info()
-
-        if self.render_mode == "human":
-            self.render()
-
-        return observation, reward, terminated, False, info
+        return self._get_obs(), reward, terminated, False, self._get_info()
 
     def update_positions(self, dt):
         self.world.update_positions(dt)
@@ -209,10 +202,10 @@ class PedestrianEnv(gym.Env):
                 dark_screen.fill((0, 0, 0, alpha))
                 self.window.blit(dark_screen, (left_game_x, top_game_y), area=camera_rect)
 
-                if self.world.agent.is_dead:
+                if self.game_end_extra_score < 0:
                     game_status_desc = "YOU DIED"
                     game_status_color = (255, 0, 0)
-                elif self.get_time_left_sec() > 0:
+                elif self.game_end_extra_score > 0:
                     game_status_desc = "SUCCESS"
                     game_status_color = (0, 255, 0)
                 else:
@@ -227,12 +220,12 @@ class PedestrianEnv(gym.Env):
             self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}",(255, 255, 255), 32)
 
             cur_score = 0
-            if self.world.agent.is_dead:
+            if self.game_end_extra_score < 0:
                 cur_score += self.DEATH_PENALTY
                 self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"-{self.DEATH_PENALTY}",(255, 0, 0), 32)
-            elif self.early_finish_reward > 0:
-                cur_score -= self.early_finish_reward
-                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.early_finish_reward}",(0, 255, 0), 32)
+            elif self.game_end_extra_score > 0:
+                cur_score -= self.game_end_extra_score
+                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.game_end_extra_score}",(0, 255, 0), 32)
             self.render_text(right_ui_x, bottom_y, f"Current Score: {cur_score}",(255, 255, 255), 32)
 
             # clear and update time left
