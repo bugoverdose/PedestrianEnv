@@ -105,8 +105,9 @@ class Car(GameObject):
     HEIGHT_BUFFER = 0.1
     BODY_COLOR = (255, 0, 0)
 
-    def __init__(self, initial_x, initial_y, car_width, car_height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second):
+    def __init__(self, uid, initial_x, initial_y, car_width, car_height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second):
         super().__init__(max_speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
+        self.uid = uid
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_width
         self.car_width = self.car_grid_width * pix_square_size
@@ -142,13 +143,28 @@ class Car(GameObject):
         # stop in the current location when another car is in front of the car
         if len(self.nearby_cars) > 0:
             threshold = 0.1
-            front_x1, back_x1, = self.get_front_back_x()
+            my_front, my_back = self.get_front_back_x()
+            my_left, my_right, _, _ = self.get_cur_pos()
             for other_car in self.nearby_cars:
-                front_x2, back_x2 = other_car.get_front_back_x()
-                # when other car is in front of me & the back of the other car is too close
-                if front_x1 < front_x2:
-                    front_dist = back_x2 - front_x1
-                    if front_dist <= threshold:
+                other_front, other_back = other_car.get_front_back_x()
+                # stop when another car is in front of me
+                if self.go_right:
+                    if my_front < other_back:
+                        dist = other_back - my_front
+                        if dist <= threshold:
+                            self.target_location[0] = self.cur_location[0]
+                            return
+                else:
+                    if other_back < my_front:
+                        dist = my_front - other_back
+                        if dist <= threshold:
+                            self.target_location[0] = self.cur_location[0]
+                            return
+
+                # make the one with lower uid stop if the both cars are overlapping
+                other_left, other_right, _, _ = other_car.get_cur_pos()
+                if is_overlapping(my_left, my_right, other_left, other_right):
+                    if self.uid > other_car.uid:
                         self.target_location[0] = self.cur_location[0]
                         return
 
@@ -230,6 +246,7 @@ class Cars:
     @staticmethod
     def generate_cars(agent, row_types, max_height_dic, crosswalks, pix_square_size, map_grid_width, map_grid_height, steps_per_second, random):
         cars = []
+        uid = 0
         for row_idx in range(map_grid_height):
             if row_types[row_idx] == RowType.SAFE: continue
             initial_x = random.integers(0, map_grid_width)
@@ -242,7 +259,8 @@ class Cars:
                 if cur.row1 <= row_idx <= cur.row2:
                     crosswalk = cur
                     break
-            cars.append(Car(initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second))
+            uid += 1
+            cars.append(Car(uid, initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second))
         for i in range(len(cars)):
             cur_car = cars[i]
             _, _, top_y1, bottom_y1 = cur_car.get_cur_pos()
