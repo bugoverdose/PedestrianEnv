@@ -1,4 +1,4 @@
-def is_overlapping(start1, end1, start2, end2):
-    if end1 <= start2 or end2 <= start1:
+def is_overlapping(left1, right1, left2, right2):
+    if right1 < left2 or right2 < left1:
         return False
     return True

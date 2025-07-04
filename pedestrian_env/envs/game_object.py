@@ -149,22 +149,17 @@ class Car(GameObject):
                 other_front, other_back = other_car.get_front_back_x()
                 # stop when another car is in front of me
                 if self.go_right:
-                    if my_front < other_back:
-                        dist = other_back - my_front
-                        if dist <= threshold:
-                            self.target_location[0] = self.cur_location[0]
-                            return
+                    front_dist = other_back - my_front
                 else:
-                    if other_back < my_front:
-                        dist = my_front - other_back
-                        if dist <= threshold:
-                            self.target_location[0] = self.cur_location[0]
-                            return
+                    front_dist = my_front - other_back
+                if 0 < front_dist <= threshold:
+                    self.target_location[0] = self.cur_location[0]
+                    return
 
                 # make the one with lower uid stop if the both cars are overlapping
-                other_left, other_right, _, _ = other_car.get_cur_pos()
-                if is_overlapping(my_left, my_right, other_left, other_right):
-                    if self.uid > other_car.uid:
+                if self.uid > other_car.uid:
+                    other_left, other_right, _, _ = other_car.get_cur_pos()
+                    if is_overlapping(my_left, my_right, other_left, other_right):
                         self.target_location[0] = self.cur_location[0]
                         return
 
