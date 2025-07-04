@@ -7,6 +7,8 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class CrossWalk:
+    RATIO = 0.6
+
     def __init__(self, row1, row2, col, threshold_distance):
         self.row1 = row1
         self.row2 = row2
@@ -24,13 +26,14 @@ class CrossWalk:
 
 # first-class object for simplicity
 class CrossWalks:
+
     def __init__(self, agent, elements):
         self.agent = agent
         self.elements = elements
 
     @staticmethod
     def generate_crosswalks(agent, row_types, random):
-        danger_zones = []
+        candidates = []
         danger_start_idx = None
         for row_idx in range(len(row_types)):
             row_type = row_types[row_idx]
@@ -39,15 +42,14 @@ class CrossWalks:
                     danger_start_idx = row_idx
                 continue
             if row_type == RowType.SAFE:
-                danger_zones.append([danger_start_idx, row_idx-1])
+                candidates.append([danger_start_idx, row_idx-1])
                 danger_start_idx = None
 
-        crosswalk_num = int(len(danger_zones) * 0.5)
-        crosswalk_rows = random.choice(danger_zones, size=crosswalk_num, replace=False)
         crosswalks = []
         _, _, agent_radius = agent.get_cur_pos()
-        for i in range(crosswalk_num):
-            [row1, row2] = crosswalk_rows[i]
+        for candidate in candidates:
+            if random.random() >= CrossWalk.RATIO: continue
+            [row1, row2] = candidate
             col = random.integers(agent.MIN_X, agent.MAX_X+1)
             crosswalks.append(CrossWalk(row1, row2, col, agent_radius * 1.5))
         return CrossWalks(agent, crosswalks)
