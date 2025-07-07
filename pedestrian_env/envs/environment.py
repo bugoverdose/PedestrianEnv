@@ -19,10 +19,9 @@ class PedestrianEnv(gym.Env):
 
     DEATH_PENALTY = 100
 
-    DEFAULT_GAME_TIME = 60_000
     DEFAULT_GAMEOVER_REST_TIME = 3_000
 
-    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, debug=False):
+    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
         self.map_grid_width = width
@@ -68,9 +67,7 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
-        self.GAME_TIME = self.DEFAULT_GAME_TIME + 1_000
-        if debug:
-            self.GAME_TIME = 11_000
+        self.GAME_TIME = (episode_duration_sec + 1) * 1000
         self.time_left = self.GAME_TIME
         self.game_over = False
         self.game_end_extra_score = 0
