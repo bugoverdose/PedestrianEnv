@@ -231,17 +231,20 @@ class PedestrianEnv(gym.Env):
                     game_status_color = self.TIME_OVER_TEXT_COLOR
                 self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
 
+                if self.game_end_extra_score != 0:
+                    if self.game_end_extra_score < 0:
+                        text = f"{self.game_end_extra_score}"
+                        color = (255, 0, 0)
+                    else:
+                        text = f"+{self.game_end_extra_score}"
+                        color = (0, 255, 0)
+                    self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, text, color, font_size)
+
             # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
             self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
-            # update current score
-            cur_score = self.cur_rewards
-            if self.game_end_extra_score < 0:
-                cur_score += self.DEATH_PENALTY
-                self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, f"-{self.DEATH_PENALTY}",(255, 0, 0), font_size)
-            elif self.game_end_extra_score > 0:
-                cur_score -= self.game_end_extra_score
-                self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, f"+{self.game_end_extra_score}",(0, 255, 0), font_size)
+            # update current score: separate game_end_extra_score from cur_rewards
+            cur_score = self.cur_rewards - self.game_end_extra_score
             self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", self.UI_TEXT_WHITE_COLOR, font_size)
 
             # update best score
