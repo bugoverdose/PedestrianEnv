@@ -101,12 +101,13 @@ class Agent(GameObject):
 class Car(GameObject):
     MAX_WIDTH = 4
     MAX_HEIGHT = 2
-    CAR_SIZES = {1: [(1, 1.5), (1,2)], 2: [(2, 2.5), (2,3), (2, 3.5), (2,4)]} # key=height, value=(height, width)
+    CAR_SIZES = {1: [(1, 1.5), (1,2)], 2: [(2,3), (2,4)]} # key=height, value=(height, width)
+    CAR_SPEEDS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
     HEIGHT_BUFFER = 0.1
     BODY_COLOR = (255, 0, 0)
 
-    def __init__(self, uid, initial_x, initial_y, car_width, car_height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second):
-        super().__init__(max_speed * 0.5, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
+    def __init__(self, uid, initial_x, initial_y, car_width, car_height, go_right, crosswalk, map_grid_width, pix_square_size, steps_per_second, random):
+        super().__init__(0, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.uid = uid
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_width
@@ -114,8 +115,9 @@ class Car(GameObject):
         self.car_height = car_height - 2 * self.HEIGHT_BUFFER
         self.car_height_pix = self.car_height * pix_square_size
         self.color = self.BODY_COLOR
-        self.max_speed = max_speed
-        self.go_right = max_speed > 0
+        self.go_right = go_right
+        self.random = random
+        self.set_random_speed()
         self.crosswalk = crosswalk
         self.nearby_cars = [] # all the cars in the overlapping lane
 
@@ -133,13 +135,22 @@ class Car(GameObject):
             return right_x, left_x
         return left_x, right_x
 
-    def update_target(self):
-        # teleport to start of the lane when reached the end
+    def set_random_speed(self):
+        self.cur_speed = self.random.choice(self.CAR_SPEEDS)
+        if not self.go_right:
+            self.cur_speed *= -1
+
+    def restart_if_needed(self):
+        # teleport to start of the lane when reaching the end
         if self.go_right and self.cur_location[0] >= self.map_grid_width:
             self.cur_location[0] = 0
+            self.set_random_speed()
         if not self.go_right and self.cur_location[0] <= 0:
             self.cur_location[0] = self.map_grid_width - 1
+            self.set_random_speed()
 
+    def update_target(self):
+        self.restart_if_needed()
         # stop in the current location when another car is in front of the car
         if len(self.nearby_cars) > 0:
             threshold = 0.1
@@ -247,7 +258,7 @@ class Cars:
             initial_x = random.integers(0, map_grid_width)
             height = random.choice(list(range(1, max_height_dic[row_idx] + 1)))
             width = random.choice(Car.CAR_SIZES[height])[1]
-            max_speed = 1 if row_types[row_idx] == RowType.CAR_GOING_RIGHT else -1
+            going_right = row_types[row_idx] == RowType.CAR_GOING_RIGHT
             row_idx += (height - 1) * 0.5
             crosswalk = None
             for cur in crosswalks.elements:
@@ -255,7 +266,7 @@ class Cars:
                     crosswalk = cur
                     break
             uid += 1
-            cars.append(Car(uid, initial_x, row_idx, width, height, max_speed, crosswalk, map_grid_width, pix_square_size, steps_per_second))
+            cars.append(Car(uid, initial_x, row_idx, width, height, going_right, crosswalk, map_grid_width, pix_square_size, steps_per_second, random))
         for i in range(len(cars)):
             cur_car = cars[i]
             _, _, top_y1, bottom_y1 = cur_car.get_cur_pos()
