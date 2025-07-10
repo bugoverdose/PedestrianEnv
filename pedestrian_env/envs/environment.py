@@ -214,7 +214,7 @@ class PedestrianEnv(gym.Env):
 
             # add gameover screen
             if self.game_over:
-                dark_screen = pygame.Surface((self.world.map_width, self.world.map_height), pygame.SRCALPHA)
+                dark_screen = pygame.Surface((self.map_width, self.map_height), pygame.SRCALPHA)
                 alpha = 128 # 50% transparency
                 dark_screen.fill((0, 0, 0, alpha))
                 self.window.blit(dark_screen, (left_game_x, top_game_y), area=camera_rect)

@@ -1,6 +1,8 @@
 import math
 from enum import Enum
 
+import pygame
+
 from pedestrian_env.envs.game_object import Car
 
 class RowType(Enum):
@@ -10,6 +12,10 @@ class RowType(Enum):
 
 class Roads:
     MAX_ROAD_SIZE = 4
+    ROAD_GRAY_COLOR = (89, 89, 89)
+    ROAD_WHITE_COLOR = (250, 250, 250)
+    SAFE_WHITE_COLOR = (217, 217, 217)
+
     def __init__(self, agent, camera_size, map_grid_height, random):
         rows = []
         consecutive_danger_lanes = 0
@@ -97,6 +103,53 @@ class Roads:
                 dx = abs(agent_x - crosswalk.col)
                 distance = math.hypot(dx, dy)
             crosswalk.is_active = distance <= crosswalk.threshold_distance
+
+    def render(self, background, map_grid_width, pix_square_size):
+        map_width = map_grid_width * pix_square_size
+        adjustment = 0.5 * pix_square_size
+
+        background.fill(self.ROAD_GRAY_COLOR)
+        for safe_row_idx in self.safe_row_idx_list:
+            pygame.draw.rect(background, self.SAFE_WHITE_COLOR, (0, safe_row_idx * pix_square_size - adjustment, map_width, pix_square_size + 1))
+
+        for other_direction_idx in self.other_direction_boundary_idx_list:
+            start_x = 0
+            pygame.draw.line(
+                background,
+                self.ROAD_WHITE_COLOR,
+                (start_x, pix_square_size * other_direction_idx + adjustment),
+                (map_width, pix_square_size * other_direction_idx + adjustment),
+                width=3,
+            )
+
+        for boundary_idx in self.lane_boundary_idx_list:
+            for x in range(0, map_grid_width, 5):
+                start_x = x * pix_square_size
+                pygame.draw.line(
+                    background,
+                    self.ROAD_WHITE_COLOR,
+                    (start_x, pix_square_size * boundary_idx + adjustment),
+                    (start_x + 2 * pix_square_size, pix_square_size * boundary_idx + adjustment),
+                    width=6,
+                )
+
+        # add crosswalks
+        for road in self.elements:
+            crosswalk = road.crosswalk
+            if crosswalk is None: continue
+            start_x = crosswalk.col * pix_square_size - adjustment
+            start_y = road.row1 * pix_square_size - adjustment
+            end_y = road.row2 * pix_square_size + adjustment
+            # NOTE: cover up background (-1 pixel at top and bottom, +pix_square_size at left and right)
+            pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, start_y + 1, pix_square_size * 3, end_y - start_y - 2))
+
+            stripe_count = 3 * (road.row2 - road.row1 + 1)
+            stripe_thickness = pix_square_size / 3
+            for i in range(stripe_count):
+                for j in range(2):
+                    if i % 2 == j: continue
+                    stripe_rect = pygame.Rect(start_x + (pix_square_size/2 * j), start_y + i * stripe_thickness, pix_square_size/2, stripe_thickness)
+                    pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
     PENALTIES = [100, 500, 1000]

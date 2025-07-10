@@ -1,9 +1,7 @@
-import math
-
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.utils import is_overlapping
+from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
 
 class GameObject:
 
@@ -244,10 +242,7 @@ class Cars:
     def _check_collision(self, car):
         cx, cy, radius = self.agent.get_cur_pos() # circle
         left_x, right_x, top_y, bottom_y = car.get_cur_pos() # rectangle
-        closest_x = max(left_x, min(cx, right_x))
-        closest_y = max(top_y, min(cy, bottom_y))
-        distance = math.sqrt((closest_x - cx) ** 2 + (closest_y - cy) ** 2)
-        return distance < radius
+        return is_overlapping_circle_and_rectangle((cx, cy, radius), (left_x, right_x, top_y, bottom_y))
 
     @staticmethod
     def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random):
