@@ -153,12 +153,15 @@ class Roads:
 
 class Road:
     PENALTIES = [100, 500, 1000]
+    CAR_COLORS = [(0, 255, 0), (255, 255, 0), (255, 0, 0)]
 
     def __init__(self, row1, row2, row_types, random):
         self.row1 = row1
         self.row2 = row2
         self.going_right = [row_type == RowType.CAR_GOING_RIGHT for row_type in row_types]
-        self.penalty = random.choice(self.PENALTIES)
+        i = random.choice([0, 1, 2])
+        self.car_color = self.CAR_COLORS[i]
+        self.penalty = self.PENALTIES[i]
         self.crosswalk = None
 
 class CrossWalk:

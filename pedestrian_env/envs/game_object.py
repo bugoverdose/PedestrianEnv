@@ -111,7 +111,7 @@ class Car(GameObject):
         self.car_width = self.car_grid_width * pix_square_size
         self.car_height = car_height - 2 * self.HEIGHT_BUFFER
         self.car_height_pix = self.car_height * pix_square_size
-        self.color = self.BODY_COLOR
+        self.color = road.car_color
         self.go_right = go_right
         self.random = random
         self.set_random_speed()
