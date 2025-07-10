@@ -1,7 +1,7 @@
 import math
 import pygame
 
-from pedestrian_env.envs.crosswalk import CrossWalks, RowType
+from pedestrian_env.envs.road import RowType, Roads
 from pedestrian_env.envs.game_object import Agent, Car, Cars
 
 class World:
@@ -22,8 +22,8 @@ class World:
         self.initial_player_y = self.agent.get_cur_y()
 
         self._generate_rows(map_grid_height)
-        self.crosswalks = CrossWalks.generate_crosswalks(self.agent, camera_size, self.row_types, self.random)
-        self.cars = Cars.generate_cars(self.agent, self.row_types, self.max_height_dic, self.crosswalks,
+        self.roads = Roads(self.agent, camera_size, self.row_types, self.random)
+        self.cars = Cars.generate_cars(self.agent, self.row_types, self.max_height_dic, self.roads,
                                        pix_square_size, map_grid_width, map_grid_height, steps_per_second, random)
 
     def target_lane_reached(self):
@@ -32,7 +32,7 @@ class World:
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
-        self.crosswalks.update_activation()
+        self.roads.update_crosswalk_activation()
         self.cars.update_positions(dt)
 
     def calculate_up_rewards(self):
@@ -67,14 +67,17 @@ class World:
                     width=6,
                 )
 
-        for crosswalk in self.crosswalks.elements:
+        # add crosswalks
+        for road in self.roads.elements:
+            crosswalk = road.crosswalk
+            if crosswalk is None: continue
             start_x = crosswalk.col * self.pix_square_size - adjustment
-            start_y = crosswalk.row1 * self.pix_square_size - adjustment
-            end_y = crosswalk.row2 * self.pix_square_size + adjustment
+            start_y = road.row1 * self.pix_square_size - adjustment
+            end_y = road.row2 * self.pix_square_size + adjustment
             # NOTE: cover up background (-1 pixel at top and bottom, +self.pix_square_size at left and right)
             pygame.draw.rect(canvas, self.ROAD_GRAY_COLOR, (start_x - self.pix_square_size, start_y + 1, self.pix_square_size * 3, end_y - start_y - 2))
 
-            stripe_count = 3 * (crosswalk.row2 - crosswalk.row1 + 1)
+            stripe_count = 3 * (road.row2 - road.row1 + 1)
             stripe_thickness = self.pix_square_size / 3
             for i in range(stripe_count):
                 for j in range(2):

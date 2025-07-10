@@ -3,7 +3,7 @@ import math
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.crosswalk import RowType
+from pedestrian_env.envs.road import RowType
 from pedestrian_env.envs.utils import is_overlapping
 
 class GameObject:
@@ -106,7 +106,7 @@ class Car(GameObject):
     HEIGHT_BUFFER = 0.1
     BODY_COLOR = (255, 0, 0)
 
-    def __init__(self, uid, initial_x, initial_y, car_width, car_height, go_right, crosswalk, map_grid_width, pix_square_size, steps_per_second, random):
+    def __init__(self, uid, initial_x, initial_y, car_width, car_height, go_right, road, map_grid_width, pix_square_size, steps_per_second, random):
         super().__init__(0, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.uid = uid
         self.map_grid_width = map_grid_width
@@ -118,7 +118,7 @@ class Car(GameObject):
         self.go_right = go_right
         self.random = random
         self.set_random_speed()
-        self.crosswalk = crosswalk
+        self.road = road
         self.nearby_cars = [] # all the cars in the overlapping lane
 
     def get_cur_pos(self):
@@ -175,15 +175,16 @@ class Car(GameObject):
                         return
 
         # stop in front of the crosswalk when it is activated
-        if self.crosswalk is not None and self.crosswalk.is_active:
+        crosswalk = self.road.crosswalk
+        if crosswalk is not None and crosswalk.is_active:
             car_left, car_right, _, _ = self.get_cur_pos()
-            cw_left, cw_right = self.crosswalk.get_left_right()
+            cw_left, cw_right = crosswalk.get_left_right()
             if is_overlapping(car_left, car_right, cw_left, cw_right):
                 pass # overlapping. keep going to stop blocking the crosswalk
             else:
                 car_front, _ = self.get_front_back_x()
                 front_dist = min(abs(cw_left - car_front), abs(cw_right - car_front))
-                if front_dist < self.crosswalk.threshold_distance:
+                if front_dist < crosswalk.threshold_distance:
                     self.target_location[0] = self.cur_location[0]
                     return
         self.target_location[0] = self.cur_location[0] + self.cur_speed * (1 / self.steps_per_second)
@@ -238,8 +239,8 @@ class Cars:
     def has_hit_agent(self):
         for car in self.elements:
             if self._check_collision(car):
-                return True
-        return False
+                return True, car.road.penalty
+        return False, 0
 
     def _check_collision(self, car):
         cx, cy, radius = self.agent.get_cur_pos() # circle
@@ -250,7 +251,7 @@ class Cars:
         return distance < radius
 
     @staticmethod
-    def generate_cars(agent, row_types, max_height_dic, crosswalks, pix_square_size, map_grid_width, map_grid_height, steps_per_second, random):
+    def generate_cars(agent, row_types, max_height_dic, roads, pix_square_size, map_grid_width, map_grid_height, steps_per_second, random):
         cars = []
         uid = 0
         for row_idx in range(map_grid_height):
@@ -260,13 +261,15 @@ class Cars:
             width = random.choice(Car.CAR_SIZES[height])[1]
             going_right = row_types[row_idx] == RowType.CAR_GOING_RIGHT
             row_idx += (height - 1) * 0.5
-            crosswalk = None
-            for cur in crosswalks.elements:
-                if cur.row1 <= row_idx <= cur.row2:
-                    crosswalk = cur
+            cur_road = None
+            for road in roads.elements:
+                if road.row1 <= row_idx <= road.row2:
+                    cur_road = road
                     break
+            if cur_road is None:
+                print("!!!", row_idx, roads.elements)
             uid += 1
-            cars.append(Car(uid, initial_x, row_idx, width, height, going_right, crosswalk, map_grid_width, pix_square_size, steps_per_second, random))
+            cars.append(Car(uid, initial_x, row_idx, width, height, going_right, cur_road, map_grid_width, pix_square_size, steps_per_second, random))
         for i in range(len(cars)):
             cur_car = cars[i]
             _, _, top_y1, bottom_y1 = cur_car.get_cur_pos()

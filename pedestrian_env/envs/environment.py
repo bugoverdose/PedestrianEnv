@@ -17,8 +17,6 @@ class PedestrianEnv(gym.Env):
     EXTRA_WIDTH = 500
     EXTRA_HEIGHT = 200
 
-    DEATH_PENALTY = 100
-
     DEFAULT_GAMEOVER_REST_TIME = 3_000
 
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False):
@@ -154,11 +152,12 @@ class PedestrianEnv(gym.Env):
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
-        if self.world.cars.has_hit_agent():
+        agent_dead, death_penalty = self.world.cars.has_hit_agent()
+        if agent_dead:
             terminated = True
             self.world.agent.set_dead()
-            reward -= self.DEATH_PENALTY
-            self.game_end_extra_score = -self.DEATH_PENALTY
+            reward -= death_penalty
+            self.game_end_extra_score = -death_penalty
         elif self.get_time_left_sec() <= 0:
             terminated = True
         else:
