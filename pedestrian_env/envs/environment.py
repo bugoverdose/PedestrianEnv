@@ -15,7 +15,7 @@ class PedestrianEnv(gym.Env):
     TIME_OVER_TEXT_COLOR = (0, 0, 255)
 
     EXTRA_WIDTH = 500
-    EXTRA_HEIGHT = 400
+    EXTRA_HEIGHT = 200
 
     DEATH_PENALTY = 100
 
@@ -30,8 +30,8 @@ class PedestrianEnv(gym.Env):
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
-        base_window_size = 2048
-        self.pix_square_size = (base_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
+        game_window_size = 2048
+        self.pix_square_size = (game_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
         self.camera_size = camera_size * self.pix_square_size
         self.map_width = self.map_grid_width * self.pix_square_size
         self.map_height = self.map_grid_height * self.pix_square_size
@@ -67,6 +67,7 @@ class PedestrianEnv(gym.Env):
 
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
+        self.best_rewards = 0
         self.GAME_TIME = (episode_duration_sec + 1) * 1000
         self.time_left = self.GAME_TIME
         self.game_over = False
@@ -103,6 +104,7 @@ class PedestrianEnv(gym.Env):
         super().reset(seed=seed)
 
         self.prev_rewards += self.cur_rewards
+        self.best_rewards = max(self.best_rewards, self.prev_rewards)
         self.cur_rewards = 0
         self.time_left = self.GAME_TIME
         self.game_over = False
@@ -192,10 +194,13 @@ class PedestrianEnv(gym.Env):
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         if self.render_mode == "human":
-            left_ui_x = total_window_width * 0.2
-            right_ui_x = total_window_width * 0.7
-            top_y = total_window_height * 0.15
-            bottom_y = total_window_height * 0.85
+            font_size = 32
+            x_padding = 60
+            left_ui_x = self.EXTRA_WIDTH / 2 - x_padding
+            center_ui_x = total_window_width/2 - x_padding
+            right_ui_x = total_window_width - (self.EXTRA_WIDTH/2) - x_padding
+            top_y = self.EXTRA_HEIGHT/2 - font_size - 5
+            bottom_y = total_window_height - (self.EXTRA_HEIGHT/2) + 5
             extra_score_text_width = 155
             left_game_x = self.EXTRA_WIDTH/2
             top_game_y = self.EXTRA_HEIGHT/2
@@ -224,21 +229,23 @@ class PedestrianEnv(gym.Env):
             bg_rect = pygame.Rect(0 , total_window_height - top_game_y, total_window_width, top_game_y)
             pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
             # NOTE: show the sum of previous scores as total score (because it's confusing when both cur rewards and total rewards are constantly changing)
-            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}",self.UI_TEXT_WHITE_COLOR, 32)
+            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
             cur_score = self.cur_rewards
             if self.game_end_extra_score < 0:
                 cur_score += self.DEATH_PENALTY
-                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"-{self.DEATH_PENALTY}",(255, 0, 0), 32)
+                self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, f"-{self.DEATH_PENALTY}",(255, 0, 0), font_size)
             elif self.game_end_extra_score > 0:
                 cur_score -= self.game_end_extra_score
-                self.render_text(right_ui_x + extra_score_text_width, bottom_y+32, f"+{self.game_end_extra_score}",(0, 255, 0), 32)
-            self.render_text(right_ui_x, bottom_y, f"Current Score: {cur_score}",self.UI_TEXT_WHITE_COLOR, 32)
+                self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, f"+{self.game_end_extra_score}",(0, 255, 0), font_size)
+            self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", self.UI_TEXT_WHITE_COLOR, font_size)
+
+            self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
             # clear and update time left
             bg_rect = pygame.Rect(0 , 0, total_window_width, top_game_y)
             pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
-            self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}",self.UI_TEXT_WHITE_COLOR, 32)
+            self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}", self.UI_TEXT_WHITE_COLOR, font_size)
 
             pygame.event.pump()
             pygame.display.update()
