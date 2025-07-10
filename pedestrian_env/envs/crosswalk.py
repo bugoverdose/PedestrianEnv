@@ -32,7 +32,7 @@ class CrossWalks:
         self.elements = elements
 
     @staticmethod
-    def generate_crosswalks(agent, row_types, random):
+    def generate_crosswalks(agent, camera_size, row_types, random):
         candidates = []
         danger_start_idx = None
         for row_idx in range(len(row_types)):
@@ -46,12 +46,18 @@ class CrossWalks:
                 danger_start_idx = None
 
         crosswalks = []
-        _, _, agent_radius = agent.get_cur_pos()
+        agent_initial_col, _, agent_radius = agent.get_cur_pos()
+        out_of_sight_buffer = camera_size/2 + 1
+        left = random.random() >= 0.5
         for candidate in candidates:
             if random.random() >= CrossWalk.RATIO: continue
             [row1, row2] = candidate
-            col = random.integers(agent.MIN_X, agent.MAX_X+1)
+            if left:
+                col = random.integers(agent.MIN_X, agent_initial_col - out_of_sight_buffer)
+            else:
+                col = random.integers(agent_initial_col + out_of_sight_buffer + 1, agent.MAX_X+1)
             crosswalks.append(CrossWalk(row1, row2, col, agent_radius * 1.5))
+            left = not left
         return CrossWalks(agent, crosswalks)
 
     def update_activation(self):

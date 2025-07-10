@@ -9,7 +9,7 @@ class World:
     ROAD_WHITE_COLOR = (250, 250, 250)
     SAFE_WHITE_COLOR = (217, 217, 217)
 
-    def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, random, debug):
+    def __init__(self, map_grid_width, map_grid_height, camera_size, pix_square_size, steps_per_second, random, debug):
         self.random = random
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
@@ -22,7 +22,7 @@ class World:
         self.initial_player_y = self.agent.get_cur_y()
 
         self._generate_rows(map_grid_height)
-        self.crosswalks = CrossWalks.generate_crosswalks(self.agent, self.row_types, self.random)
+        self.crosswalks = CrossWalks.generate_crosswalks(self.agent, camera_size, self.row_types, self.random)
         self.cars = Cars.generate_cars(self.agent, self.row_types, self.max_height_dic, self.crosswalks,
                                        pix_square_size, map_grid_width, map_grid_height, steps_per_second, random)
 

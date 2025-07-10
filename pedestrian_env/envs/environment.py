@@ -32,7 +32,8 @@ class PedestrianEnv(gym.Env):
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         game_window_size = 2048
         self.pix_square_size = (game_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
-        self.camera_size = camera_size * self.pix_square_size
+        self.camera_size = camera_size
+        self.camera_size_pixel = camera_size * self.pix_square_size
         self.map_width = self.map_grid_width * self.pix_square_size
         self.map_height = self.map_grid_height * self.pix_square_size
         self.debug = debug
@@ -110,7 +111,7 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.world = World(self.map_grid_width, self.map_grid_height, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
+        self.world = World(self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
 
         if self.render_mode == "human":
             self.render()
@@ -176,8 +177,8 @@ class PedestrianEnv(gym.Env):
 
     def render(self):
         if self.render_mode is None: return
-        total_window_width = self.camera_size + self.EXTRA_WIDTH
-        total_window_height = self.camera_size + self.EXTRA_HEIGHT
+        total_window_width = self.camera_size_pixel + self.EXTRA_WIDTH
+        total_window_height = self.camera_size_pixel + self.EXTRA_HEIGHT
 
         if self.window is None and self.render_mode == "human":
             pygame.init()
@@ -189,7 +190,7 @@ class PedestrianEnv(gym.Env):
 
         canvas, rendered_agent_position = self.world.render()
 
-        camera_rect = pygame.Rect(0, 0, self.camera_size, self.camera_size)
+        camera_rect = pygame.Rect(0, 0, self.camera_size_pixel, self.camera_size_pixel)
         camera_rect.center = rendered_agent_position
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
