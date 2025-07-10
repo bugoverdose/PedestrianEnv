@@ -104,8 +104,8 @@ class PedestrianEnv(gym.Env):
         # NOTE: following line is needed for self.np_random
         super().reset(seed=seed)
 
+        self.best_rewards = max(self.best_rewards, self.cur_rewards)
         self.prev_rewards += self.cur_rewards
-        self.best_rewards = max(self.best_rewards, self.prev_rewards)
         self.cur_rewards = 0
         self.time_left = self.GAME_TIME
         self.game_over = False
