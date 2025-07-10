@@ -280,7 +280,8 @@ class PedestrianEnv(gym.Env):
             total_elapsed += dt
             while elapsed >= self.step_ms:
                 elapsed -= self.step_ms
-                if self.world.cars.has_hit_agent():
+                agent_dead, _ = self.world.cars.has_hit_agent()
+                if agent_dead:
                     self.world.agent.set_dead()
             self.update_positions(dt)
             self.render()
