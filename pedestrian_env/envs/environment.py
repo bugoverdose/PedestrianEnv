@@ -190,6 +190,10 @@ class PedestrianEnv(gym.Env):
 
         canvas, rendered_agent_position = self.world.render()
 
+        # clear background area
+        bg_rect = pygame.Rect(0, 0, total_window_width, total_window_height)
+        pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
+
         camera_rect = pygame.Rect(0, 0, self.camera_size_pixel, self.camera_size_pixel)
         camera_rect.center = rendered_agent_position
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
@@ -209,6 +213,7 @@ class PedestrianEnv(gym.Env):
             # add game screen
             self.window.blit(canvas, (left_game_x, top_game_y), area=camera_rect)
 
+            # add gameover screen
             if self.game_over:
                 dark_screen = pygame.Surface((self.world.map_width, self.world.map_height), pygame.SRCALPHA)
                 alpha = 128 # 50% transparency
@@ -226,12 +231,10 @@ class PedestrianEnv(gym.Env):
                     game_status_color = self.TIME_OVER_TEXT_COLOR
                 self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
 
-            # clear and update score area
-            bg_rect = pygame.Rect(0 , total_window_height - top_game_y, total_window_width, top_game_y)
-            pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
-            # NOTE: show the sum of previous scores as total score (because it's confusing when both cur rewards and total rewards are constantly changing)
+            # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
             self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
+            # update current score
             cur_score = self.cur_rewards
             if self.game_end_extra_score < 0:
                 cur_score += self.DEATH_PENALTY
@@ -241,11 +244,10 @@ class PedestrianEnv(gym.Env):
                 self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, f"+{self.game_end_extra_score}",(0, 255, 0), font_size)
             self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", self.UI_TEXT_WHITE_COLOR, font_size)
 
+            # update best score
             self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
-            # clear and update time left
-            bg_rect = pygame.Rect(0 , 0, total_window_width, top_game_y)
-            pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
+            # update time left
             self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}", self.UI_TEXT_WHITE_COLOR, font_size)
 
             pygame.event.pump()
