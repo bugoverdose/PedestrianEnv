@@ -1,8 +1,6 @@
 import math
 from enum import Enum
 
-from pedestrian_env.envs.crosswalk import CrossWalk
-
 class RowType(Enum):
     SAFE = 0
     CAR_GOING_RIGHT = 1
@@ -62,3 +60,19 @@ class Road:
         self.row2 = row2
         self.penalty = random.choice(self.PENALTIES)
         self.crosswalk = crosswalk
+
+class CrossWalk:
+    RATIO = 0.6
+
+    def __init__(self, col, threshold_distance):
+        self.col = col
+        self.threshold_distance = threshold_distance
+        self.is_active = False
+
+    def get_left_right(self):
+        left = self.col - self.threshold_distance
+        right = self.col + self.threshold_distance
+        return left, right
+
+    def __str__(self):
+        return f"CrossWalk(active={self.is_active}, col={self.col})"
