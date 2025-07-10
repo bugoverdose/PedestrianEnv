@@ -3,7 +3,6 @@ import math
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.road import RowType
 from pedestrian_env.envs.utils import is_overlapping
 
 class GameObject:
@@ -251,25 +250,21 @@ class Cars:
         return distance < radius
 
     @staticmethod
-    def generate_cars(agent, row_types, max_height_dic, roads, pix_square_size, map_grid_width, map_grid_height, steps_per_second, random):
+    def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random):
         cars = []
         uid = 0
-        for row_idx in range(map_grid_height):
-            if row_types[row_idx] == RowType.SAFE: continue
-            initial_x = random.integers(0, map_grid_width)
-            height = random.choice(list(range(1, max_height_dic[row_idx] + 1)))
-            width = random.choice(Car.CAR_SIZES[height])[1]
-            going_right = row_types[row_idx] == RowType.CAR_GOING_RIGHT
-            row_idx += (height - 1) * 0.5
-            cur_road = None
-            for road in roads.elements:
-                if road.row1 <= row_idx <= road.row2:
-                    cur_road = road
-                    break
-            if cur_road is None:
-                print("!!!", row_idx, roads.elements)
-            uid += 1
-            cars.append(Car(uid, initial_x, row_idx, width, height, going_right, cur_road, map_grid_width, pix_square_size, steps_per_second, random))
+        for road in roads.elements:
+            for i in range(road.row2 - road.row1 + 1):
+                uid += 1
+                row_idx = road.row1 + i
+                initial_x = random.integers(0, map_grid_width)
+                height = random.choice(list(range(1, roads.max_height_dic[row_idx] + 1)))
+                width = random.choice(Car.CAR_SIZES[height])[1]
+                initial_y = row_idx + (height - 1) * 0.5
+                going_right = road.going_right[i]
+                cars.append(Car(uid, initial_x, initial_y, width, height, going_right, road, map_grid_width, pix_square_size, steps_per_second, random))
+        
+        # add nearby_cars info
         for i in range(len(cars)):
             cur_car = cars[i]
             _, _, top_y1, bottom_y1 = cur_car.get_cur_pos()

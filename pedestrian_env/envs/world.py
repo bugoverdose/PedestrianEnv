@@ -1,8 +1,7 @@
-import math
 import pygame
 
-from pedestrian_env.envs.road import RowType, Roads
-from pedestrian_env.envs.game_object import Agent, Car, Cars
+from pedestrian_env.envs.road import Roads
+from pedestrian_env.envs.game_object import Agent, Cars
 
 class World:
     ROAD_GRAY_COLOR = (89, 89, 89)
@@ -21,10 +20,8 @@ class World:
         self.agent = Agent(map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug)
         self.initial_player_y = self.agent.get_cur_y()
 
-        self._generate_rows(map_grid_height)
-        self.roads = Roads(self.agent, camera_size, self.row_types, self.random)
-        self.cars = Cars.generate_cars(self.agent, self.row_types, self.max_height_dic, self.roads,
-                                       pix_square_size, map_grid_width, map_grid_height, steps_per_second, random)
+        self.roads = Roads(self.agent, camera_size, map_grid_height, self.random)
+        self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random)
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()
@@ -43,10 +40,10 @@ class World:
         canvas.fill(self.ROAD_GRAY_COLOR)
 
         adjustment = 0.5 * self.pix_square_size
-        for safe_row_idx in self.safe_row_idx_list:
+        for safe_row_idx in self.roads.safe_row_idx_list:
             pygame.draw.rect(canvas, self.SAFE_WHITE_COLOR, (0, safe_row_idx * self.pix_square_size - adjustment, self.map_width, self.pix_square_size + 1))
 
-        for other_direction_idx in self.other_direction_boundary_idx_list:
+        for other_direction_idx in self.roads.other_direction_boundary_idx_list:
             start_x = 0
             pygame.draw.line(
                 canvas,
@@ -56,7 +53,7 @@ class World:
                 width=3,
             )
 
-        for boundary_idx in self.lane_boundary_idx_list:
+        for boundary_idx in self.roads.lane_boundary_idx_list:
             for x in range(0, self.map_grid_width, 5):
                 start_x = x * self.pix_square_size
                 pygame.draw.line(
@@ -89,55 +86,3 @@ class World:
         self.cars.render(canvas)
 
         return canvas, rendered_agent_position
-
-    def _generate_rows(self, map_grid_height, max_consecutive_danger_lanes=4):
-        rows = []
-        consecutive_danger_lanes = 0
-        while len(rows) < map_grid_height - 2:
-            available_rows = (map_grid_height - 2) - len(rows)
-            if available_rows >= Car.MAX_HEIGHT and consecutive_danger_lanes < max_consecutive_danger_lanes:
-                row_type = self.random.choice([RowType.SAFE, 1, 2])
-                if row_type == 1:
-                    rows.append(RowType.CAR_GOING_RIGHT)
-                    rows.append(RowType.CAR_GOING_RIGHT)
-                    consecutive_danger_lanes += 2
-                    continue
-                elif row_type == 2:
-                    rows.append(RowType.CAR_GOING_LEFT)
-                    rows.append(RowType.CAR_GOING_LEFT)
-                    consecutive_danger_lanes += 2
-                    continue
-            rows.append(RowType.SAFE)
-            consecutive_danger_lanes = 0
-
-        total_rows = [RowType.SAFE] + rows + [RowType.SAFE] # target area + lanes + starting area
-
-        self.safe_row_idx_list = []
-        for idx in range(len(total_rows)):
-            if total_rows[idx] == RowType.SAFE:
-                self.safe_row_idx_list.append(idx)
-
-        self.lane_boundary_idx_list = []
-        for idx in range(len(total_rows)-1):
-            if total_rows[idx] != RowType.SAFE and total_rows[idx+1] != RowType.SAFE:
-                self.lane_boundary_idx_list.append(idx)
-
-        self.other_direction_boundary_idx_list = []
-        for idx in range(len(total_rows)-1):
-            if total_rows[idx] == RowType.CAR_GOING_RIGHT and total_rows[idx+1] == RowType.CAR_GOING_LEFT:
-                self.other_direction_boundary_idx_list.append(idx)
-                self.lane_boundary_idx_list.remove(idx)
-            if total_rows[idx] == RowType.CAR_GOING_LEFT and total_rows[idx+1] == RowType.CAR_GOING_RIGHT:
-                self.other_direction_boundary_idx_list.append(idx)
-                self.lane_boundary_idx_list.remove(idx)
-
-        self.max_height_dic = {}
-        for row_idx in range(len(total_rows)):
-            if total_rows[row_idx] == RowType.SAFE: continue
-            self.max_height_dic[row_idx] = 1
-            prev_row_idx = row_idx - 1
-            while prev_row_idx >= 0:
-                if total_rows[prev_row_idx] != total_rows[row_idx]: break
-                self.max_height_dic[prev_row_idx] = min(self.max_height_dic[prev_row_idx] + 1, Car.MAX_HEIGHT)
-                prev_row_idx -= 1
-        self.row_types = total_rows
