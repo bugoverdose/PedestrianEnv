@@ -101,7 +101,7 @@ class Car(GameObject):
     MAX_WIDTH = 4
     MAX_HEIGHT = 2
     CAR_SIZES = {1: [(1, 1.5), (1,2)], 2: [(2,3), (2,4)]} # key=height, value=(height, width)
-    CAR_SPEEDS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
+    CAR_SPEEDS = [0.4, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
     HEIGHT_BUFFER = 0.1
     BODY_COLOR = (255, 0, 0)
 
