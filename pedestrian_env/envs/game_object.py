@@ -44,7 +44,7 @@ class Agent(GameObject):
         if debug:
             fixed_speed = 10
         super().__init__(fixed_speed, np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float), pix_square_size, steps_per_second)
-        self.radius = 1/3
+        self.radius = 1/4
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
         self.is_dead = False
@@ -217,7 +217,7 @@ class Car(GameObject):
         pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
 
     def __str__(self):
-        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), crosswalk=({self.crosswalk}))"
+        return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), crosswalk=({self.road.crosswalk}))"
 
 class Cars:
     def __init__(self, agent, elements):

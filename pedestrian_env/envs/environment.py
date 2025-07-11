@@ -17,7 +17,7 @@ class PedestrianEnv(gym.Env):
     EXTRA_WIDTH = 500
     EXTRA_HEIGHT = 200
 
-    DEFAULT_GAMEOVER_REST_TIME = 3_000
+    DEFAULT_GAMEOVER_REST_TIME = 5_000
 
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
@@ -165,8 +165,8 @@ class PedestrianEnv(gym.Env):
             terminated = self.world.target_lane_reached()
             if terminated:
                 game_end_extra_score = self.get_time_left_sec()
-                reward += game_end_extra_score
-                self.game_end_extra_score = game_end_extra_score
+                reward += game_end_extra_score * 10
+                self.game_end_extra_score = game_end_extra_score * 10
         self.game_over = terminated
         self.cur_rewards += reward
         return self._get_obs(), reward, terminated, False, self._get_info()
