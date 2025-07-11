@@ -18,6 +18,7 @@ class PedestrianEnv(gym.Env):
     EXTRA_HEIGHT = 200
 
     DEFAULT_GAMEOVER_REST_TIME = 5_000
+    BONUS_SCORE_PER_SEC = 50
 
     def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
@@ -165,8 +166,8 @@ class PedestrianEnv(gym.Env):
             terminated = self.world.target_lane_reached()
             if terminated:
                 game_end_extra_score = self.get_time_left_sec()
-                reward += game_end_extra_score * 10
-                self.game_end_extra_score = game_end_extra_score * 10
+                reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
+                self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
         self.game_over = terminated
         self.cur_rewards += reward
         return self._get_obs(), reward, terminated, False, self._get_info()
@@ -223,10 +224,10 @@ class PedestrianEnv(gym.Env):
                     game_status_desc = "YOU DIED"
                     game_status_color = self.AGENT_DEAD_TEXT_COLOR
                 elif self.game_end_extra_score > 0:
-                    game_status_desc = "SUCCESS"
+                    game_status_desc = "BONUS"
                     game_status_color = self.SUCCESS_TEXT_COLOR
                 else:
-                    game_status_desc = "TOO SLOW"
+                    game_status_desc = "TIME OVER"
                     game_status_color = self.TIME_OVER_TEXT_COLOR
                 self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
 

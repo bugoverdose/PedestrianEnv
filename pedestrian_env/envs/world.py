@@ -4,6 +4,7 @@ from pedestrian_env.envs.road import Roads
 from pedestrian_env.envs.game_object import Agent, Cars
 
 class World:
+    UP_REWARD_PER_UNIT = 5
 
     def __init__(self, map_grid_width, map_grid_height, camera_size, pix_square_size, steps_per_second, random, debug):
         self.random = random
@@ -28,7 +29,7 @@ class World:
         self.cars.update_positions(dt)
 
     def calculate_up_rewards(self):
-        return int(self.steps_per_second * (self.initial_player_y - self.agent.get_target_y()))
+        return int(self.steps_per_second * (self.initial_player_y - self.agent.get_target_y())) * self.UP_REWARD_PER_UNIT
 
     def render(self):
         map_width = self.map_grid_width * self.pix_square_size
