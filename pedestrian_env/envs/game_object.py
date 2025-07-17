@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 
+from pedestrian_env.envs.action import Action, ACTION_TO_DELTA
 from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
 from pedestrian_env.envs.road import CrossWalk
 from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES
@@ -39,7 +40,8 @@ class GameObject:
 
 class Agent(GameObject):
     TARGET_LANE = 0
-    BODY_COLOR = (0, 0, 255)
+    BODY_COLOR = (0, 50, 255) # (0, 0, 255)
+    EYE_COLOR = (0, 0, 0)
 
     def __init__(self, buffer, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
         fixed_speed = 2
@@ -52,6 +54,7 @@ class Agent(GameObject):
         self.is_dead = False
         self.MIN_X = 1 + buffer
         self.MAX_X = self.map_grid_width - 1 - buffer
+        self.last_direction = ACTION_TO_DELTA[Action.UP]
 
     def get_cur_pos(self):
         x = self.cur_location[0]
@@ -64,7 +67,10 @@ class Agent(GameObject):
     def get_target_y(self):
         return self.target_location[1]
 
-    def update_target(self, direction):
+    def update_target(self, action):
+        direction = ACTION_TO_DELTA[action]
+        if action != Action.NOTHING:
+            self.last_direction = direction
         delta = direction * (self.cur_speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
                                        [self.MIN_X, self.TARGET_LANE],
@@ -89,12 +95,39 @@ class Agent(GameObject):
             )
             pygame.draw.ellipse(background, self.BODY_COLOR, flattened_rect)
         else:
+            # draw body
+            radius_pix = self.pix_square_size * self.radius
             pygame.draw.circle(
                 background,
                 self.BODY_COLOR,
                 agent_position,
-                self.pix_square_size * self.radius,
+                radius_pix,
             )
+
+            # draw eys
+            [dx, dy] = self.last_direction
+            px, py = -dy, dx # for rotation
+            eyes_apart = radius_pix * 0.3
+            eyes_from_head = radius_pix * 0.6
+
+            eye_width, eye_height = radius_pix * 0.15, radius_pix * 0.4
+            if dx != 0: # left or right
+                eye_width, eye_height = eye_height, eye_width
+            left_eye_rect = pygame.Rect(
+                (agent_center_x + dx * eyes_from_head + px * eyes_apart) - (eye_width // 2),
+                (agent_center_y + dy * eyes_from_head + py * eyes_apart) - (eye_height // 2),
+                eye_width,
+                eye_height,
+            )
+            right_eye_rect = pygame.Rect(
+                (agent_center_x + dx * eyes_from_head - px * eyes_apart) - (eye_width // 2),
+                (agent_center_y + dy * eyes_from_head - py * eyes_apart)- (eye_height // 2),
+                eye_width,
+                eye_height,
+            )
+            pygame.draw.ellipse(background, self.EYE_COLOR, left_eye_rect)
+            pygame.draw.ellipse(background, self.EYE_COLOR, right_eye_rect)
+
         return agent_position
 
 class Car(GameObject):

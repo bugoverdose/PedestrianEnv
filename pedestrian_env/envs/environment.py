@@ -3,7 +3,6 @@ from gymnasium import spaces
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.action import ACTION_TO_DELTA
 from pedestrian_env.envs.world import World
 
 class PedestrianEnv(gym.Env):
@@ -149,9 +148,7 @@ class PedestrianEnv(gym.Env):
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
         prev_up_rewards = self.world.calculate_up_rewards()
-        direction = ACTION_TO_DELTA[action]
-        # We use `np.clip` to make sure the agent doesn't leave the grid
-        self.world.agent.update_target(direction)
+        self.world.agent.update_target(action)
 
         cur_up_rewards = self.world.calculate_up_rewards()
         reward = cur_up_rewards - prev_up_rewards
