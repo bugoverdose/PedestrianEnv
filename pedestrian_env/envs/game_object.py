@@ -131,7 +131,7 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
-    CAR_SPEEDS = [0.4, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
+    CAR_SPEEDS = [0.6, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
     HEIGHT_BUFFER = 0.1 # NOTE: needed to handle the overlap between the lanes
 
     def __init__(self, uid, car_name, initial_x, initial_y, car_grid_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
@@ -288,16 +288,17 @@ class Cars:
         cars = []
         uid = 0
         for road in roads.elements:
-            for i in range(road.row2 - road.row1 + 1):
-                uid += 1
-                row_idx = road.row1 + i
-                initial_x = random.integers(0, map_grid_width)
-                height = random.choice(list(range(1, roads.max_height_dic[row_idx] + 1)))
-                (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
-                initial_y = row_idx + (height - 1) * 0.5
-                going_right = road.going_right[i]
-                cars.append(Car(uid, car_name, initial_x, initial_y, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
-        
+            for height in CAR_CANDIDATES.keys():
+                for i in range(0, road.row2 - road.row1 + 1, height):
+                    uid += 1
+                    row_idx = road.row1 + i
+                    height = min(roads.max_height_dic[row_idx], height)
+                    (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
+                    initial_x = random.integers(0, map_grid_width)
+                    initial_y = row_idx + (height - 1) * 0.5
+                    going_right = road.going_right[i]
+                    cars.append(Car(uid, car_name, initial_x, initial_y, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
+            
         # add nearby_cars info
         for i in range(len(cars)):
             cur_car = cars[i]
