@@ -44,9 +44,7 @@ class Agent(GameObject):
     EYE_COLOR = (0, 0, 0)
 
     def __init__(self, buffer, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
-        fixed_speed = 2
-        if debug:
-            fixed_speed = 10
+        fixed_speed = 10 if debug else 2 
         super().__init__(fixed_speed, np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float), pix_square_size, steps_per_second)
         self.radius = 1/4
         self.map_grid_width = map_grid_width
@@ -200,7 +198,7 @@ class Car(GameObject):
                     return
 
                 # make the one with lower uid stop if the both cars are overlapping
-                if self.uid > other_car.uid:
+                if self.uid < other_car.uid:
                     other_left, other_right, _, _ = other_car.get_cur_pos()
                     if is_overlapping(my_left, my_right, other_left, other_right):
                         self.target_location[0] = self.cur_location[0]

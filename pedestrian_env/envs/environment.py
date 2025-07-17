@@ -32,7 +32,7 @@ class PedestrianEnv(gym.Env):
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         game_window_size = 2048
-        self.pix_square_size = (game_window_size / max(self.map_grid_width, self.map_grid_height)) # The size of a single grid square in pixels
+        self.pix_square_size = max(80, (game_window_size / max(self.map_grid_width, self.map_grid_height))) # The size of a single grid square in pixels
         self.camera_size = camera_size
         self.camera_size_pixel = camera_size * self.pix_square_size
         self.map_width = self.map_grid_width * self.pix_square_size
@@ -200,12 +200,14 @@ class PedestrianEnv(gym.Env):
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         if self.render_mode == "human":
-            font_size = 32
+            default_font_size = 32
+            mid_font_size = 80
+            big_font_size = 128
             x_padding = 60
             left_ui_x = self.EXTRA_WIDTH / 2 - x_padding
             center_ui_x = total_window_width/2 - x_padding
             right_ui_x = total_window_width - (self.EXTRA_WIDTH/2) - x_padding
-            top_y = self.EXTRA_HEIGHT/2 - font_size - 5
+            top_y = self.EXTRA_HEIGHT/2 - default_font_size - 5
             bottom_y = total_window_height - (self.EXTRA_HEIGHT/2) + 5
             left_game_x = self.EXTRA_WIDTH/2
             top_game_y = self.EXTRA_HEIGHT/2
@@ -232,26 +234,26 @@ class PedestrianEnv(gym.Env):
                 else:
                     game_status_desc = "TIME OVER"
                     game_status_color = self.TIME_OVER_TEXT_COLOR
-                self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
+                self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, big_font_size, True)
 
                 if self.game_end_extra_score != 0:
                     text = f"+{self.game_end_extra_score}" if self.game_end_extra_score > 0 else f"{self.game_end_extra_score}"
-                    self.render_text(total_window_width/2, total_window_height/2 + 64, text, game_status_color, 80, True)
+                    self.render_text(total_window_width/2, total_window_height/2 + big_font_size/2, text, game_status_color, mid_font_size, True)
 
             # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
-            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
+            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, default_font_size)
 
             # update current score (include game_end_extra_score)
             cur_score = self.cur_rewards
-            self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", score_text_color, font_size)
+            self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", score_text_color, default_font_size)
 
             # update best score
-            self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
+            self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, default_font_size)
 
             # update time left
             time_left_sec = self.get_time_left_sec()
             time_left_sec_color = self.UI_TEXT_WHITE_COLOR if time_left_sec > self.TIME_OVER_ALERT_SEC else self.AGENT_DEAD_TEXT_COLOR
-            self.render_text(right_ui_x, top_y, f"Time Left: {time_left_sec}", time_left_sec_color, font_size)
+            self.render_text(right_ui_x, top_y, f"Time Left: {time_left_sec}", time_left_sec_color, default_font_size)
 
             pygame.event.pump()
             pygame.display.update()
@@ -263,8 +265,8 @@ class PedestrianEnv(gym.Env):
         elif self.render_mode == "rgb_array":
             return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
 
-    def render_text(self, x, y, text, color, font_size=32, center=False):
-        font = pygame.font.SysFont(None, font_size)
+    def render_text(self, x, y, text, color, default_font_size=32, center=False):
+        font = pygame.font.SysFont(None, default_font_size)
         text_surface = font.render(text, True, color)
         if center:
             text_location = text_surface.get_rect(center=(x, y))
