@@ -20,8 +20,9 @@ class PedestrianEnv(gym.Env):
     DEFAULT_GAMEOVER_REST_TIME = 5_000
     BONUS_SCORE_PER_SEC = 50
 
-    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False, render_sprite=True):
-        if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
+    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False, render_sprite=True):
+        if width < 12: raise Exception("minimum width is 13")
+        if height < 5: raise Exception("minimum height is 5")
         self.title = title
         self.map_grid_width = width
         self.map_grid_height = height + 1 # add starting lane
