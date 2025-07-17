@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
+from pedestrian_env.envs.road import CrossWalk
 from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES
 
 class GameObject:
@@ -176,13 +177,13 @@ class Car(GameObject):
         crosswalk = self.road.crosswalk
         if crosswalk is not None and crosswalk.is_active:
             car_left, car_right, _, _ = self.get_cur_pos()
-            cw_left, cw_right = crosswalk.get_left_right()
+            cw_left, cw_right = crosswalk.get_activation_left_right()
             if is_overlapping(car_left, car_right, cw_left, cw_right):
                 pass # overlapping. keep going to stop blocking the crosswalk
             else:
                 car_front, _ = self.get_front_back_x()
                 front_dist = min(abs(cw_left - car_front), abs(cw_right - car_front))
-                if front_dist < crosswalk.threshold_distance:
+                if front_dist < CrossWalk.THRESHOLD_DISTANCE:
                     self.target_location[0] = self.cur_location[0]
                     return
         self.target_location[0] = self.cur_location[0] + self.cur_speed * (1 / self.steps_per_second)

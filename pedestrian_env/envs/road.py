@@ -97,16 +97,16 @@ class Roads:
                 roads.append(Road(row1, row2, row_types[row1:row2+1], random))
                 danger_start_idx = None
 
-        # add crosswalk on road
-        agent_initial_col, _, agent_radius = agent.get_cur_pos()
-        out_of_sight_buffer = camera_size/2 + 1
+        # add crosswalks on road
+        agent_initial_col, _, _ = agent.get_cur_pos()
+        buffer = int(camera_size * 0.4) # some are visible from the starting point
         left = random.random() >= 0.5
         for road in roads:
             if random.random() >= CrossWalk.RATIO: continue
-            crosswalk_range = (agent.MIN_X, agent_initial_col - out_of_sight_buffer) if left else (agent_initial_col + out_of_sight_buffer + 1, agent.MAX_X+1)
+            crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X, agent_initial_col + buffer), agent.MAX_X+1)
             left = not left
             col = random.integers(crosswalk_range[0], crosswalk_range[1])
-            road.crosswalk = CrossWalk(col, agent_radius * 1.5)
+            road.crosswalk = CrossWalk(col)
 
         self.agent = agent
         self.elements = roads
@@ -124,7 +124,7 @@ class Roads:
                 dy = min(abs(agent_y - start_y), abs(agent_y - end_y))
                 dx = abs(agent_x - crosswalk.col)
                 distance = math.hypot(dx, dy)
-            crosswalk.is_active = distance <= crosswalk.threshold_distance
+            crosswalk.is_active = distance <= CrossWalk.THRESHOLD_DISTANCE
 
     def render(self, background, map_grid_width, pix_square_size):
         map_width = map_grid_width * pix_square_size
@@ -159,18 +159,21 @@ class Roads:
         for road in self.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
-            start_x = crosswalk.col * pix_square_size - adjustment
+            start_x, end_x = crosswalk.get_visible_left_right()
+            cw_width = (end_x - start_x) * pix_square_size
+            start_x = start_x * pix_square_size
             start_y = road.row1 * pix_square_size - adjustment
             end_y = road.row2 * pix_square_size + adjustment
+            cw_height = end_y - start_y
             # NOTE: cover up background (-1 pixel at top and bottom, +pix_square_size at left and right)
-            pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, start_y + 1, pix_square_size * 3, end_y - start_y - 2))
+            pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, start_y + 1, cw_width + pix_square_size * 2, cw_height - 1))
 
             stripe_count = 3 * (road.row2 - road.row1 + 1)
             stripe_thickness = pix_square_size / 3
             for i in range(stripe_count):
                 for j in range(2):
                     if i % 2 == j: continue
-                    stripe_rect = pygame.Rect(start_x + (pix_square_size/2 * j), start_y + i * stripe_thickness, pix_square_size/2, stripe_thickness)
+                    stripe_rect = pygame.Rect(start_x + (cw_width/2 * j), start_y + (i * stripe_thickness), cw_width/2, stripe_thickness)
                     pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
@@ -183,15 +186,21 @@ class Road:
 
 class CrossWalk:
     RATIO = 0.6
+    THRESHOLD_DISTANCE = 1.2
+    VISIBLE_WIDTH = 1.0
 
-    def __init__(self, col, threshold_distance):
+    def __init__(self, col):
         self.col = col
-        self.threshold_distance = threshold_distance
         self.is_active = False
 
-    def get_left_right(self):
-        left = self.col - self.threshold_distance
-        right = self.col + self.threshold_distance
+    def get_activation_left_right(self):
+        left = self.col - self.THRESHOLD_DISTANCE
+        right = self.col + self.THRESHOLD_DISTANCE
+        return left, right
+
+    def get_visible_left_right(self):
+        left = self.col - self.VISIBLE_WIDTH
+        right = self.col + self.VISIBLE_WIDTH
         return left, right
 
     def __str__(self):
