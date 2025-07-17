@@ -24,7 +24,7 @@ class PedestrianEnv(gym.Env):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
         self.map_grid_width = width
-        self.map_grid_height = height
+        self.map_grid_height = height + 1 # add starting lane
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms

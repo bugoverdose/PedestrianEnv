@@ -3,7 +3,6 @@ from enum import Enum
 
 import pygame
 
-from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import CarColorType, get_max_car_grid_height
 
 class RowType(Enum):
@@ -12,6 +11,8 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class Roads:
+    SAFE_END_LANE_COUNT = 1
+    SAFE_START_LANE_COUNT = 1
     MIN_ROAD_SIZE = 2
     MAX_ROAD_SIZE = 4
     ROAD_GRAY_COLOR = (89, 89, 89)
@@ -19,23 +20,39 @@ class Roads:
     SAFE_WHITE_COLOR = (217, 217, 217)
 
     def __init__(self, agent, camera_size, map_grid_height, random):
-        rows = []
-        consecutive_danger_lanes = 0
         max_car_grid_height = get_max_car_grid_height()
         if max_car_grid_height > self.MIN_ROAD_SIZE:
             raise Exception(f"maximum car height can not be bigger than minimum road size {max_car_grid_height} > {self.MIN_ROAD_SIZE}")
-        while len(rows) < map_grid_height - 2:
-            available_rows = (map_grid_height - 2) - len(rows)
+
+        row_types = [RowType.SAFE] * map_grid_height
+        consecutive_danger_lanes = 0
+        consecutive_safe_lanes = 1
+        cur_row_idx = self.SAFE_END_LANE_COUNT
+        while cur_row_idx < map_grid_height:
+            # go back to add roads on too much consecutive safe zones
+            if consecutive_safe_lanes >= self.MIN_ROAD_SIZE + 1:
+                go_back = self.MIN_ROAD_SIZE
+                cur_row_idx -= go_back
+                consecutive_safe_lanes -= go_back
+
+            available_rows = map_grid_height - self.SAFE_START_LANE_COUNT - cur_row_idx # save safe zones near start lane
+            if available_rows <= 0: break 
             if available_rows >= self.MIN_ROAD_SIZE and consecutive_danger_lanes < self.MAX_ROAD_SIZE:
-                row_type = random.choice([RowType.SAFE, RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
+                if cur_row_idx == 1 or available_rows == self.MIN_ROAD_SIZE:
+                    # reduce consecutive safe zones near the start and end
+                    row_type = random.choice([RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
+                else:
+                    row_type = random.choice([RowType.SAFE, RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
                 if row_type != RowType.SAFE:
                     for _ in range(self.MIN_ROAD_SIZE):
-                        rows.append(row_type)
+                        row_types[cur_row_idx] = row_type
                         consecutive_danger_lanes += 1
+                        consecutive_safe_lanes = 0
+                        cur_row_idx += 1
                     continue
-            rows.append(RowType.SAFE)
             consecutive_danger_lanes = 0
-        row_types = [RowType.SAFE] + rows + [RowType.SAFE] # target area + lanes + starting area
+            consecutive_safe_lanes += 1
+            cur_row_idx += 1
 
         self.safe_row_idx_list = []
         for idx in range(len(row_types)):
