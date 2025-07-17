@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
+from pedestrian_env.envs.car_details import CarDetail
 
 class GameObject:
 
@@ -111,7 +112,7 @@ class Car(GameObject):
         self.car_width = self.car_grid_width * pix_square_size
         self.car_height = car_height - 2 * self.HEIGHT_BUFFER
         self.car_height_pix = self.car_height * pix_square_size
-        self.color = road.car_color
+        self.car_detail = CarDetail(road.car_color_type)
         self.go_right = go_right
         self.random = random
         self.set_random_speed()
@@ -199,12 +200,12 @@ class Car(GameObject):
         rect_width = self.car_width * 1.05 - radius
         if self.go_right:
             car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height_pix)
-            pygame.draw.rect(background, self.color, car_rect, border_radius=10)
-            pygame.draw.circle(background, self.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+            pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
+            pygame.draw.circle(background, self.car_detail.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
         else:
             car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height_pix)
-            pygame.draw.rect(background, self.color, car_rect, border_radius=10)
-            pygame.draw.circle(background, self.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+            pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
+            pygame.draw.circle(background, self.car_detail.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
 
         # draw window
         window_width = self.car_height_pix/3
@@ -236,7 +237,7 @@ class Cars:
     def has_hit_agent(self):
         for car in self.elements:
             if self._check_collision(car):
-                return True, car.road.penalty
+                return True, car.car_detail.penalty
         return False, 0
 
     def _check_collision(self, car):
@@ -245,7 +246,7 @@ class Cars:
         return is_overlapping_circle_and_rectangle((cx, cy, radius), (left_x, right_x, top_y, bottom_y))
 
     @staticmethod
-    def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random):
+    def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random, use_car_sprite=False):
         cars = []
         uid = 0
         for road in roads.elements:

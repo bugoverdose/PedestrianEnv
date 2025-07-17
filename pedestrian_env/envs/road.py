@@ -4,6 +4,7 @@ from enum import Enum
 import pygame
 
 from pedestrian_env.envs.game_object import Car
+from pedestrian_env.envs.car_details import CarColorType
 
 class RowType(Enum):
     SAFE = 0
@@ -152,16 +153,11 @@ class Roads:
                     pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
-    PENALTIES = [100, 500, 1000]
-    CAR_COLORS = [(0, 255, 0), (255, 255, 0), (255, 0, 0)]
-
     def __init__(self, row1, row2, row_types, random):
         self.row1 = row1
         self.row2 = row2
         self.going_right = [row_type == RowType.CAR_GOING_RIGHT for row_type in row_types]
-        i = random.choice([0, 1, 2])
-        self.car_color = self.CAR_COLORS[i]
-        self.penalty = self.PENALTIES[i]
+        self.car_color_type = random.choice([CarColorType.RED, CarColorType.YELLOW, CarColorType.GREEN])
         self.crosswalk = None
 
 class CrossWalk:
