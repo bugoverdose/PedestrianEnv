@@ -20,6 +20,7 @@ def play_episode(env, seed):
     _, _ = env.reset(seed=seed)
     total_elapsed = 0
     elapsed = 0
+    pygame.event.get() # clear previous key presses
     last_action = Action.NOTHING
     while True:
         dt = env.clock_tick()
