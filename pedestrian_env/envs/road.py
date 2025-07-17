@@ -12,6 +12,7 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class Roads:
+    MIN_ROAD_SIZE = 2
     MAX_ROAD_SIZE = 4
     ROAD_GRAY_COLOR = (89, 89, 89)
     ROAD_WHITE_COLOR = (250, 250, 250)
@@ -21,14 +22,16 @@ class Roads:
         rows = []
         consecutive_danger_lanes = 0
         max_car_grid_height = get_max_car_grid_height()
+        if max_car_grid_height > self.MIN_ROAD_SIZE:
+            raise Exception(f"maximum car height can not be bigger than minimum road size {max_car_grid_height} > {self.MIN_ROAD_SIZE}")
         while len(rows) < map_grid_height - 2:
             available_rows = (map_grid_height - 2) - len(rows)
-            if available_rows >= max_car_grid_height and consecutive_danger_lanes < self.MAX_ROAD_SIZE:
+            if available_rows >= self.MIN_ROAD_SIZE and consecutive_danger_lanes < self.MAX_ROAD_SIZE:
                 row_type = random.choice([RowType.SAFE, RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
                 if row_type != RowType.SAFE:
-                    rows.append(row_type)
-                    rows.append(row_type)
-                    consecutive_danger_lanes += 2
+                    for _ in range(self.MIN_ROAD_SIZE):
+                        rows.append(row_type)
+                        consecutive_danger_lanes += 1
                     continue
             rows.append(RowType.SAFE)
             consecutive_danger_lanes = 0

@@ -38,13 +38,13 @@ CAR_CANDIDATES = {
         ("SUPERCAR", 2.2895),
         ("LIMO", 3.2250),
     ],
-    2: [
-        ("CAMPER", 1.8868),
-        ("MEDIUMTRUCK", 1.8983),
-        ("BOXTRUCK", 2.0600),
-        ("PICKUP", 2.1250),
-        # ("BUS", 2.2540), # Too white
-    ]
+    # 2: [
+    #     ("CAMPER", 1.8868),
+    #     ("MEDIUMTRUCK", 1.8983),
+    #     ("BOXTRUCK", 2.0600),
+    #     ("PICKUP", 2.1250),
+    #     # ("BUS", 2.2540), # Too white
+    # ]
 }
 
 def get_max_car_grid_width():
