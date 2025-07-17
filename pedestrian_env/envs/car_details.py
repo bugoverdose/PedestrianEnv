@@ -47,6 +47,19 @@ CAR_CANDIDATES = {
     ]
 }
 
+def get_max_car_grid_width():
+    max_width = 0
+    for height in CAR_CANDIDATES:
+        for candidate in CAR_CANDIDATES[height]:
+            max_width = max(max_width, candidate[1] * height)
+    return max_width
+
+def get_max_car_grid_height():
+    max_height = 0
+    for height in CAR_CANDIDATES:
+        max_height = max(max_height, height)
+    return max_height
+
 class CarDetail:
     def __init__(self, car_name, color_type, go_right):
         risk_detail = _RiskDetails[color_type]

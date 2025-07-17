@@ -20,7 +20,7 @@ class PedestrianEnv(gym.Env):
     DEFAULT_GAMEOVER_REST_TIME = 5_000
     BONUS_SCORE_PER_SEC = 50
 
-    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False):
+    def __init__(self, title="Pedestrian Task", width=10, height=10, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False, render_sprite=True):
         if width < 5 or height < 5: raise Exception("width or height can not be less than 5")
         self.title = title
         self.map_grid_width = width
@@ -36,6 +36,7 @@ class PedestrianEnv(gym.Env):
         self.map_width = self.map_grid_width * self.pix_square_size
         self.map_height = self.map_grid_height * self.pix_square_size
         self.debug = debug
+        self.render_sprite = render_sprite
 
         self.observation_space = spaces.Dict(
             {
@@ -110,7 +111,7 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.world = World(self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug)
+        self.world = World(self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
 
         if self.render_mode == "human":
             self.render()

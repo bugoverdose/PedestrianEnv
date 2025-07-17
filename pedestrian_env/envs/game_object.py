@@ -40,7 +40,7 @@ class Agent(GameObject):
     TARGET_LANE = 0
     BODY_COLOR = (0, 0, 255)
 
-    def __init__(self, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
+    def __init__(self, buffer, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
         fixed_speed = 2
         if debug:
             fixed_speed = 10
@@ -49,8 +49,8 @@ class Agent(GameObject):
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
         self.is_dead = False
-        self.MIN_X = 1 + Car.MAX_WIDTH
-        self.MAX_X = self.map_grid_width - 1 - Car.MAX_WIDTH
+        self.MIN_X = 1 + buffer
+        self.MAX_X = self.map_grid_width - 1 - buffer
 
     def get_cur_pos(self):
         x = self.cur_location[0]
@@ -97,21 +97,17 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
-    # TODO: remove Car.MAX_WIDTH
-    MAX_WIDTH = 4
-    MAX_HEIGHT = 2
     CAR_SPEEDS = [0.4, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
-    HEIGHT_BUFFER = 0.1
-    BODY_COLOR = (255, 0, 0)
+    HEIGHT_BUFFER = 0.1 # NOTE: needed to handle the overlap between the lanes
 
-    def __init__(self, uid, car_name, initial_x, initial_y, car_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
+    def __init__(self, uid, car_name, initial_x, initial_y, car_grid_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
         super().__init__(0, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.uid = uid
         self.map_grid_width = map_grid_width
-        self.car_grid_width = car_height * float(size_ratio)
-        self.car_width = self.car_grid_width * pix_square_size # TODO: pix 접미사 등 통일
-        self.car_height = car_height - 2 * self.HEIGHT_BUFFER
-        self.car_height_pix = self.car_height * pix_square_size
+        self.car_grid_width = car_grid_height * float(size_ratio)
+        self.car_width = self.car_grid_width * pix_square_size
+        self.car_grid_height = car_grid_height - self.HEIGHT_BUFFER
+        self.car_height = self.car_grid_height * pix_square_size
         self.car_detail = CarDetail(car_name, road.car_color_type, go_right)
         self.go_right = go_right
         self.random = random
@@ -121,13 +117,13 @@ class Car(GameObject):
         self.image = None
         if render_sprite:
             object_image = pygame.image.load(self.car_detail.image_path)
-            self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height_pix))
+            self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height))
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
         right_x = self.cur_location[0] + (self.car_grid_width/2)
-        top_y = self.cur_location[1] - (self.car_height/2)
-        bottom_y = self.cur_location[1] + (self.car_height/2)
+        top_y = self.cur_location[1] - (self.car_grid_height/2)
+        bottom_y = self.cur_location[1] + (self.car_grid_height/2)
         return left_x, right_x, top_y, bottom_y
 
     def get_front_back_x(self):
@@ -204,20 +200,20 @@ class Car(GameObject):
             right_x_pix = right_x * self.pix_square_size
 
             # draw car
-            radius = self.car_height_pix/2
+            radius = self.car_height/2
             rect_width = self.car_width * 1.05 - radius
             if self.go_right:
-                car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height_pix)
+                car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height)
                 pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
-                pygame.draw.circle(background, self.car_detail.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+                pygame.draw.circle(background, self.car_detail.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height / 2)
             else:
-                car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height_pix)
+                car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height)
                 pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
-                pygame.draw.circle(background, self.car_detail.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+                pygame.draw.circle(background, self.car_detail.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height / 2)
 
             # draw window
-            window_width = self.car_height_pix/3
-            window_height = (self.car_height_pix * 0.7)
+            window_width = self.car_height/3
+            window_height = (self.car_height * 0.7)
             if self.go_right:
                 window_x = (right_x * self.pix_square_size) - window_width - window_width*1
             else:

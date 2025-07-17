@@ -4,7 +4,7 @@ from enum import Enum
 import pygame
 
 from pedestrian_env.envs.game_object import Car
-from pedestrian_env.envs.car_details import CarColorType
+from pedestrian_env.envs.car_details import CarColorType, get_max_car_grid_height
 
 class RowType(Enum):
     SAFE = 0
@@ -20,9 +20,10 @@ class Roads:
     def __init__(self, agent, camera_size, map_grid_height, random):
         rows = []
         consecutive_danger_lanes = 0
+        max_car_grid_height = get_max_car_grid_height()
         while len(rows) < map_grid_height - 2:
             available_rows = (map_grid_height - 2) - len(rows)
-            if available_rows >= Car.MAX_HEIGHT and consecutive_danger_lanes < self.MAX_ROAD_SIZE:
+            if available_rows >= max_car_grid_height and consecutive_danger_lanes < self.MAX_ROAD_SIZE:
                 row_type = random.choice([RowType.SAFE, RowType.CAR_GOING_RIGHT, RowType.CAR_GOING_LEFT])
                 if row_type != RowType.SAFE:
                     rows.append(row_type)
@@ -59,7 +60,7 @@ class Roads:
             prev_row_idx = row_idx - 1
             while prev_row_idx >= 0:
                 if row_types[prev_row_idx] != row_types[row_idx]: break
-                self.max_height_dic[prev_row_idx] = min(self.max_height_dic[prev_row_idx] + 1, Car.MAX_HEIGHT)
+                self.max_height_dic[prev_row_idx] = min(self.max_height_dic[prev_row_idx] + 1, max_car_grid_height)
                 prev_row_idx -= 1
         
         roads = []
