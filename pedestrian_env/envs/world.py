@@ -17,7 +17,7 @@ class World:
         self.initial_player_y = self.agent.get_cur_y()
 
         self.roads = Roads(self.agent, camera_size, map_grid_height, self.random)
-        self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random)
+        self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite=True)
 
     def target_lane_reached(self):
         cur_y = self.agent.get_cur_y()

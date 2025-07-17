@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
-from pedestrian_env.envs.car_details import CarDetail
+from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES
 
 class GameObject:
 
@@ -97,27 +97,31 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
+    # TODO: remove Car.MAX_WIDTH
     MAX_WIDTH = 4
     MAX_HEIGHT = 2
-    CAR_SIZES = {1: [(1, 1.5), (1,2)], 2: [(2,3), (2,4)]} # key=height, value=(height, width)
     CAR_SPEEDS = [0.4, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
     HEIGHT_BUFFER = 0.1
     BODY_COLOR = (255, 0, 0)
 
-    def __init__(self, uid, initial_x, initial_y, car_width, car_height, go_right, road, map_grid_width, pix_square_size, steps_per_second, random):
+    def __init__(self, uid, car_name, initial_x, initial_y, car_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
         super().__init__(0, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
         self.uid = uid
         self.map_grid_width = map_grid_width
-        self.car_grid_width = car_width
-        self.car_width = self.car_grid_width * pix_square_size
+        self.car_grid_width = car_height * float(size_ratio)
+        self.car_width = self.car_grid_width * pix_square_size # TODO: pix 접미사 등 통일
         self.car_height = car_height - 2 * self.HEIGHT_BUFFER
         self.car_height_pix = self.car_height * pix_square_size
-        self.car_detail = CarDetail(road.car_color_type)
+        self.car_detail = CarDetail(car_name, road.car_color_type, go_right)
         self.go_right = go_right
         self.random = random
         self.set_random_speed()
         self.road = road
         self.nearby_cars = [] # all the cars in the overlapping lane
+        self.image = None
+        if render_sprite:
+            object_image = pygame.image.load(self.car_detail.image_path)
+            self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height_pix))
 
     def get_cur_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
@@ -189,33 +193,37 @@ class Car(GameObject):
 
     def render(self, background):
         left_x, right_x, top_y, bottom_y = self.get_cur_pos()
-        center_x_pix = self.cur_location[0] * self.pix_square_size
-        center_y_pix = self.cur_location[1] * self.pix_square_size
         left_x_pix = left_x * self.pix_square_size
-        right_x_pix = right_x * self.pix_square_size
         top_y_pix = top_y * self.pix_square_size
-
-        # draw car
-        radius = self.car_height_pix/2
-        rect_width = self.car_width * 1.05 - radius
-        if self.go_right:
-            car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height_pix)
-            pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
-            pygame.draw.circle(background, self.car_detail.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+        # render image or rectangle
+        if self.image is not None:
+            background.blit(self.image, (left_x_pix, top_y_pix))
         else:
-            car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height_pix)
-            pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
-            pygame.draw.circle(background, self.car_detail.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+            center_x_pix = self.cur_location[0] * self.pix_square_size
+            center_y_pix = self.cur_location[1] * self.pix_square_size
+            right_x_pix = right_x * self.pix_square_size
 
-        # draw window
-        window_width = self.car_height_pix/3
-        window_height = (self.car_height_pix * 0.7)
-        if self.go_right:
-            window_x = (right_x * self.pix_square_size) - window_width - window_width*1
-        else:
-            window_x = (left_x * self.pix_square_size) + window_width*1
-        window_y = (self.cur_location[1] * self.pix_square_size) - window_height/2
-        pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
+            # draw car
+            radius = self.car_height_pix/2
+            rect_width = self.car_width * 1.05 - radius
+            if self.go_right:
+                car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_height_pix)
+                pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
+                pygame.draw.circle(background, self.car_detail.color, [center_x_pix + (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+            else:
+                car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_height_pix)
+                pygame.draw.rect(background, self.car_detail.color, car_rect, border_radius=10)
+                pygame.draw.circle(background, self.car_detail.color, [center_x_pix - (self.car_width * 0.5 - radius), center_y_pix], self.car_height_pix / 2)
+
+            # draw window
+            window_width = self.car_height_pix/3
+            window_height = (self.car_height_pix * 0.7)
+            if self.go_right:
+                window_x = (right_x * self.pix_square_size) - window_width - window_width*1
+            else:
+                window_x = (left_x * self.pix_square_size) + window_width*1
+            window_y = (self.cur_location[1] * self.pix_square_size) - window_height/2
+            pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
 
     def __str__(self):
         return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), crosswalk=({self.road.crosswalk}))"
@@ -246,7 +254,7 @@ class Cars:
         return is_overlapping_circle_and_rectangle((cx, cy, radius), (left_x, right_x, top_y, bottom_y))
 
     @staticmethod
-    def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random, use_car_sprite=False):
+    def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite=False):
         cars = []
         uid = 0
         for road in roads.elements:
@@ -255,10 +263,10 @@ class Cars:
                 row_idx = road.row1 + i
                 initial_x = random.integers(0, map_grid_width)
                 height = random.choice(list(range(1, roads.max_height_dic[row_idx] + 1)))
-                width = random.choice(Car.CAR_SIZES[height])[1]
+                (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
                 initial_y = row_idx + (height - 1) * 0.5
                 going_right = road.going_right[i]
-                cars.append(Car(uid, initial_x, initial_y, width, height, going_right, road, map_grid_width, pix_square_size, steps_per_second, random))
+                cars.append(Car(uid, car_name, initial_x, initial_y, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
         
         # add nearby_cars info
         for i in range(len(cars)):
