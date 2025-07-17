@@ -18,10 +18,12 @@ class PedestrianEnv(gym.Env):
 
     DEFAULT_GAMEOVER_REST_TIME = 5_000
     BONUS_SCORE_PER_SEC = 50
+    TIME_OVER_ALERT_SEC = 10
 
     def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=5, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False, render_sprite=True):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
+        if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
         self.title = title
         self.map_grid_width = width
         self.map_grid_height = height + 1 # add starting lane
@@ -205,14 +207,14 @@ class PedestrianEnv(gym.Env):
             right_ui_x = total_window_width - (self.EXTRA_WIDTH/2) - x_padding
             top_y = self.EXTRA_HEIGHT/2 - font_size - 5
             bottom_y = total_window_height - (self.EXTRA_HEIGHT/2) + 5
-            extra_score_text_width = 155
             left_game_x = self.EXTRA_WIDTH/2
             top_game_y = self.EXTRA_HEIGHT/2
 
             # add game screen
             self.window.blit(canvas, (left_game_x, top_game_y), area=camera_rect)
-
+            
             # add gameover screen
+            score_text_color = self.UI_TEXT_WHITE_COLOR
             if self.game_over:
                 dark_screen = pygame.Surface((self.map_width, self.map_height), pygame.SRCALPHA)
                 alpha = 128 # 50% transparency
@@ -222,35 +224,34 @@ class PedestrianEnv(gym.Env):
                 if self.game_end_extra_score < 0:
                     game_status_desc = "YOU DIED"
                     game_status_color = self.AGENT_DEAD_TEXT_COLOR
+                    score_text_color = self.AGENT_DEAD_TEXT_COLOR
                 elif self.game_end_extra_score > 0:
                     game_status_desc = "BONUS"
                     game_status_color = self.SUCCESS_TEXT_COLOR
+                    score_text_color = self.SUCCESS_TEXT_COLOR
                 else:
                     game_status_desc = "TIME OVER"
                     game_status_color = self.TIME_OVER_TEXT_COLOR
                 self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, 128, True)
 
                 if self.game_end_extra_score != 0:
-                    if self.game_end_extra_score < 0:
-                        text = f"{self.game_end_extra_score}"
-                        color = (255, 0, 0)
-                    else:
-                        text = f"+{self.game_end_extra_score}"
-                        color = (0, 255, 0)
-                    self.render_text(center_ui_x + extra_score_text_width, bottom_y+font_size, text, color, font_size)
+                    text = f"+{self.game_end_extra_score}" if self.game_end_extra_score > 0 else f"{self.game_end_extra_score}"
+                    self.render_text(total_window_width/2, total_window_height/2 + 64, text, game_status_color, 80, True)
 
             # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
             self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
-            # update current score: separate game_end_extra_score from cur_rewards
-            cur_score = self.cur_rewards - self.game_end_extra_score
-            self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", self.UI_TEXT_WHITE_COLOR, font_size)
+            # update current score (include game_end_extra_score)
+            cur_score = self.cur_rewards
+            self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", score_text_color, font_size)
 
             # update best score
             self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size)
 
             # update time left
-            self.render_text(right_ui_x, top_y, f"Time Left: {self.get_time_left_sec()}", self.UI_TEXT_WHITE_COLOR, font_size)
+            time_left_sec = self.get_time_left_sec()
+            time_left_sec_color = self.UI_TEXT_WHITE_COLOR if time_left_sec > self.TIME_OVER_ALERT_SEC else self.AGENT_DEAD_TEXT_COLOR
+            self.render_text(right_ui_x, top_y, f"Time Left: {time_left_sec}", time_left_sec_color, font_size)
 
             pygame.event.pump()
             pygame.display.update()
