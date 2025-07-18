@@ -203,26 +203,30 @@ class PedestrianEnv(gym.Env):
         camera_rect.center = rendered_agent_position
         camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
-        default_font_size = 32
-        mid_font_size = 80
-        big_font_size = 128
+        font_size_s = 32
+        font_size_m = 48
+        font_size_l = 80
+        font_size_xl = 128
+        center_x = total_window_width/2
         x_padding = 60
-        left_ui_x = self.EXTRA_WIDTH / 2 - x_padding
-        center_ui_x = total_window_width/2 - x_padding
+        left_ui_x = (self.EXTRA_WIDTH/2) - x_padding
+        center_ui_x = center_x - x_padding
         right_ui_x = total_window_width - (self.EXTRA_WIDTH/2) - x_padding
-        top_y = self.EXTRA_HEIGHT/2 - default_font_size - 5
+
+        top_y = self.EXTRA_HEIGHT/2
         bottom_y = total_window_height - (self.EXTRA_HEIGHT/2) + 5
         left_game_x = self.EXTRA_WIDTH/2
+        right_game_x = total_window_width - (self.EXTRA_WIDTH/2)
         top_game_y = self.EXTRA_HEIGHT/2
 
         # add game screen
         self.window.blit(canvas, (left_game_x, top_game_y), area=camera_rect)
         
-        # add gameover screen
         score_text_color = self.UI_TEXT_WHITE_COLOR
         if self.game_over:
+            # add gameover screen
             dark_screen = pygame.Surface((self.map_width, self.map_height), pygame.SRCALPHA)
-            alpha = 128 # 50% transparency
+            alpha = 180 # 128 == 50% transparency
             dark_screen.fill((0, 0, 0, alpha))
             self.window.blit(dark_screen, (left_game_x, top_game_y), area=camera_rect)
 
@@ -237,26 +241,61 @@ class PedestrianEnv(gym.Env):
             else:
                 game_status_desc = "TIME OVER"
                 game_status_color = self.TIME_OVER_TEXT_COLOR
-            self.render_text(total_window_width/2, total_window_height/2, game_status_desc, game_status_color, big_font_size, True)
+
+            test_render_start_height = total_window_height/2
+            self.render_text(center_x, test_render_start_height, game_status_desc, game_status_color, font_size_xl, order="center")
+            test_render_start_height += font_size_xl/2
 
             if self.game_end_extra_score != 0:
                 text = f"+{self.game_end_extra_score}" if self.game_end_extra_score > 0 else f"{self.game_end_extra_score}"
-                self.render_text(total_window_width/2, total_window_height/2 + big_font_size/2, text, game_status_color, mid_font_size, True)
+                self.render_text(center_x, test_render_start_height, text, game_status_color, font_size_l, order="center")
+                test_render_start_height += font_size_l/2
 
-        # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
-        self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, default_font_size)
+            # show score results
+            center_left_ui_x = left_game_x + 80
+            center_right_ui_x = right_game_x - 130
 
-        # update current score (include game_end_extra_score)
-        cur_score = self.cur_rewards
-        self.render_text(center_ui_x, bottom_y, f"Current Score: {cur_score}", score_text_color, default_font_size)
+            # update current score (include game_end_extra_score)
+            self.render_text(center_left_ui_x, test_render_start_height, f"Current Score:", score_text_color, font_size_m, order="left")
+            self.render_text(center_right_ui_x, test_render_start_height, f"{self.cur_rewards}", score_text_color, font_size_m, order="right")
+            test_render_start_height += font_size_m
 
-        # update best score
-        self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, default_font_size)
+            # update best score
+            best_renewed = self.cur_rewards > self.best_rewards
+            best_score_text_color = self.UI_TEXT_WHITE_COLOR
+            if best_renewed and self.game_end_extra_score > 0:
+                best_score_text_color = self.SUCCESS_TEXT_COLOR
+            best_score = self.cur_rewards if best_renewed else self.best_rewards
+            self.render_text(center_left_ui_x, test_render_start_height, f"Best Score:", best_score_text_color, font_size_m, order="left")
+            self.render_text(center_right_ui_x, test_render_start_height, f"{best_score}", best_score_text_color, font_size_m, order="right")
+            if best_renewed:
+                self.render_text(center_right_ui_x + 10, test_render_start_height, "(NEW!)", best_score_text_color, font_size_m)
+            test_render_start_height += font_size_m
 
-        # update time left
-        time_left_sec = self.get_time_left_sec()
-        time_left_sec_color = self.UI_TEXT_WHITE_COLOR if time_left_sec > self.TIME_OVER_ALERT_SEC else self.AGENT_DEAD_TEXT_COLOR
-        self.render_text(right_ui_x, top_y, f"Time Left: {time_left_sec}", time_left_sec_color, default_font_size)
+            # update total score
+            self.render_text(center_left_ui_x, test_render_start_height, f"Total Score:", self.UI_TEXT_WHITE_COLOR, font_size_m, order="left")
+            self.render_text(center_right_ui_x, test_render_start_height, f"{self.prev_rewards + self.cur_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_m, order="right")
+
+            # update time left
+            time_left_sec = self.get_time_left_sec()
+            time_left_sec_color = self.UI_TEXT_WHITE_COLOR if time_left_sec > self.TIME_OVER_ALERT_SEC else self.AGENT_DEAD_TEXT_COLOR
+            self.render_text(right_game_x - 30, top_y + 30, f"Time Left: {time_left_sec}", time_left_sec_color, font_size_m, order="right")
+        else:
+            # add ingame UI
+
+            # update current score (include game_end_extra_score)
+            self.render_text(center_ui_x, bottom_y, f"Current Score: {self.cur_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
+
+            # update best score
+            self.render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
+
+            # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
+            self.render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
+
+            # update time left
+            time_left_sec = self.get_time_left_sec()
+            time_left_sec_color = self.UI_TEXT_WHITE_COLOR if time_left_sec > self.TIME_OVER_ALERT_SEC else self.AGENT_DEAD_TEXT_COLOR
+            self.render_text(right_ui_x, top_y - font_size_s - 5, f"Time Left: {time_left_sec}", time_left_sec_color, font_size_s)
 
         if self.render_mode == "human":
             pygame.event.pump()
@@ -268,11 +307,15 @@ class PedestrianEnv(gym.Env):
         elif self.render_mode == "rgb_array":
             return np.transpose(np.array(pygame.surfarray.pixels3d(self.window)), axes=(1, 0, 2))
 
-    def render_text(self, x, y, text, color, default_font_size=32, center=False):
-        font = pygame.font.SysFont(None, default_font_size)
+    def render_text(self, x, y, text, color, font_size, order=None):
+        font = pygame.font.SysFont(None, font_size)
         text_surface = font.render(text, True, color)
-        if center:
+        if order == "center":
             text_location = text_surface.get_rect(center=(x, y))
+        elif order == "left":
+            text_location = text_surface.get_rect(topleft=(x, y))   
+        elif order == "right":
+            text_location = text_surface.get_rect(topright=(x, y))            
         else:
             text_location = (x, y)
         self.window.blit(text_surface, text_location)
