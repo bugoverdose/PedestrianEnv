@@ -1,7 +1,7 @@
 import pygame
 import argparse
 
-from pedestrian_env.envs.environment import PedestrianEnv
+from pedestrian_env.envs import PedestrianEnv
 from pedestrian_env.envs.action import Action
 
 KEY_ACTION = {
@@ -65,7 +65,7 @@ def play_episode(env, seed):
 
 def play_game(seed, max_episodes, debug):
     episode_duration_sec = 10 if debug else 30
-    env = PedestrianEnv(render_mode="human", width=25, height=20, camera_size=7, steps_per_second=10, episode_duration_sec=episode_duration_sec, debug=debug)
+    env = PedestrianEnv(render_mode="human", episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i)
         if quit_game: break
