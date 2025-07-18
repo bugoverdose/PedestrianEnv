@@ -35,6 +35,9 @@ class GameObject:
         self.cur_location[0] += dx * ratio
         self.cur_location[1] += dy * ratio
 
+    def stop(self):
+        self.target_location = self.cur_location
+
     def render(self, background):
         pass
 
@@ -76,7 +79,7 @@ class Agent(GameObject):
 
     def set_dead(self):
         self.is_dead = True
-        self.target_location = self.cur_location
+        self.stop()
 
     def render(self, background):
         agent_center_x = self.cur_location[0] * self.pix_square_size
@@ -194,14 +197,14 @@ class Car(GameObject):
                 else:
                     front_dist = my_front - other_back
                 if 0 < front_dist <= threshold:
-                    self.target_location[0] = self.cur_location[0]
+                    self.stop()
                     return
 
                 # make the one with lower uid stop if the both cars are overlapping
                 if self.uid < other_car.uid:
                     other_left, other_right, _, _ = other_car.get_cur_pos()
                     if is_overlapping(my_left, my_right, other_left, other_right):
-                        self.target_location[0] = self.cur_location[0]
+                        self.stop()
                         return
 
         # stop in front of the crosswalk when it is activated
@@ -209,13 +212,15 @@ class Car(GameObject):
         if crosswalk is not None and crosswalk.is_active:
             car_left, car_right, _, _ = self.get_cur_pos()
             cw_left, cw_right = crosswalk.get_activation_left_right()
-            if is_overlapping(car_left, car_right, cw_left, cw_right):
-                pass # overlapping. keep going to stop blocking the crosswalk
+            if self.go_right:
+                front_dist = abs(cw_left - car_right)
             else:
-                car_front, _ = self.get_front_back_x()
-                front_dist = min(abs(cw_left - car_front), abs(cw_right - car_front))
-                if front_dist < CrossWalk.THRESHOLD_DISTANCE:
-                    self.target_location[0] = self.cur_location[0]
+                front_dist = abs(cw_right - car_left)
+            if front_dist < CrossWalk.THRESHOLD_DISTANCE:
+                if is_overlapping(car_left, car_right, cw_left, cw_right):
+                    pass # keep going to clear up the crosswalk
+                else:
+                    self.stop()
                     return
         self.target_location[0] = self.cur_location[0] + self.cur_speed * (1 / self.steps_per_second)
 
