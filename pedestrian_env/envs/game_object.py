@@ -154,19 +154,15 @@ class Car(GameObject):
             object_image = pygame.image.load(self.car_detail.image_path)
             self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height))
 
-    def get_cur_pos(self):
+    def get_cur_x_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
         right_x = self.cur_location[0] + (self.car_grid_width/2)
+        return left_x, right_x
+
+    def get_cur_y_pos(self):
         top_y = self.cur_location[1] - (self.car_grid_height/2)
         bottom_y = self.cur_location[1] + (self.car_grid_height/2)
-        return left_x, right_x, top_y, bottom_y
-
-    def get_front_back_x(self):
-        left_x = self.cur_location[0] - (self.car_grid_width/2)
-        right_x = self.cur_location[0] + (self.car_grid_width/2)
-        if self.go_right:
-            return right_x, left_x
-        return left_x, right_x
+        return top_y, bottom_y
 
     def set_random_speed(self):
         self.cur_speed = self.random.choice(self.CAR_SPEEDS)
@@ -187,22 +183,21 @@ class Car(GameObject):
         # stop in the current location when another car is in front of the car
         if len(self.nearby_cars) > 0:
             threshold = 0.1
-            my_front, my_back = self.get_front_back_x()
-            my_left, my_right, _, _ = self.get_cur_pos()
+            my_left, my_right = self.get_cur_x_pos()
             for other_car in self.nearby_cars:
-                other_front, other_back = other_car.get_front_back_x()
+                other_left, other_right = other_car.get_cur_x_pos()
                 # stop when another car is in front of me
                 if self.go_right:
-                    front_dist = other_back - my_front
+                    front_dist = other_left - my_right
                 else:
-                    front_dist = my_front - other_back
+                    front_dist = my_left - other_right
                 if 0 < front_dist <= threshold:
                     self.stop()
                     return
 
                 # make the one with lower uid stop if the both cars are overlapping
                 if self.uid < other_car.uid:
-                    other_left, other_right, _, _ = other_car.get_cur_pos()
+                    other_left, other_right = other_car.get_cur_x_pos()
                     if is_overlapping(my_left, my_right, other_left, other_right):
                         self.stop()
                         return
@@ -210,7 +205,7 @@ class Car(GameObject):
         # stop in front of the crosswalk when it is activated
         crosswalk = self.road.crosswalk
         if crosswalk is not None and crosswalk.is_active:
-            car_left, car_right, _, _ = self.get_cur_pos()
+            car_left, car_right = self.get_cur_x_pos()
             cw_left, cw_right = crosswalk.get_activation_left_right()
             if self.go_right:
                 front_dist = abs(cw_left - car_right)
@@ -225,7 +220,8 @@ class Car(GameObject):
         self.target_location[0] = self.cur_location[0] + self.cur_speed * (1 / self.steps_per_second)
 
     def render(self, background):
-        left_x, right_x, top_y, bottom_y = self.get_cur_pos()
+        left_x, right_x = self.get_cur_x_pos()
+        top_y, bottom_y = self.get_cur_y_pos()
         left_x_pix = left_x * self.pix_square_size
         top_y_pix = top_y * self.pix_square_size
         # render image or rectangle
@@ -282,8 +278,9 @@ class Cars:
         return False, 0
 
     def _check_collision(self, car):
-        cx, cy, radius = self.agent.get_cur_pos() # circle
-        left_x, right_x, top_y, bottom_y = car.get_cur_pos() # rectangle
+        cx, cy, radius = self.agent.get_cur_pos()
+        left_x, right_x = car.get_cur_x_pos()
+        top_y, bottom_y = car.get_cur_y_pos()
         return is_overlapping_circle_and_rectangle((cx, cy, radius), (left_x, right_x, top_y, bottom_y))
 
     @staticmethod
@@ -305,20 +302,21 @@ class Cars:
         # add nearby_cars info
         for i in range(len(cars)):
             cur_car = cars[i]
-            _, _, top_y1, bottom_y1 = cur_car.get_cur_pos()
+            top_y1, bottom_y1 = cur_car.get_cur_y_pos()
             for j in range(len(cars)):
                 if i == j: continue
                 other_car = cars[j]
-                other_car.get_cur_pos()
-                _, _, top_y2, bottom_y2 = other_car.get_cur_pos()
+                top_y2, bottom_y2 = other_car.get_cur_y_pos()
                 if max(top_y1, top_y2) <= min(bottom_y1, bottom_y2):
                     cur_car.nearby_cars.append(other_car) # overlapping lane
         return Cars(agent, cars)
 
     @staticmethod
     def _check_overlapping(car1, car2):
-        l1, r1, t1, b1 = car1.get_cur_pos()
-        l2, r2, t2, b2 = car2.get_cur_pos()
+        l1, r1 = car1.get_cur_x_pos()
+        t1, b1 = car1.get_cur_y_pos()
+        l2, r2 = car2.get_cur_x_pos()
+        t2, b2 = car2.get_cur_y_pos()
         if not is_overlapping(l1, r1, l2, r2):
             return False
         if not is_overlapping(t1, b1, t2, b2):
