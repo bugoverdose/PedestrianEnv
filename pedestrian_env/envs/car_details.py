@@ -19,7 +19,13 @@ _RiskDetails = {
     CarColorType.GREEN: RiskDetail(color_name="Green", color=(0, 255, 0), penalty=100),
 }
 
- # key=height, value=(car_name, height:width ratio)
+def get_max_penalty():
+    max_penalty = 0
+    for key in _RiskDetails.keys():
+        max_penalty = max(max_penalty, _RiskDetails[key].penalty)
+    return max_penalty
+
+# key=height, value=(car_name, height:width ratio)
 CAR_CANDIDATES = {
     1: [
         ("MICRO", 1.1875),

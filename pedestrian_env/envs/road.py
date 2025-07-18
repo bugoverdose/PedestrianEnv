@@ -98,7 +98,7 @@ class Roads:
                 danger_start_idx = None
 
         # add crosswalks on road
-        agent_initial_col, _, _ = agent.get_cur_pos()
+        [agent_initial_col, _] = agent.cur_location
         buffer = int(camera_size * 0.4) # some are visible from the starting point
         left = random.random() >= 0.5
         for road in roads:
@@ -112,7 +112,7 @@ class Roads:
         self.elements = roads
 
     def update_crosswalk_activation(self):
-        agent_x, agent_y, _ = self.agent.get_cur_pos()
+        [agent_x, agent_y] = self.agent.cur_location
         for road in self.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue

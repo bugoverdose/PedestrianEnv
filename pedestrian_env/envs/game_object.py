@@ -45,22 +45,17 @@ class Agent(GameObject):
     TARGET_LANE = 0
     BODY_COLOR = (0, 50, 255) # (0, 0, 255)
     EYE_COLOR = (0, 0, 0)
+    RADIUS = 0.25
 
-    def __init__(self, buffer, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
+    def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
         fixed_speed = 10 if debug else 2 
         super().__init__(fixed_speed, np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float), pix_square_size, steps_per_second)
-        self.radius = 1/4
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
         self.is_dead = False
-        self.MIN_X = 1 + buffer
-        self.MAX_X = self.map_grid_width - 1 - buffer
+        self.MIN_X = agent_x_range[0]
+        self.MAX_X = agent_x_range[1]
         self.last_direction = ACTION_TO_DELTA[Action.UP]
-
-    def get_cur_pos(self):
-        x = self.cur_location[0]
-        y = self.cur_location[1]
-        return x, y, self.radius
 
     def get_cur_y(self):
         return self.cur_location[1]
@@ -86,8 +81,8 @@ class Agent(GameObject):
         agent_center_y = self.cur_location[1] * self.pix_square_size
         agent_position = (agent_center_x, agent_center_y)
         if self.is_dead:
-            radius_x = int(self.pix_square_size * self.radius * 1.4)
-            radius_y = int(self.pix_square_size * self.radius * 0.4)
+            radius_x = int(self.pix_square_size * self.RADIUS * 1.4)
+            radius_y = int(self.pix_square_size * self.RADIUS * 0.4)
             flattened_rect = pygame.Rect(
                 agent_center_x - radius_x,
                 agent_center_y - radius_y,
@@ -97,7 +92,7 @@ class Agent(GameObject):
             pygame.draw.ellipse(background, self.BODY_COLOR, flattened_rect)
         else:
             # draw body
-            radius_pix = self.pix_square_size * self.radius
+            radius_pix = self.pix_square_size * self.RADIUS
             pygame.draw.circle(
                 background,
                 self.BODY_COLOR,
@@ -278,10 +273,10 @@ class Cars:
         return False, 0
 
     def _check_collision(self, car):
-        cx, cy, radius = self.agent.get_cur_pos()
+        [cx, cy] = self.agent.cur_location
         left_x, right_x = car.get_cur_x_pos()
         top_y, bottom_y = car.get_cur_y_pos()
-        return is_overlapping_circle_and_rectangle((cx, cy, radius), (left_x, right_x, top_y, bottom_y))
+        return is_overlapping_circle_and_rectangle((cx, cy, Agent.RADIUS), (left_x, right_x, top_y, bottom_y))
 
     @staticmethod
     def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite=False):

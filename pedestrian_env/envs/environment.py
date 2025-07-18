@@ -4,6 +4,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
+from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_penalty
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -39,53 +40,83 @@ class PedestrianEnv(gym.Env):
         self.map_height = self.map_grid_height * self.pix_square_size
         self.debug = debug
         self.render_sprite = render_sprite
-
-        self.observation_space = gym.spaces.Dict(
-            {
-                "agent": gym.spaces.Box(
-                    low=np.array([0.0, 0.0]),
-                    high=np.array([self.map_grid_width, self.map_grid_height]),
-                    dtype=np.float32 # continuous space
-                ),
-                # TODO: add nearby car info
-            }
-        )
-        self.action_space = gym.spaces.Discrete(5)
-
-
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-
-        """
-        If human-rendering is used, `self.window` will be a reference
-        to the window that we draw to. `self.clock` will be a clock that is used
-        to ensure that the environment is rendered at the correct framerate in
-        human-mode. They will remain `None` until human-mode is used for the
-        first time.
-        """
         self.window = None
         self.clock = None
 
+        # game info
         self.world = None
-
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
         self.best_rewards = 0
-        self.GAME_TIME = (episode_duration_sec + 1) * 1000
-        self.time_left = self.GAME_TIME
+        self.GAME_TIME_MS = (episode_duration_sec + 1) * 1000
+        self.time_left = self.GAME_TIME_MS
         self.game_over = False
         self.game_end_extra_score = 0
+
+        # action
+        self.action_space = gym.spaces.Discrete(5)
+
+        # obs
+        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), camera_size)/2)
+        self.agent_min_x = 1 + agent_x_buffer
+        self.agent_max_x = self.map_grid_width - 1 - agent_x_buffer
+        self.precision_scale = 10
+        min_int, max_int = np.iinfo(np.int32).min, np.iinfo(np.int32).max
+        self.observation_space = gym.spaces.Box(
+            low=np.array([
+                self.agent_min_x * self.precision_scale, 0,
+                0, 0,
+                # TODO
+                0,
+                -get_max_penalty(),
+                min_int,
+            ]),
+            high=np.array([
+                self.agent_max_x * self.precision_scale, self.map_grid_height * self.precision_scale,
+                1 * self.precision_scale, 1 * self.precision_scale,
+                # TODO
+                self.GAME_TIME_MS - 1000,
+                height * World.UP_REWARD_PER_UNIT + episode_duration_sec * self.BONUS_SCORE_PER_SEC,
+                max_int,
+            ]),
+            dtype=np.int32
+        )
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards
 
     def _get_obs(self):
         """
-        Returns:
-            observation (ObsType): An element of the environment's :attr:`observation_space` as the next observation due to the agent actions.
-                An example is a numpy array containing the positions and velocities of the pole in CartPole.
+        Observation
+        [0] agent x * 10
+        [1] agent y * 10
+        [2] y distance until next road (0 ~ 10)
+        [3] y distance until prev road (0 ~ 10)
+        TODO: add y distance until next safe lane (0 ~ 10)
+        TODO: add y distance until prev safe lane (0 ~ 10)
+        TODO: add left x distance until nearby crosswalk (0 ~ ?)
+        TODO: add right x distance until nearby crosswalk (0 ~ ?)
+        TODO: add nearby cars per lane info
+        [x] time left (ms)
+        [x] cur episode score
+        [x] total score
         """
-        return {"agent": self.world.agent.cur_location, "cur_rewards": self.cur_rewards, "total_rewards": self._total_rewards()}
+        agent_x, agent_y = self.world.agent.cur_location
+        agent_x, agent_y = np.int32(agent_x * self.precision_scale), np.int32(agent_y * self.precision_scale)
+
+        front_road_diff, back_road_diff = self.world.dist_until_roads()
+        front_road_diff = np.int32(front_road_diff * self.precision_scale)
+        back_road_diff = np.int32(back_road_diff * self.precision_scale)
+
+        # TODO
+        time_left = max(0, self.time_left - 1000)
+        cur_episode_score = self.cur_rewards
+        total_score = self._total_rewards()
+        return np.array([agent_x, agent_y,
+                         front_road_diff, back_road_diff,
+                         time_left, cur_episode_score, total_score])
 
     def _get_info(self):
         """
@@ -109,11 +140,11 @@ class PedestrianEnv(gym.Env):
         self.best_rewards = max(self.best_rewards, self.cur_rewards)
         self.prev_rewards += self.cur_rewards
         self.cur_rewards = 0
-        self.time_left = self.GAME_TIME
+        self.time_left = self.GAME_TIME_MS
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.world = World(self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
+        self.world = World((self.agent_min_x, self.agent_max_x), self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
 
         if self.render_mode == "human":
             self.render()
@@ -343,7 +374,7 @@ class PedestrianEnv(gym.Env):
 
     def update_time_left(self, elapsed_time):
         if self.game_over: return
-        self.time_left = self.GAME_TIME - elapsed_time
+        self.time_left = self.GAME_TIME_MS - elapsed_time
 
     def close(self):
         if self.window is not None:
