@@ -14,7 +14,8 @@ dependencies:
   - kneed==0.8.5
   - pip
   - pip:
-      - gymnasium==1.1.1
+      - gymnasium==0.29.1
+      - stable-baselines3==2.2.1 # DQN # requirements: gymnasium>=0.28.1,<0.30
+      - imitation==1.0.1 # AIRL # requirements: gymnasium~=0.29, stable-baselines3~=2.2.1
       - ray==2.11.0
       - tensorflow==2.15.0
-      - stable-baselines3==1.4.0
