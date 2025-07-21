@@ -31,7 +31,7 @@ def play_episode(env, seed):
             obs, reward, terminated, truncated, info = env.step(last_action)
             print(f"total_elapsed={total_elapsed}, action={last_action}, reward={reward}, cur_pos=({obs[0], obs[1]}), " + 
                   f"distance until next road = ({obs[2], obs[3]}), " +
-                  f"time_left={obs[-3]}, cur_rewards={obs[-2]}, total_rewards={obs[-1]}")
+                  f"time_left={obs[-1]}")
             if terminated or truncated:
                 env.render_game_over()
                 return False

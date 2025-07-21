@@ -4,7 +4,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_penalty
+from pedestrian_env.envs.car_details import get_max_car_grid_width
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -63,23 +63,19 @@ class PedestrianEnv(gym.Env):
         self.agent_min_x = 1 + agent_x_buffer
         self.agent_max_x = self.map_grid_width - 1 - agent_x_buffer
         self.precision_scale = 10
-        min_int, max_int = np.iinfo(np.int32).min, np.iinfo(np.int32).max
+        # min_int, max_int = np.iinfo(np.int32).min, np.iinfo(np.int32).max
         self.observation_space = gym.spaces.Box(
             low=np.array([
                 self.agent_min_x * self.precision_scale, 0,
                 0, 0,
                 # TODO
                 0,
-                -get_max_penalty(),
-                min_int,
             ]),
             high=np.array([
                 self.agent_max_x * self.precision_scale, self.map_grid_height * self.precision_scale,
                 1 * self.precision_scale, 1 * self.precision_scale,
                 # TODO
                 self.GAME_TIME_MS - 1000,
-                height * World.UP_REWARD_PER_UNIT + episode_duration_sec * self.BONUS_SCORE_PER_SEC,
-                max_int,
             ]),
             dtype=np.int32
         )
@@ -100,8 +96,6 @@ class PedestrianEnv(gym.Env):
         TODO: add right x distance until nearby crosswalk (0 ~ ?)
         TODO: add nearby cars per lane info
         [x] time left (ms)
-        [x] cur episode score
-        [x] total score
         """
         agent_x, agent_y = self.world.agent.cur_location
         agent_x, agent_y = np.int32(agent_x * self.precision_scale), np.int32(agent_y * self.precision_scale)
@@ -112,11 +106,9 @@ class PedestrianEnv(gym.Env):
 
         # TODO
         time_left = max(0, self.time_left - 1000)
-        cur_episode_score = self.cur_rewards
-        total_score = self._total_rewards()
         return np.array([agent_x, agent_y,
                          front_road_diff, back_road_diff,
-                         time_left, cur_episode_score, total_score])
+                         time_left])
 
     def _get_info(self):
         """
@@ -131,6 +123,8 @@ class PedestrianEnv(gym.Env):
             "is_dead": self.world.agent.is_dead,
             "time_left_ms": self.time_left,
             "game_end_extra_score": self.game_end_extra_score,
+            "cur_episode_score": self.cur_rewards,
+            "total_score": self._total_rewards(),
         }
 
     def reset(self, seed=None, options=None):
