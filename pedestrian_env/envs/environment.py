@@ -4,7 +4,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.road import Roads
+from pedestrian_env.envs.road import Roads, CrossWalk
 from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_penalty
 
@@ -69,17 +69,19 @@ class PedestrianEnv(gym.Env):
         agent_min_Y = 0
         agent_max_Y = self.map_grid_height - 1
         # min_int, max_int = np.iinfo(np.int32).min, np.iinfo(np.int32).max
+        self.crosswalk_visible_range = self.camera_size/2 + CrossWalk.VISIBLE_WIDTH
+
         min_car_penalty, max_car_penalty = 0, get_max_penalty()
         min_car_speed, max_car_speed = min(Car.CAR_SPEEDS), max(Car.CAR_SPEEDS)
+
         self.observation_space = gym.spaces.Box(
             low=np.array([
                 0,
                 self.agent_min_x, agent_min_Y,
-                -Roads.MAX_ROAD_SIZE,
-                -Roads.MAX_ROAD_SIZE,
-                0.0, 
-                # TODO: [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
-                # TODO: [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+                -Roads.MAX_ROAD_SIZE, -Roads.MAX_ROAD_SIZE, 0.0, 
+                0, -self.crosswalk_visible_range, 0, -self.crosswalk_visible_range,
+                # TODO: [10] car penalty known (0 = False, 1 = True)
+                # TODO: [11] car penalty (100, 500, 1000)
                 min_car_penalty,
                 # TODO: lane1: closest car x distance
                 min_car_speed,
@@ -93,11 +95,10 @@ class PedestrianEnv(gym.Env):
             high=np.array([
                 self.GAME_TIME_MS - 1000,
                 self.agent_max_x, agent_max_Y, 
-                0.0,
-                Roads.MAX_ROAD_SIZE,
-                Roads.MAX_ROAD_SIZE + 1,
-                # TODO: [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
-                # TODO: [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+                0.0, Roads.MAX_ROAD_SIZE, Roads.MAX_ROAD_SIZE + 1,
+                0, self.crosswalk_visible_range, 0, self.crosswalk_visible_range,
+                # TODO: [10] car penalty known (0 = False, 1 = True)
+                # TODO: [11] car penalty (100, 500, 1000)
                 max_car_penalty,
                 # TODO: lane1: closest car x distance
                 max_car_speed,
@@ -125,44 +126,47 @@ class PedestrianEnv(gym.Env):
         [4] y distance until head entering start of the current/next road (-4.0 ~ 0.0: body inside the road, 0.0 ~ 4.0: before entering the road)
         [5] y distance until tail escaping end of the current/next road (0.0 ~ 5.0)
 
-        crosswalk
-        [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
-        [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+        crosswalk (NOTE: crosswalk visible range(4.5) == camera range (3.5) + visible width(1))
+        [6] visible crosswalk in previously crossed road (0 = False, 1 = True)
+        [7] x distance until discovered crosswalk of previously crossed road (-4.5 ~ 4.5)
+        [8] visible crosswalk in current/next road (0 = False, 1 = True)
+        [9] x distance until discovered crosswalk of current/next road (-4.5 ~ 4.5)
 
         cars per lane inside next or currently crossing road
-        [8]  car penalty? (100, 500, 1000)
-        [9]  lane1: closest car x distance
-        [10] lane1: closest car speed
-        [11] lane2: closest car x distance
-        [12] lane2: closest car speed
-        [13] lane3: closest car x distance
-        [14] lane3: closest car speed
-        [15] lane4: closest car x distance
-        [16] lane4: closest car speed
+        [10] car penalty known (0 = False, 1 = True)
+        [11] car penalty (100, 500, 1000)
+        [12] lane1: closest car x distance
+        [13] lane1: closest car speed
+        [14] lane2: closest car x distance
+        [15] lane2: closest car speed
+        [16] lane3: closest car x distance
+        [17] lane3: closest car speed
+        [18] lane4: closest car x distance
+        [19] lane4: closest car speed
         """
         time_left = max(0, self.time_left - 1000)
         agent_x, agent_y = self.world.agent.get_cur_location_rounded()
 
-        prev_road_end_dist, cur_road_start_dist, cur_road_end_dist = self.world.nearby_road_info()
+        prev_road_end_dist, cur_road_start_dist, cur_road_end_dist, \
+            prev_crosswalk_discovered, prev_crosswalk_x_diff, \
+                cur_crosswalk_discovered, cur_crosswalk_x_diff = self.world.nearby_road_info(self.crosswalk_visible_range)
         prev_road_end_dist = min(max(prev_road_end_dist, -Roads.MAX_ROAD_SIZE), 0)
         cur_road_start_dist = min(max(cur_road_start_dist, -Roads.MAX_ROAD_SIZE), Roads.MAX_ROAD_SIZE)
         cur_road_end_dist = min(max(cur_road_end_dist, 0), Roads.MAX_ROAD_SIZE + 1)
-        return np.array([time_left, 
+        return np.array([time_left,
                          agent_x, agent_y,
-                         prev_road_end_dist,
-                         cur_road_start_dist,
-                         cur_road_end_dist,
-                        # TODO: [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
-                        # TODO: [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
-                        # TODO: [8] car penalty? (0?, 100, 500, 1000)
-                        # TODO: [9]  lane1: closest car x distance
-                        # TODO: [10] lane1: closest car speed
-                        # TODO: [11] lane2: closest car x distance
-                        # TODO: [12] lane2: closest car speed
-                        # TODO: [13] lane3: closest car x distance
-                        # TODO: [14] lane3: closest car speed
-                        # TODO: [15] lane4: closest car x distance
-                        # TODO: [16] lane4: closest car speed
+                         prev_road_end_dist, cur_road_start_dist, cur_road_end_dist,
+                         prev_crosswalk_discovered, prev_crosswalk_x_diff, cur_crosswalk_discovered, cur_crosswalk_x_diff,
+        # [10] car penalty known (0 = False, 1 = True)
+        # [11] car penalty (100, 500, 1000)
+        # [12] lane1: closest car x distance
+        # [13] lane1: closest car speed
+        # [14] lane2: closest car x distance
+        # [15] lane2: closest car speed
+        # [16] lane3: closest car x distance
+        # [17] lane3: closest car speed
+        # [18] lane4: closest car x distance
+        # [19] lane4: closest car speed
                         ])
 
     def _get_info(self):
@@ -286,7 +290,7 @@ class PedestrianEnv(gym.Env):
 
         camera_rect = pygame.Rect(0, 0, self.camera_size_pixel, self.camera_size_pixel)
         camera_rect.center = rendered_agent_position
-        camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
+        # camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         font_size_s = 32
         font_size_m = 48

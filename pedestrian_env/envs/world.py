@@ -2,7 +2,6 @@ import pygame
 
 from pedestrian_env.envs.road import Roads
 from pedestrian_env.envs.game_object import Agent, Cars
-from pedestrian_env.envs.car_details import get_max_car_grid_width
 
 class World:
     UP_REWARD_PER_UNIT = 5
@@ -25,43 +24,58 @@ class World:
         cur_y = self.agent.cur_location[1]
         return cur_y == Agent.TARGET_LANE
 
-    def nearby_road_info(self, max_dist = 99):
-        [_, agent_y] = self.agent.cur_location
+    def nearby_road_info(self, crosswalk_visible_range, max_dist = 99):
+        [agent_x, agent_y] = self.agent.cur_location
         agent_head_y, agent_tail_y = agent_y - Agent.RADIUS, agent_y + Agent.RADIUS
         cur_road_start_dist, prev_road_end_dist = max_dist, max_dist
-        cur_road = None
+        cur_road, cur_road_found = None, False
+        prev_road = None
         for road in self.roads.elements:
             road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
-            if road_up_y <= agent_head_y <= road_down_y:
-                # agent is inside the road
-                cur_road = road
-                cur_road_start_dist = agent_head_y - road_down_y
-                break
-            elif road_down_y < agent_head_y and road_up_y < agent_head_y: 
-                # agent is before the road
-                dist = agent_head_y - road_down_y
-                if dist < cur_road_start_dist:
+            if not cur_road_found:
+                if road_up_y <= agent_head_y <= road_down_y:
+                    # agent is inside the road
                     cur_road = road
-                    cur_road_start_dist = dist
+                    cur_road_start_dist = agent_head_y - road_down_y
+                    cur_road_found = True
+                elif road_down_y < agent_head_y and road_up_y < agent_head_y: 
+                    # agent is before the road
+                    dist = agent_head_y - road_down_y
+                    if dist < cur_road_start_dist:
+                        cur_road = road
+                        cur_road_start_dist = dist
 
-        for road in self.roads.elements:
-            road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
-            if road_up_y <= agent_tail_y <= road_down_y:
-                # agent is inside the road
-                prev_road_end_dist = 0.0
-                cur_road = road
-            elif agent_tail_y < road_up_y and agent_tail_y < road_down_y:
+            if agent_tail_y < road_up_y and agent_tail_y < road_down_y:
                 # agent is after the road
-                prev_road_end_dist = min(prev_road_end_dist, road_up_y - agent_tail_y)
+                dist = road_up_y - agent_tail_y
+                if dist < prev_road_end_dist:
+                    prev_road_end_dist = dist
+                    prev_road = road
+            elif road_up_y <= agent_tail_y <= road_down_y:
+                # agent is inside the road
+                cur_road = road
 
         cur_road_end_dist = 0 # no road in front
+        prev_crosswalk_discovered, cur_crosswalk_discovered = 0, 0 # not found
+        prev_crosswalk_x_diff, cur_crosswalk_x_diff = 0, 0
         if cur_road is not None:
             cur_road_up_y = cur_road.row1 - 0.5
             cur_road_end_dist = agent_tail_y - cur_road_up_y
+            if cur_road.crosswalk is not None:
+                x_dist = cur_road.crosswalk.col - agent_x
+                if abs(x_dist) < crosswalk_visible_range:
+                    cur_crosswalk_discovered = 1 # found
+                    cur_crosswalk_x_diff = x_dist
+        if prev_road is not None and prev_road.crosswalk is not None:
+            x_dist = prev_road.crosswalk.col - agent_x
+            if abs(x_dist) < crosswalk_visible_range:
+                prev_crosswalk_discovered = 1 # found
+                prev_crosswalk_x_diff = prev_road.crosswalk.col - agent_x
 
         # TODO: ADD CAR INFO
 
-        return prev_road_end_dist, cur_road_start_dist, cur_road_end_dist
+        return prev_road_end_dist, cur_road_start_dist, cur_road_end_dist, \
+              prev_crosswalk_discovered, prev_crosswalk_x_diff, cur_crosswalk_discovered, cur_crosswalk_x_diff
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
