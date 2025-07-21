@@ -8,6 +8,16 @@ class Action(Enum):
     RIGHT = 3
     LEFT = 4
 
+    def __str__(self):
+        string_map = {
+            Action.NOTHING: "Nothing",
+            Action.UP: "UP",
+            Action.DOWN: "DOWN",
+            Action.RIGHT: "RIGHT",
+            Action.LEFT: "LEFT",
+        }
+        return string_map[self]
+
 ACTION_TO_DELTA = {
     Action.NOTHING: np.array([0, 0]),
     Action.UP: np.array([0, -1]),

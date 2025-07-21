@@ -1,5 +1,3 @@
-import pygame
-
 from enum import Enum
 
 class CarColorType(Enum):
