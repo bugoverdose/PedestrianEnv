@@ -49,7 +49,8 @@ class Agent(GameObject):
 
     def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
         fixed_speed = 10 if debug else 2 
-        super().__init__(fixed_speed, np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float), pix_square_size, steps_per_second)
+        cur_location = np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float)
+        super().__init__(fixed_speed, cur_location, pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
         self.is_dead = False

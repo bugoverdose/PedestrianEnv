@@ -72,7 +72,7 @@ class PedestrianEnv(gym.Env):
                 0,
             ]),
             high=np.array([
-                self.agent_max_x * self.precision_scale, self.map_grid_height * self.precision_scale,
+                self.agent_max_x * self.precision_scale, (self.map_grid_height - 1) * self.precision_scale,
                 1 * self.precision_scale, 1 * self.precision_scale,
                 # TODO
                 self.GAME_TIME_MS - 1000,
@@ -86,8 +86,8 @@ class PedestrianEnv(gym.Env):
     def _get_obs(self):
         """
         Observation
-        [0] agent x * 10
-        [1] agent y * 10
+        [0] agent x * 10 (60~190)
+        [1] agent y * 10 (0~200)
         [2] y distance until next road (0 ~ 10)
         [3] y distance until prev road (0 ~ 10)
         TODO: add y distance until next safe lane (0 ~ 10)
