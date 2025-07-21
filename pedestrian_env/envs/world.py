@@ -27,37 +27,37 @@ class World:
 
     def nearby_road_info(self, max_dist = 99):
         [_, agent_y] = self.agent.cur_location
-        agent_up_y, agent_down_y = agent_y - Agent.RADIUS, agent_y + Agent.RADIUS
+        agent_head_y, agent_tail_y = agent_y - Agent.RADIUS, agent_y + Agent.RADIUS
         cur_road_start_dist, prev_road_end_dist = max_dist, max_dist
         cur_road = None
         for road in self.roads.elements:
             road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
-            if road_up_y <= agent_up_y <= road_down_y:
+            if road_up_y <= agent_head_y <= road_down_y:
                 # agent is inside the road
                 cur_road = road
-                cur_road_start_dist = agent_up_y - road_down_y
+                cur_road_start_dist = agent_head_y - road_down_y
                 break
-            elif road_down_y < agent_up_y and road_up_y < agent_up_y: 
+            elif road_down_y < agent_head_y and road_up_y < agent_head_y: 
                 # agent is before the road
-                dist = agent_up_y - road_down_y
+                dist = agent_head_y - road_down_y
                 if dist < cur_road_start_dist:
                     cur_road = road
                     cur_road_start_dist = dist
 
         for road in self.roads.elements:
             road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
-            if road_up_y <= agent_down_y <= road_down_y:
+            if road_up_y <= agent_tail_y <= road_down_y:
                 # agent is inside the road
                 prev_road_end_dist = 0.0
                 cur_road = road
-            elif agent_down_y < road_up_y and agent_down_y < road_down_y:
+            elif agent_tail_y < road_up_y and agent_tail_y < road_down_y:
                 # agent is after the road
-                prev_road_end_dist = min(prev_road_end_dist, road_up_y - agent_down_y)
+                prev_road_end_dist = min(prev_road_end_dist, road_up_y - agent_tail_y)
 
         cur_road_end_dist = 0 # no road in front
         if cur_road is not None:
             cur_road_up_y = cur_road.row1 - 0.5
-            cur_road_end_dist = agent_down_y - cur_road_up_y
+            cur_road_end_dist = agent_tail_y - cur_road_up_y
 
         # TODO: ADD CAR INFO
 

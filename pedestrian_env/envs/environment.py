@@ -121,9 +121,9 @@ class PedestrianEnv(gym.Env):
         [2] agent y (0.0 ~ 20.0)
 
         road
-        [3] y distance until entering previously crossed road (-4.0 ~ 0.0)
-        [4] y distance until start of the current/next road (-4.0 ~ 0.0: body inside the road, 0.0 ~ 4.0: before entering the road)
-        [5] y distance until end of the current/next road (0.0 ~ 5.0)
+        [3] y distance until tail entering previously crossed road (-4.0 ~ 0.0)
+        [4] y distance until head entering start of the current/next road (-4.0 ~ 0.0: body inside the road, 0.0 ~ 4.0: before entering the road)
+        [5] y distance until tail escaping end of the current/next road (0.0 ~ 5.0)
 
         crosswalk
         [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
