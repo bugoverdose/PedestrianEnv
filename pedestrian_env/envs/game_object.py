@@ -58,8 +58,8 @@ class Agent(GameObject):
         self.MAX_X = agent_x_range[1]
         self.last_direction = ACTION_TO_DELTA[Action.UP]
 
-    def get_cur_y(self):
-        return self.cur_location[1]
+    def get_cur_location_rounded(self):
+        return round(self.cur_location[0], 2), round(self.cur_location[1], 2)
 
     def get_target_y(self):
         return self.target_location[1]

@@ -4,7 +4,9 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.car_details import get_max_car_grid_width
+from pedestrian_env.envs.road import Roads
+from pedestrian_env.envs.game_object import Car
+from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_penalty
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -57,58 +59,111 @@ class PedestrianEnv(gym.Env):
 
         # action
         self.action_space = gym.spaces.Discrete(5)
-
         # obs
-        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), camera_size)/2)
-        self.agent_min_x = 1 + agent_x_buffer
+        self._define_observation_space()
+
+    def _define_observation_space(self):
+        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)
+        self.agent_min_x = (1 + agent_x_buffer)
         self.agent_max_x = self.map_grid_width - 1 - agent_x_buffer
-        self.precision_scale = 10
+        agent_min_Y = 0
+        agent_max_Y = self.map_grid_height - 1
         # min_int, max_int = np.iinfo(np.int32).min, np.iinfo(np.int32).max
+        min_car_penalty, max_car_penalty = 0, get_max_penalty()
+        min_car_speed, max_car_speed = min(Car.CAR_SPEEDS), max(Car.CAR_SPEEDS)
         self.observation_space = gym.spaces.Box(
             low=np.array([
-                self.agent_min_x * self.precision_scale, 0,
-                0, 0,
-                # TODO
                 0,
+                self.agent_min_x, agent_min_Y,
+                -Roads.MAX_ROAD_SIZE,
+                -Roads.MAX_ROAD_SIZE,
+                0.0, 
+                # TODO: [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
+                # TODO: [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+                min_car_penalty,
+                # TODO: lane1: closest car x distance
+                min_car_speed,
+                # TODO: lane2: closest car x distance
+                min_car_speed,
+                # TODO: lane3: closest car x distance
+                min_car_speed,
+                # TODO: lane4: closest car x distance
+                min_car_speed,
             ]),
             high=np.array([
-                self.agent_max_x * self.precision_scale, (self.map_grid_height - 1) * self.precision_scale,
-                1 * self.precision_scale, 1 * self.precision_scale,
-                # TODO
                 self.GAME_TIME_MS - 1000,
+                self.agent_max_x, agent_max_Y, 
+                0.0,
+                Roads.MAX_ROAD_SIZE,
+                Roads.MAX_ROAD_SIZE + 1,
+                # TODO: [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
+                # TODO: [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+                max_car_penalty,
+                # TODO: lane1: closest car x distance
+                max_car_speed,
+                # TODO: lane2: closest car x distance
+                max_car_speed,
+                # TODO: lane3: closest car x distance
+                max_car_speed,
+                # TODO: lane4: closest car x distance
+                max_car_speed,
             ]),
-            dtype=np.int32
+            dtype=np.float32
         )
-
-    def _total_rewards(self):
-        return self.prev_rewards + self.cur_rewards
 
     def _get_obs(self):
         """
         Observation
-        [0] agent x * 10 (60~190)
-        [1] agent y * 10 (0~200)
-        [2] y distance until next road (0 ~ 10)
-        [3] y distance until prev road (0 ~ 10)
-        TODO: add y distance until next safe lane (0 ~ 10)
-        TODO: add y distance until prev safe lane (0 ~ 10)
-        TODO: add left x distance until nearby crosswalk (0 ~ ?)
-        TODO: add right x distance until nearby crosswalk (0 ~ ?)
-        TODO: add nearby cars per lane info
-        [x] time left (ms)
+        
+        agent position
+        [0] time left in ms (0 ~ 30000)
+        [1] agent x (6.0 ~ 19.0)
+        [2] agent y (0.0 ~ 20.0)
+
+        road
+        [3] y distance until entering previously crossed road (-4.0 ~ 0.0)
+        [4] y distance until start of the current/next road (-4.0 ~ 0.0: body inside the road, 0.0 ~ 4.0: before entering the road)
+        [5] y distance until end of the current/next road (0.0 ~ 5.0)
+
+        crosswalk
+        [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
+        [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+
+        cars per lane inside next or currently crossing road
+        [8]  car penalty? (100, 500, 1000)
+        [9]  lane1: closest car x distance
+        [10] lane1: closest car speed
+        [11] lane2: closest car x distance
+        [12] lane2: closest car speed
+        [13] lane3: closest car x distance
+        [14] lane3: closest car speed
+        [15] lane4: closest car x distance
+        [16] lane4: closest car speed
         """
-        agent_x, agent_y = self.world.agent.cur_location
-        agent_x, agent_y = np.int32(agent_x * self.precision_scale), np.int32(agent_y * self.precision_scale)
-
-        front_road_diff, back_road_diff = self.world.dist_until_roads()
-        front_road_diff = np.int32(front_road_diff * self.precision_scale)
-        back_road_diff = np.int32(back_road_diff * self.precision_scale)
-
-        # TODO
         time_left = max(0, self.time_left - 1000)
-        return np.array([agent_x, agent_y,
-                         front_road_diff, back_road_diff,
-                         time_left])
+        agent_x, agent_y = self.world.agent.get_cur_location_rounded()
+
+        prev_road_end_dist, cur_road_start_dist, cur_road_end_dist = self.world.nearby_road_info()
+        prev_road_end_dist = min(max(prev_road_end_dist, -Roads.MAX_ROAD_SIZE), 0)
+        cur_road_start_dist = min(max(cur_road_start_dist, -Roads.MAX_ROAD_SIZE), Roads.MAX_ROAD_SIZE)
+        cur_road_end_dist = min(max(cur_road_end_dist, 0), Roads.MAX_ROAD_SIZE + 1)
+        return np.array([time_left, 
+                         agent_x, agent_y,
+                         prev_road_end_dist,
+                         cur_road_start_dist,
+                         cur_road_end_dist,
+                        # TODO: [6] x distance until discovered crosswalk of crossed road (-13.0 ~ 13.0)?
+                        # TODO: [7] x distance until discovered crosswalk of current/next road (-13.0 ~ 13.0)?
+                        # TODO: [8] car penalty? (0?, 100, 500, 1000)
+                        # TODO: [9]  lane1: closest car x distance
+                        # TODO: [10] lane1: closest car speed
+                        # TODO: [11] lane2: closest car x distance
+                        # TODO: [12] lane2: closest car speed
+                        # TODO: [13] lane3: closest car x distance
+                        # TODO: [14] lane3: closest car speed
+                        # TODO: [15] lane4: closest car x distance
+                        # TODO: [16] lane4: closest car speed
+                        ])
 
     def _get_info(self):
         """
@@ -119,13 +174,18 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
+        agent_x, agent_y = self.world.agent.get_cur_location_rounded()
         return {
+            "agent_x": agent_x,
+            "agent_y": agent_y,
             "is_dead": self.world.agent.is_dead,
-            "time_left_ms": self.time_left,
             "game_end_extra_score": self.game_end_extra_score,
             "cur_episode_score": self.cur_rewards,
             "total_score": self._total_rewards(),
         }
+
+    def _total_rewards(self):
+        return self.prev_rewards + self.cur_rewards
 
     def reset(self, seed=None, options=None):
         # NOTE: following line is needed for self.np_random

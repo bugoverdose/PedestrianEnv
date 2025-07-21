@@ -16,37 +16,52 @@ class World:
         self.steps_per_second = steps_per_second
 
         self.agent = Agent(agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug)
-        self.initial_player_y = self.agent.get_cur_y()
+        self.initial_player_y = self.agent.cur_location[1]
 
         self.roads = Roads(self.agent, camera_size, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite)
 
     def target_lane_reached(self):
-        cur_y = self.agent.get_cur_y()
+        cur_y = self.agent.cur_location[1]
         return cur_y == Agent.TARGET_LANE
 
-    def dist_until_roads(self, max_dist = 1):
+    def nearby_road_info(self, max_dist = 99):
         [_, agent_y] = self.agent.cur_location
         agent_up_y, agent_down_y = agent_y - Agent.RADIUS, agent_y + Agent.RADIUS
-        closest_front_dist, closest_back_dist = max_dist, max_dist
+        cur_road_start_dist, prev_road_end_dist = max_dist, max_dist
+        cur_road = None
         for road in self.roads.elements:
             road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
             if road_up_y <= agent_up_y <= road_down_y:
                 # agent is inside the road
-                closest_front_dist = 0.0
+                cur_road = road
+                cur_road_start_dist = agent_up_y - road_down_y
+                break
             elif road_down_y < agent_up_y and road_up_y < agent_up_y: 
                 # agent is before the road
-                closest_front_dist = min(closest_front_dist, agent_up_y - road_down_y)
+                dist = agent_up_y - road_down_y
+                if dist < cur_road_start_dist:
+                    cur_road = road
+                    cur_road_start_dist = dist
+
+        for road in self.roads.elements:
+            road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
             if road_up_y <= agent_down_y <= road_down_y:
                 # agent is inside the road
-                closest_back_dist = 0.0
+                prev_road_end_dist = 0.0
+                cur_road = road
             elif agent_down_y < road_up_y and agent_down_y < road_down_y:
                 # agent is after the road
-                closest_back_dist = min(closest_back_dist, road_up_y - agent_down_y)
+                prev_road_end_dist = min(prev_road_end_dist, road_up_y - agent_down_y)
 
-        closest_front_dist = min(max(closest_front_dist, 0.0), 1.0)
-        closest_back_dist = min(max(closest_back_dist, 0.0), 1.0)
-        return closest_front_dist, closest_back_dist
+        cur_road_end_dist = 0 # no road in front
+        if cur_road is not None:
+            cur_road_up_y = cur_road.row1 - 0.5
+            cur_road_end_dist = agent_down_y - cur_road_up_y
+
+        # TODO: ADD CAR INFO
+
+        return prev_road_end_dist, cur_road_start_dist, cur_road_end_dist
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
