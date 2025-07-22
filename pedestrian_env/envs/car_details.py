@@ -18,7 +18,7 @@ _RiskDetails = {
 }
 
 def get_panalty_range():
-    min_penalty = 0
+    min_penalty = 99999
     max_penalty = 0
     for key in _RiskDetails.keys():
         min_penalty = min(min_penalty, _RiskDetails[key].penalty)

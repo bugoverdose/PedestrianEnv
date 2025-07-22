@@ -133,6 +133,9 @@ class PedestrianEnv(gym.Env):
         self.cur_rewards += reward
         return self._get_obs(), reward, terminated, False, self._get_info()
 
+    def clock_tick(self):
+        return self.clock.tick(self.metadata["render_fps"])
+
     def update_positions(self, dt):
         self.world.update_positions(dt)
 
@@ -267,7 +270,7 @@ class PedestrianEnv(gym.Env):
             # needed to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
             if self.tick_on_render:
-                self._clock_tick()
+                self.clock_tick()
         elif self.render_mode == "rgb_array":
             return np.transpose(np.array(pygame.surfarray.pixels3d(self.window)), axes=(1, 0, 2))
 
@@ -275,7 +278,7 @@ class PedestrianEnv(gym.Env):
         elapsed = 0
         total_elapsed = 0
         while total_elapsed < self.DEFAULT_GAMEOVER_REST_TIME:
-            dt = self._clock_tick()
+            dt = self.clock_tick()
             elapsed += dt
             total_elapsed += dt
             while elapsed >= self.step_ms:
@@ -369,7 +372,7 @@ class PedestrianEnv(gym.Env):
         cur_road_end_dist = min(max(cur_road_end_dist, 0), Roads.MAX_ROAD_SIZE + 1)
 
         car_penalty_is_visible = 1.0 if car_penalty is not None else 0.0
-        visible_car_penalty = car_penalty if car_penalty is not None else  self.min_car_penalty
+        visible_car_penalty = car_penalty if car_penalty is not None else self.min_car_penalty
         if len(nearby_cars) < 8:
             nearby_cars += [-3.5, 0] * int((8 - len(nearby_cars)) / 2)
             if len(nearby_cars) != 8:
@@ -404,9 +407,6 @@ class PedestrianEnv(gym.Env):
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards
-
-    def _clock_tick(self):
-        return self.clock.tick(self.metadata["render_fps"])
 
     def _get_time_left_sec(self):
         return int(self.time_left/1000)

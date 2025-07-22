@@ -32,9 +32,9 @@ def play_episode(env, seed):
             print(f"time_left={obs[0]:.0f}, " +
                   f"action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]}), " +
                   f"prev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}, " +
-                  f"\nprev_crosswalk (discovered={obs[6] == 0}, x_diff={obs[7]:.2f}), " + 
+                  f"\nprev_crosswalk (discovered={obs[6] == 1}, x_diff={obs[7]:.2f}), " + 
                   f"cur_crosswalk (discovered={obs[8] == 0}, x_diff={obs[9]:.2f}), " +
-                  f"cur road penalty (visible={obs[10] == 0}, value={obs[11]:.0f})",
+                  f"\ncur road penalty (visible={obs[10] == 1}, value={obs[11]:.0f})",
                   f"\ncar infos [lane1=({obs[12]:.2f}, {obs[13]:.1f}), lane2=({obs[14]:.2f}, {obs[15]:.1f}), " + 
                   f"lane3=({obs[16]:.2f}, {obs[17]:.1f}), lane4=({obs[18]:.2f}, {obs[19]:.1f})]",
             )
