@@ -230,11 +230,16 @@ class Road:
                 raise Exception("invalid implementation")
 
             for row_idx in car.row_indices:
-                if car.cur_speed > 0 and x_dist > 0: continue # no longer dangerous
-                if car.cur_speed < 0 and x_dist < 0: continue # no longer dangerous
+                closest_car_x_dist = nearby_car_infos[row_idx][0]
+                if closest_car_x_dist == 0: continue # another blocked
+                if car.cur_speed > 0 and x_dist > 0: continue # moving away
+                if car.cur_speed < 0 and x_dist < 0: continue # moving away
+                if abs(closest_car_x_dist) < abs(x_dist): continue # farther away
+                # save closest and most dangerous car position
                 actual_car_speed = car.cur_speed if car.is_moving else 0
                 nearby_car_infos[row_idx] = [x_dist, actual_car_speed]
 
+        # closest lane to farthest + flatten out list
         nearby_cars = []
         for row_idx in range(self.row2, self.row1 - 1, -1):
             nearby_cars.append(nearby_car_infos[row_idx][0])
