@@ -4,6 +4,8 @@ from enum import Enum
 import pygame
 
 from pedestrian_env.envs.car_details import CarColorType, get_max_car_grid_height
+from pedestrian_env.envs.utils import is_overlapping
+from pedestrian_env.envs.car_details import _RiskDetails
 
 class RowType(Enum):
     SAFE = 0
@@ -83,6 +85,7 @@ class Roads:
                 self.max_height_dic[prev_row_idx] = min(self.max_height_dic[prev_row_idx] + 1, max_car_grid_height)
                 prev_row_idx -= 1
         
+        uid = 0
         roads = []
         danger_start_idx = None
         for row_idx in range(len(row_types)):
@@ -92,9 +95,10 @@ class Roads:
                     danger_start_idx = row_idx
                 continue
             if row_type == RowType.SAFE:
+                uid += 1
                 row1 = danger_start_idx
                 row2 = row_idx-1
-                roads.append(Road(row1, row2, row_types[row1:row2+1], random))
+                roads.append(Road(uid, row1, row2, row_types[row1:row2+1], random))
                 danger_start_idx = None
 
         # add crosswalks on road
@@ -177,12 +181,66 @@ class Roads:
                     pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
-    def __init__(self, row1, row2, row_types, random):
+    def __init__(self, uid, row1, row2, row_types, random):
+        self.uid = uid
         self.row1 = row1
         self.row2 = row2
         self.going_right = [row_type == RowType.CAR_GOING_RIGHT for row_type in row_types]
         self.car_color_type = random.choice([CarColorType.RED, CarColorType.YELLOW, CarColorType.GREEN])
         self.crosswalk = None
+
+    def observe(self, agent, cars, crosswalk_visible_range, game_screen_visible_range):
+        [agent_x, agent_y] = agent.cur_location
+
+        agent_head_y, agent_tail_y = agent_y - agent.RADIUS, agent_y + agent.RADIUS
+        cur_road_up_y = self.row1 - 0.5
+        cur_road_end_dist = agent_tail_y - cur_road_up_y
+
+        cur_crosswalk_discovered = 0 # not found
+        cur_crosswalk_x_diff = 0
+        if self.crosswalk is not None:
+            x_dist = self.crosswalk.col - agent_x
+            if abs(x_dist) < crosswalk_visible_range:
+                cur_crosswalk_discovered = 1 # found
+                cur_crosswalk_x_diff = x_dist
+
+        agent_left_x, agent_right_x = agent_x - agent.RADIUS, agent_x + agent.RADIUS
+
+        nearby_car_infos = {}
+        for i in range(self.row2 - self.row1 + 1):
+            row_idx = self.row1 + i
+            if self.going_right[i]:
+                nearby_car_infos[row_idx] = [-game_screen_visible_range, 0] # stopped at left end, heading right
+            else:
+                nearby_car_infos[row_idx] = [game_screen_visible_range, 0] # stopped at right end, heading left
+        for car in cars.elements:
+            if car.road.uid != self.uid: continue
+            car_left_x, car_right_x = car.get_cur_x_pos()
+            if abs(agent_x - car_left_x) >= game_screen_visible_range and abs(agent_x - car_right_x) >= game_screen_visible_range:
+                continue # out of sight
+            agent.road_penalty_dict[self.uid] = car.car_detail.penalty
+
+            if is_overlapping(agent_left_x, agent_right_x, car_left_x, car_right_x):
+                x_dist = 0
+            elif car_right_x < agent_left_x:
+                x_dist = car_right_x - agent_left_x
+            elif agent_right_x < car_left_x:
+                x_dist = car_left_x - agent_right_x
+            else:
+                raise Exception("invalid implementation")
+
+            for row_idx in car.row_indices:
+                if car.cur_speed > 0 and x_dist > 0: continue # no longer dangerous
+                if car.cur_speed < 0 and x_dist < 0: continue # no longer dangerous
+                actual_car_speed = car.cur_speed if car.is_moving else 0
+                nearby_car_infos[row_idx] = [x_dist, actual_car_speed]
+
+        nearby_cars = []
+        for row_idx in range(self.row2, self.row1 - 1, -1):
+            nearby_cars.append(nearby_car_infos[row_idx][0])
+            nearby_cars.append(nearby_car_infos[row_idx][1])
+
+        return cur_road_end_dist, cur_crosswalk_x_diff, cur_crosswalk_discovered, nearby_cars
 
 class CrossWalk:
     RATIO = 0.6

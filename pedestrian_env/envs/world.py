@@ -24,7 +24,7 @@ class World:
         cur_y = self.agent.cur_location[1]
         return cur_y == Agent.TARGET_LANE
 
-    def nearby_road_info(self, crosswalk_visible_range, max_dist = 99):
+    def nearby_road_info(self, game_screen_visible_range, crosswalk_visible_range, max_dist = 99):
         [agent_x, agent_y] = self.agent.cur_location
         agent_head_y, agent_tail_y = agent_y - Agent.RADIUS, agent_y + Agent.RADIUS
         cur_road_start_dist, prev_road_end_dist = max_dist, max_dist
@@ -58,24 +58,23 @@ class World:
         cur_road_end_dist = 0 # no road in front
         prev_crosswalk_discovered, cur_crosswalk_discovered = 0, 0 # not found
         prev_crosswalk_x_diff, cur_crosswalk_x_diff = 0, 0
+        car_penalty = None
+        nearby_cars = []
         if cur_road is not None:
-            cur_road_up_y = cur_road.row1 - 0.5
-            cur_road_end_dist = agent_tail_y - cur_road_up_y
-            if cur_road.crosswalk is not None:
-                x_dist = cur_road.crosswalk.col - agent_x
-                if abs(x_dist) < crosswalk_visible_range:
-                    cur_crosswalk_discovered = 1 # found
-                    cur_crosswalk_x_diff = x_dist
+            cur_road_end_dist, cur_crosswalk_x_diff, cur_crosswalk_discovered, nearby_cars = cur_road.observe(self.agent, self.cars, game_screen_visible_range, crosswalk_visible_range)
+            if cur_road.uid in self.agent.road_penalty_dict:
+                car_penalty = self.agent.road_penalty_dict[cur_road.uid]
+
         if prev_road is not None and prev_road.crosswalk is not None:
             x_dist = prev_road.crosswalk.col - agent_x
             if abs(x_dist) < crosswalk_visible_range:
                 prev_crosswalk_discovered = 1 # found
                 prev_crosswalk_x_diff = prev_road.crosswalk.col - agent_x
 
-        # TODO: ADD CAR INFO
-
-        return prev_road_end_dist, cur_road_start_dist, cur_road_end_dist, \
-              prev_crosswalk_discovered, prev_crosswalk_x_diff, cur_crosswalk_discovered, cur_crosswalk_x_diff
+        return [prev_road_end_dist, cur_road_start_dist, cur_road_end_dist,
+                prev_crosswalk_discovered, prev_crosswalk_x_diff, 
+                cur_crosswalk_discovered, cur_crosswalk_x_diff,
+                car_penalty, nearby_cars]
 
     def update_positions(self, dt):
         self.agent.update_position(dt)

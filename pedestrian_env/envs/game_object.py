@@ -14,6 +14,7 @@ class GameObject:
         self.target_location = self.cur_location
         self.pix_square_size = pix_square_size
         self.steps_per_second = steps_per_second
+        self.is_moving = False
 
     def update_position(self, dt):
         tx, ty = self.target_location
@@ -34,9 +35,11 @@ class GameObject:
         ratio = min(1.0, step_dist / dist)
         self.cur_location[0] += dx * ratio
         self.cur_location[1] += dy * ratio
+        self.is_moving = True
 
     def stop(self):
         self.target_location = self.cur_location
+        self.is_moving = False
 
     def render(self, background):
         pass
@@ -57,6 +60,7 @@ class Agent(GameObject):
         self.MIN_X = agent_x_range[0]
         self.MAX_X = agent_x_range[1]
         self.last_direction = ACTION_TO_DELTA[Action.UP]
+        self.road_penalty_dict = {}
 
     def get_cur_location_rounded(self):
         return round(self.cur_location[0], 2), round(self.cur_location[1], 2)
@@ -131,14 +135,20 @@ class Car(GameObject):
     CAR_SPEEDS = [0.6, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
     HEIGHT_BUFFER = 0.1 # NOTE: needed to handle the overlap between the lanes
 
-    def __init__(self, uid, car_name, initial_x, initial_y, car_grid_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
-        super().__init__(0, np.array([initial_x, initial_y], dtype=float), pix_square_size, steps_per_second)
+    def __init__(self, uid, car_name, initial_x, start_row_idx, car_grid_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
+        row_indices = []
+        for i in range(car_grid_height):
+            row_indices.append(start_row_idx + i)
+        initial_y = np.mean(row_indices)
+        cur_location = np.array([initial_x, initial_y], dtype=float)
+        super().__init__(0, cur_location, pix_square_size, steps_per_second)
         self.uid = uid
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_grid_height * float(size_ratio)
         self.car_width = self.car_grid_width * pix_square_size
         self.car_grid_height = car_grid_height - self.HEIGHT_BUFFER
         self.car_height = self.car_grid_height * pix_square_size
+        self.row_indices = row_indices
         self.car_detail = CarDetail(car_name, road.car_color_type, go_right)
         self.go_right = go_right
         self.random = random
@@ -291,9 +301,8 @@ class Cars:
                     height = min(roads.max_height_dic[row_idx], height)
                     (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
                     initial_x = random.integers(0, map_grid_width)
-                    initial_y = row_idx + (height - 1) * 0.5
                     going_right = road.going_right[i]
-                    cars.append(Car(uid, car_name, initial_x, initial_y, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
+                    cars.append(Car(uid, car_name, initial_x, row_idx, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
             
         # add nearby_cars info
         for i in range(len(cars)):
