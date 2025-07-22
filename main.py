@@ -66,8 +66,9 @@ def play_episode(env, seed):
             #         break
 
         # constant update and rendering
-        env.update_positions(dt)
-        env.update_time_left(total_elapsed)
+        if env.render_mode is "human":
+            env.update_positions(dt)
+            env.update_time_left(total_elapsed)
         env.render()
 
 def play_game(seed, max_episodes, debug):

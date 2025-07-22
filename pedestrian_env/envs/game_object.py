@@ -132,7 +132,7 @@ class Agent(GameObject):
         return agent_position
 
 class Car(GameObject):
-    CAR_SPEEDS = [0.6, 0.7, 0.8, 0.9] # NOTE: 0.4 is slightly faster than the player
+    CAR_SPEEDS = [3.0, 3.5, 4.0, 4.5]  # NOTE: 2 is slightly faster than the player
     HEIGHT_BUFFER = 0.1 # NOTE: needed to handle the overlap between the lanes
 
     def __init__(self, uid, car_name, initial_x, start_row_idx, car_grid_height, size_ratio, go_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite):
@@ -184,7 +184,7 @@ class Car(GameObject):
             self.cur_location[0] = self.map_grid_width - 1
             self.set_random_speed()
 
-    def update_target(self):
+    def update_target(self, dt):
         self.restart_if_needed()
         # stop in the current location when another car is in front of the car
         if len(self.nearby_cars) > 0:
@@ -223,7 +223,7 @@ class Car(GameObject):
                 else:
                     self.stop()
                     return
-        self.target_location[0] = self.cur_location[0] + self.cur_speed * (1 / self.steps_per_second)
+        self.target_location[0] = self.cur_location[0] + (self.cur_speed * dt / 1000)
 
     def render(self, background):
         left_x, right_x = self.get_cur_x_pos()
@@ -270,7 +270,7 @@ class Cars:
 
     def update_positions(self, dt):
         for car in self.elements:
-            car.update_target()
+            car.update_target(dt)
             car.update_position(dt)
 
     def render(self, background):

@@ -131,6 +131,11 @@ class PedestrianEnv(gym.Env):
                 self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
         self.game_over = terminated
         self.cur_rewards += reward
+
+        if self.render_mode != "human":
+            self.update_positions(self.step_ms)
+            self.time_left -= self.step_ms
+
         return self._get_obs(), reward, terminated, False, self._get_info()
 
     def clock_tick(self):
@@ -351,13 +356,13 @@ class PedestrianEnv(gym.Env):
         [10] car penalty visible (0 = False, 1 = True)
         [11] car penalty (100, 500, 1000)
         [12] lane1: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [13] lane1: closest car speed (-0.9 ~ -0.6: going left, 0: stopped, 0.6 ~ 0.9: going right)
+        [13] lane1: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
         [14] lane2: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [15] lane2: closest car speed (-0.9 ~ -0.6: going left, 0: stopped, 0.6 ~ 0.9: going right)
+        [15] lane2: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
         [16] lane3: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [17] lane3: closest car speed (-0.9 ~ -0.6: going left, 0: stopped, 0.6 ~ 0.9: going right)
+        [17] lane3: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
         [18] lane4: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [19] lane4: closest car speed (-0.9 ~ -0.6: going left, 0: stopped, 0.6 ~ 0.9: going right)
+        [19] lane4: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
         """
         time_left = max(0, self.time_left - 1000)
         agent_x, agent_y = self.world.agent.get_cur_location_rounded()
