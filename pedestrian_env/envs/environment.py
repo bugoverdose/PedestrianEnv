@@ -311,7 +311,7 @@ class PedestrianEnv(gym.Env):
                 0,
                 self.agent_min_x, agent_min_Y,
                 -Roads.MAX_ROAD_SIZE, -Roads.MAX_ROAD_SIZE, 0.0, 
-                0, -self.crosswalk_visible_range, 0, -self.crosswalk_visible_range,
+                0, -self.crosswalk_visible_range,
                 0, self.min_car_penalty,
                 -self.game_screen_visible_range, -max_car_speed,
                 -self.game_screen_visible_range, -max_car_speed,
@@ -322,7 +322,7 @@ class PedestrianEnv(gym.Env):
                 self.GAME_TIME_MS - 1000,
                 self.agent_max_x, agent_max_Y, 
                 0.0, Roads.MAX_ROAD_SIZE, Roads.MAX_ROAD_SIZE + 1,
-                0, self.crosswalk_visible_range, 0, self.crosswalk_visible_range,
+                1, self.crosswalk_visible_range,
                 1, self.max_car_penalty,
                 self.game_screen_visible_range, max_car_speed,
                 self.game_screen_visible_range, max_car_speed,
@@ -347,28 +347,25 @@ class PedestrianEnv(gym.Env):
         [5] y distance until tail escaping end of the current/next road (0.0 ~ 5.0)
 
         crosswalk (NOTE: crosswalk visible range(4.5) == camera range (3.5) + visible width(1))
-        [6] visible crosswalk in previously crossed road (0 = False, 1 = True)
-        [7] x distance until discovered crosswalk of previously crossed road (-4.5 ~ 4.5)
-        [8] visible crosswalk in current/next road (0 = False, 1 = True)
-        [9] x distance until discovered crosswalk of current/next road (-4.5 ~ 4.5)
+        [6] visible crosswalk in current/next road (0 = False, 1 = True)
+        [7] x distance until discovered crosswalk of current/next road (-4.5 ~ 4.5)
 
-        cars per lane inside next or currently crossing road
-        [10] car penalty visible (0 = False, 1 = True)
-        [11] car penalty (100, 500, 1000)
-        [12] lane1: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [13] lane1: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        [14] lane2: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [15] lane2: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        [16] lane3: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [17] lane3: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        [18] lane4: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [19] lane4: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
+        cars per lane inside current/next road
+        [8] car penalty visible (0 = False, 1 = True)
+        [9] car penalty (max value if unknown) (100, 500, 1000)
+        [10] lane1: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
+        [11] lane1: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
+        [12] lane2: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
+        [13] lane2: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
+        [14] lane3: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
+        [15] lane3: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
+        [16] lane4: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
+        [17] lane4: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
         """
         time_left = max(0, self.time_left - 1000)
         agent_x, agent_y = self.world.agent.get_cur_location_rounded()
 
         [prev_road_end_dist, cur_road_start_dist, cur_road_end_dist,
-         prev_crosswalk_discovered, prev_crosswalk_x_diff,
          cur_crosswalk_discovered, cur_crosswalk_x_diff,
          car_penalty, nearby_cars] = self.world.nearby_road_info(self.game_screen_visible_range, self.crosswalk_visible_range)
 
@@ -377,15 +374,15 @@ class PedestrianEnv(gym.Env):
         cur_road_end_dist = min(max(cur_road_end_dist, 0), Roads.MAX_ROAD_SIZE + 1)
 
         car_penalty_is_visible = 1.0 if car_penalty is not None else 0.0
-        visible_car_penalty = car_penalty if car_penalty is not None else self.min_car_penalty
+        visible_car_penalty = car_penalty if car_penalty is not None else self.max_car_penalty
         if len(nearby_cars) < 8:
-            nearby_cars += [-3.5, 0] * int((8 - len(nearby_cars)) / 2)
+            nearby_cars += [-self.game_screen_visible_range, 0] * int((8 - len(nearby_cars)) / 2)
             if len(nearby_cars) != 8:
                 raise Exception("invalid implementation")
         return np.array([time_left,
                          agent_x, agent_y,
                          prev_road_end_dist, cur_road_start_dist, cur_road_end_dist,
-                         prev_crosswalk_discovered, prev_crosswalk_x_diff, cur_crosswalk_discovered, cur_crosswalk_x_diff,
+                         cur_crosswalk_discovered, cur_crosswalk_x_diff,
                          car_penalty_is_visible, visible_car_penalty,
                          nearby_cars[0], nearby_cars[1], nearby_cars[2], nearby_cars[3],
                          nearby_cars[4], nearby_cars[5], nearby_cars[6], nearby_cars[7]
