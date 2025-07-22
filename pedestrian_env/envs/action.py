@@ -19,9 +19,9 @@ class Action(Enum):
         return string_map[self]
 
 ACTION_TO_DELTA = {
-    Action.NOTHING: np.array([0, 0]),
-    Action.UP: np.array([0, -1]),
-    Action.DOWN: np.array([0, 1]),
-    Action.RIGHT: np.array([1, 0]),
-    Action.LEFT: np.array([-1, 0]),
+    Action.NOTHING.value: np.array([0, 0]),
+    Action.UP.value: np.array([0, -1]),
+    Action.DOWN.value: np.array([0, 1]),
+    Action.RIGHT.value: np.array([1, 0]),
+    Action.LEFT.value: np.array([-1, 0]),
 }

@@ -28,7 +28,7 @@ def play_episode(env, seed):
         total_elapsed += dt
         while elapsed >= env.step_ms:
             elapsed -= env.step_ms
-            obs, reward, terminated, truncated, info = env.step(last_action)
+            obs, reward, terminated, truncated, info = env.step(last_action.value)
             print(f"time_left={obs[0]:.0f}, " +
                   f"action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]}), " +
                   f"prev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}, " +

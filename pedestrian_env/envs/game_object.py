@@ -59,7 +59,7 @@ class Agent(GameObject):
         self.is_dead = False
         self.MIN_X = agent_x_range[0]
         self.MAX_X = agent_x_range[1]
-        self.last_direction = ACTION_TO_DELTA[Action.UP]
+        self.last_direction = ACTION_TO_DELTA[Action.UP.value]
         self.road_penalty_dict = {}
 
     def get_cur_location_rounded(self):
@@ -68,9 +68,9 @@ class Agent(GameObject):
     def get_target_y(self):
         return self.target_location[1]
 
-    def update_target(self, action):
-        direction = ACTION_TO_DELTA[action]
-        if action != Action.NOTHING:
+    def update_target(self, action_value):
+        direction = ACTION_TO_DELTA[action_value]
+        if action_value != Action.NOTHING.value:
             self.last_direction = direction
         delta = direction * (self.cur_speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
