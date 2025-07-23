@@ -51,7 +51,9 @@ class Agent(GameObject):
     RADIUS = 0.25
 
     def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
-        fixed_speed = 10 if debug else 2 
+        fixed_speed = 2
+        if debug:
+            fixed_speed *= 5
         cur_location = np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float)
         super().__init__(fixed_speed, cur_location, pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width

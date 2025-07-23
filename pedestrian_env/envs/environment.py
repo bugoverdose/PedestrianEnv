@@ -7,6 +7,7 @@ from pedestrian_env.envs.world import World
 from pedestrian_env.envs.road import Roads, CrossWalk
 from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_panalty_range
+from pedestrian_env.envs.action import STEPS_PER_ACTION
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -134,20 +135,18 @@ class PedestrianEnv(gym.Env):
         self.cur_rewards += reward
 
         if self.time_flow_on_step:
-            self.update_positions(self.step_ms)
-            self.time_left -= self.step_ms
+            self.apply_time_flow(self.step_ms)
 
         return self._get_obs(), reward, terminated, False, self._get_info()
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
 
-    def update_positions(self, dt):
+    def apply_time_flow(self, dt):
+        # NOTE: world should always keep moving continuously
         self.world.update_positions(dt)
-
-    def update_time_left(self, elapsed_time):
-        if self.game_over: return
-        self.time_left = self.GAME_TIME_MS - elapsed_time
+        if not self.game_over:
+            self.time_left -= dt
 
     def render(self):
         if self.render_mode is None: return
@@ -292,7 +291,7 @@ class PedestrianEnv(gym.Env):
                 agent_dead, _ = self.world.cars.has_hit_agent()
                 if agent_dead:
                     self.world.agent.set_dead()
-            self.update_positions(dt)
+            self.apply_time_flow(dt)
             self.render()
 
     def _define_observation_space(self):

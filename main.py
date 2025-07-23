@@ -16,27 +16,26 @@ KEY_ACTION = {
     pygame.K_a: Action.LEFT,
 }
 
-def play_episode(env, seed):
+def play_episode(env, seed, verbose = False):
     _, _ = env.reset(seed=seed)
-    total_elapsed = 0
     elapsed = 0
     pygame.event.get() # clear previous key presses
     last_action = Action.NOTHING
     while True:
         dt = env.clock_tick()
         elapsed += dt
-        total_elapsed += dt
         while elapsed >= env.step_ms:
             elapsed -= env.step_ms
             obs, reward, terminated, truncated, info = env.step(last_action.value)
-            print(f"time_left={obs[0]:.0f}, " +
-                  f"action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]}), " +
-                  f"prev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}, " +
-                  f"\ncur_crosswalk (discovered={obs[6] == 1}, x_diff={obs[7]:.2f}), " +
-                  f"\ncur road penalty (visible={obs[8] == 1}, value={obs[9]:.0f})",
-                  f"\ncar infos [lane1=({obs[10]:.2f}, {obs[11]:.1f}), lane2=({obs[12]:.2f}, {obs[13]:.1f}), " + 
-                  f"lane3=({obs[14]:.2f}, {obs[15]:.1f}), lane4=({obs[16]:.2f}, {obs[17]:.1f})]",
-            )
+            if verbose:
+                print(f"time_left={obs[0]:.0f}, " +
+                    f"action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]}), " +
+                    f"prev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}, " +
+                    f"\ncur_crosswalk (discovered={obs[6] == 1}, x_diff={obs[7]:.2f}), " +
+                    f"\ncur road penalty (visible={obs[8] == 1}, value={obs[9]:.0f})",
+                    f"\ncar infos [lane1=({obs[10]:.2f}, {obs[11]:.1f}), lane2=({obs[12]:.2f}, {obs[13]:.1f}), " + 
+                    f"lane3=({obs[14]:.2f}, {obs[15]:.1f}), lane4=({obs[16]:.2f}, {obs[17]:.1f})]",
+                )
             if terminated or truncated:
                 env.render_game_over()
                 return False
@@ -66,8 +65,7 @@ def play_episode(env, seed):
 
         # constant update and rendering
         if not env.time_flow_on_step:
-            env.update_positions(dt)
-            env.update_time_left(total_elapsed)
+            env.apply_time_flow(dt)
         env.render()
 
 def play_game(seed, max_episodes, debug):
