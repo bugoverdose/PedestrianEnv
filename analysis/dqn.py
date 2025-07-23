@@ -14,9 +14,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from pedestrian_env.envs import PedestrianEnv
 
 def run_DQN(seed=42,
-            net_arch=[84, 84, 84],
+            net_arch=[256, 256, 256],
             gamma=0.99, # default=0.99
-            learning_rate=5e-4, # default=1e-4
+            learning_rate=1e-4, # default=1e-4
             train_freq = 1, # default=4
             exploration_initial_eps=1.0,
             exploration_fraction = 0.6,
@@ -28,7 +28,7 @@ def run_DQN(seed=42,
             batch_size=32, # default=32
             gradient_steps=1, # default=1
             total_timesteps=150_000,
-            n_eval_episodes=20,
+            n_eval_episodes=100,
             tb_log_name="dqn",
             verbose=True,
             ):
