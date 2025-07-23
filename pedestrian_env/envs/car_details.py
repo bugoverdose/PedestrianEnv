@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 
 class CarColorType(Enum):
@@ -74,4 +75,6 @@ class CarDetail:
 
         self.go_right = go_right
         direction = "EAST" if go_right else "WEST"
-        self.image_path = f"sprites/cars/{risk_detail.color_name}_{car_name}_CLEAN_{direction}_000_cropped.png"
+        file_name = f"{risk_detail.color_name}_{car_name}_CLEAN_{direction}_000_cropped.png"
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.image_path = os.path.join(current_dir, "..", "sprites/cars/", file_name)

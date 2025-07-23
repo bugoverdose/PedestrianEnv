@@ -23,7 +23,7 @@ class PedestrianEnv(gym.Env):
     BONUS_SCORE_PER_SEC = 50
     TIME_OVER_ALERT_SEC = 10
 
-    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second = 10, episode_duration_sec=30, debug=False, render_sprite=False):
+    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second=10, time_flow_on_step=True, episode_duration_sec=30, debug=False, render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
@@ -33,6 +33,7 @@ class PedestrianEnv(gym.Env):
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
+        self.time_flow_on_step = time_flow_on_step
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         game_window_size = 2048
         self.pix_square_size = max(80, (game_window_size / max(self.map_grid_width, self.map_grid_height))) # The size of a single grid square in pixels
@@ -132,7 +133,7 @@ class PedestrianEnv(gym.Env):
         self.game_over = terminated
         self.cur_rewards += reward
 
-        if self.render_mode != "human":
+        if self.time_flow_on_step:
             self.update_positions(self.step_ms)
             self.time_left -= self.step_ms
 

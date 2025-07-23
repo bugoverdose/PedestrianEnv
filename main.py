@@ -65,14 +65,14 @@ def play_episode(env, seed):
             #         break
 
         # constant update and rendering
-        if env.render_mode is "human":
+        if not env.time_flow_on_step:
             env.update_positions(dt)
             env.update_time_left(total_elapsed)
         env.render()
 
 def play_game(seed, max_episodes, debug):
     episode_duration_sec = 10 if debug else 30
-    env = PedestrianEnv(render_mode="human", episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(render_mode="human", time_flow_on_step=False, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i)
         if quit_game: break
