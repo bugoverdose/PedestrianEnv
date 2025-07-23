@@ -7,7 +7,7 @@ from pedestrian_env.envs.world import World
 from pedestrian_env.envs.road import Roads, CrossWalk
 from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_panalty_range
-from pedestrian_env.envs.action import STEPS_PER_ACTION
+from pedestrian_env.envs.action import ACTION_DURATION
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -24,7 +24,7 @@ class PedestrianEnv(gym.Env):
     BONUS_SCORE_PER_SEC = 50
     TIME_OVER_ALERT_SEC = 10
 
-    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second=10, time_flow_on_step=True, episode_duration_sec=30, debug=False, render_sprite=False):
+    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second=10, use_clock_tick=False, episode_duration_sec=30, debug=False, render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
@@ -34,7 +34,7 @@ class PedestrianEnv(gym.Env):
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
-        self.time_flow_on_step = time_flow_on_step
+        self.use_clock_tick = use_clock_tick
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         game_window_size = 2048
         self.pix_square_size = max(80, (game_window_size / max(self.map_grid_width, self.map_grid_height))) # The size of a single grid square in pixels
@@ -56,6 +56,7 @@ class PedestrianEnv(gym.Env):
         self.best_rewards = 0
         self.GAME_TIME_MS = (episode_duration_sec + 1) * 1000
         self.time_left = self.GAME_TIME_MS
+        self.elapsed = 0
         self.game_over = False
         self.game_end_extra_score = 0
 
@@ -67,6 +68,7 @@ class PedestrianEnv(gym.Env):
     def reset(self, seed=None, options=None):
         # NOTE: following line is needed for self.np_random
         super().reset(seed=seed)
+        self.elapsed = 0
 
         self.best_rewards = max(self.best_rewards, self.cur_rewards)
         self.prev_rewards += self.cur_rewards
@@ -111,6 +113,30 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
+        cumulative_reward = 0
+        terminated = False
+        if not self.use_clock_tick:
+            for _ in range(ACTION_DURATION[action]):
+                reward, terminated = self.mini_step(action)
+                cumulative_reward += reward
+                self.apply_time_and_render(self.step_ms)
+                if terminated: break
+        else:
+            cur_count = 0
+            while cur_count < ACTION_DURATION[action]:
+                dt = self.clock_tick()
+                self.elapsed += dt
+                if self.elapsed >= self.step_ms:
+                    cur_count += 1
+                    self.elapsed -= self.step_ms
+                    reward, terminated = self.mini_step(action)
+                    cumulative_reward += reward
+                    if terminated: break
+                self.apply_time_and_render(dt)
+        return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
+    
+    # the discretized process of each action
+    def mini_step(self, action):
         prev_up_rewards = self.world.calculate_up_rewards()
         self.world.agent.update_target(action)
 
@@ -133,20 +159,17 @@ class PedestrianEnv(gym.Env):
                 self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
         self.game_over = terminated
         self.cur_rewards += reward
-
-        if self.time_flow_on_step:
-            self.apply_time_flow(self.step_ms)
-
-        return self._get_obs(), reward, terminated, False, self._get_info()
+        return reward, terminated
 
     def clock_tick(self):
         return self.clock.tick(self.metadata["render_fps"])
 
-    def apply_time_flow(self, dt):
+    def apply_time_and_render(self, dt):
         # NOTE: world should always keep moving continuously
         self.world.update_positions(dt)
         if not self.game_over:
             self.time_left -= dt
+        self.render()
 
     def render(self):
         if self.render_mode is None: return
@@ -291,8 +314,7 @@ class PedestrianEnv(gym.Env):
                 agent_dead, _ = self.world.cars.has_hit_agent()
                 if agent_dead:
                     self.world.agent.set_dead()
-            self.apply_time_flow(dt)
-            self.render()
+            self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
         agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)

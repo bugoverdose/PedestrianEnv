@@ -18,14 +18,15 @@ KEY_ACTION = {
 
 def play_episode(env, seed, verbose = False):
     _, _ = env.reset(seed=seed)
-    elapsed = 0
     pygame.event.get() # clear previous key presses
     last_action = Action.NOTHING
     while True:
         dt = env.clock_tick()
-        elapsed += dt
-        while elapsed >= env.step_ms:
-            elapsed -= env.step_ms
+        env.elapsed += dt
+        if env.elapsed < env.step_ms:
+            env.apply_time_and_render(dt)
+            continue
+        while env.elapsed >= env.step_ms:
             obs, reward, terminated, truncated, info = env.step(last_action.value)
             if verbose:
                 print(f"time_left={obs[0]:.0f}, " +
@@ -56,23 +57,17 @@ def play_episode(env, seed, verbose = False):
                 if event.type == pygame.KEYDOWN:
                     last_action = KEY_ACTION.get(event.key, Action.NOTHING)
                     if last_action != Action.NOTHING: break
-            # else:
-            #     # check if stopped to press a key (needed for instant stop)
-            #     if event.type == pygame.KEYUP and KEY_ACTION.get(event.key) == last_action:
-            #         last_action = Actions.nothing
-            #         print("KEYUP")
-            #         break
-
-        # constant update and rendering
-        if not env.time_flow_on_step:
-            env.apply_time_flow(dt)
-        env.render()
+            else:
+                # check if stopped to press a key (needed for instant stop)
+                if event.type == pygame.KEYUP and KEY_ACTION.get(event.key) == last_action:
+                    last_action = Action.NOTHING
+                    break
 
 def play_game(seed, max_episodes, debug):
     episode_duration_sec = 10 if debug else 30
-    env = PedestrianEnv(render_mode="human", time_flow_on_step=False, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(render_mode="human", use_clock_tick=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     for i in range(max_episodes):
-        quit_game = play_episode(env, seed + i)
+        quit_game = play_episode(env, seed + i) #, verbose=True)
         if quit_game: break
     env.close()
 

@@ -25,3 +25,11 @@ ACTION_TO_DELTA = {
     Action.RIGHT.value: np.array([1, 0]),
     Action.LEFT.value: np.array([-1, 0]),
 }
+
+ACTION_DURATION = {
+    Action.NOTHING.value: 1,
+    Action.UP.value: 5,
+    Action.DOWN.value: 5,
+    Action.RIGHT.value: 5,
+    Action.LEFT.value: 5,
+}
