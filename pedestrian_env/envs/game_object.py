@@ -68,7 +68,7 @@ class Agent(GameObject):
         return round(self.cur_location[0], 2), round(self.cur_location[1], 2)
 
     def get_target_y(self):
-        return self.target_location[1]
+        return round(self.target_location[1], 2)
 
     def update_target(self, action_value):
         direction = ACTION_TO_DELTA[action_value]
