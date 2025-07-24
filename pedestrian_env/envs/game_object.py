@@ -300,9 +300,9 @@ class Cars:
         uid = 0
         for road in roads.elements:
             for height in CAR_CANDIDATES.keys():
-                for i in range(0, road.row2 - road.row1 + 1, height):
+                for i in range(0, road.end_y - road.start_y + 1, height):
                     uid += 1
-                    row_idx = road.row1 + i
+                    row_idx = road.start_y + i
                     height = min(roads.max_height_dic[row_idx], height)
                     (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
                     initial_x = random.integers(0, map_grid_width)

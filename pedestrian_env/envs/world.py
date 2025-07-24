@@ -48,7 +48,7 @@ class World:
         cur_road_start_dist, prev_road_end_dist = max_dist, max_dist
         cur_road, cur_road_found = None, False
         for road in self.roads.elements:
-            road_up_y, road_down_y = road.row1 - 0.5, road.row2 + 0.5 # row1 < row2 => road_up_y < road_down_y
+            road_up_y, road_down_y = road.start_y - 0.5, road.end_y + 0.5 # start_y < end_y => road_up_y < road_down_y
             if not cur_road_found:
                 if road_up_y <= agent_head_y <= road_down_y:
                     # agent is inside the road

@@ -5,7 +5,6 @@ import pygame
 
 from pedestrian_env.envs.car_details import CarColorType, get_max_car_grid_height
 from pedestrian_env.envs.utils import is_overlapping
-from pedestrian_env.envs.car_details import _RiskDetails
 
 class RowType(Enum):
     SAFE = 0
@@ -96,9 +95,8 @@ class Roads:
                 continue
             if row_type == RowType.SAFE:
                 uid += 1
-                row1 = danger_start_idx
-                row2 = row_idx-1
-                roads.append(Road(uid, row1, row2, row_types[row1:row2+1], random))
+                start_y, end_y = danger_start_idx, row_idx-1
+                roads.append(Road(uid, start_y, end_y, row_types[start_y:end_y+1], random))
                 danger_start_idx = None
 
         # add crosswalks on road
@@ -110,7 +108,7 @@ class Roads:
             crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X, agent_initial_col + buffer), agent.MAX_X+1)
             left = not left
             col = random.integers(crosswalk_range[0], crosswalk_range[1])
-            road.crosswalk = CrossWalk(col, road.row1, road.row2)
+            road.crosswalk = CrossWalk(col, road.start_y, road.end_y)
 
         self.agent = agent
         self.elements = roads
@@ -163,13 +161,13 @@ class Roads:
             start_x, end_x = crosswalk.left_end, crosswalk.right_end
             cw_width = (end_x - start_x) * pix_square_size
             start_x = start_x * pix_square_size
-            start_y = road.row1 * pix_square_size - adjustment
-            end_y = road.row2 * pix_square_size + adjustment
+            start_y = road.start_y * pix_square_size - adjustment
+            end_y = road.end_y * pix_square_size + adjustment
             cw_height = end_y - start_y
             # NOTE: cover up background (-1 pixel at top and bottom, +pix_square_size at left and right)
             pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, start_y + 1, cw_width + pix_square_size * 2, cw_height - 1))
 
-            stripe_count = 3 * (road.row2 - road.row1 + 1)
+            stripe_count = 3 * (road.end_y - road.start_y + 1)
             stripe_thickness = pix_square_size / 3
             for i in range(stripe_count):
                 for j in range(2):
@@ -178,10 +176,10 @@ class Roads:
                     pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
-    def __init__(self, uid, row1, row2, row_types, random):
+    def __init__(self, uid, start_y, end_y, row_types, random):
         self.uid = uid
-        self.row1 = row1
-        self.row2 = row2
+        self.start_y = start_y
+        self.end_y = end_y
         self.going_right = [row_type == RowType.CAR_GOING_RIGHT for row_type in row_types]
         self.car_color_type = random.choice([CarColorType.RED, CarColorType.YELLOW, CarColorType.GREEN])
         self.crosswalk = None
@@ -190,22 +188,22 @@ class Road:
         [agent_x, agent_y] = agent.cur_location
 
         agent_head_y, agent_tail_y = agent_y - agent.RADIUS, agent_y + agent.RADIUS
-        cur_road_up_y = self.row1 - 0.5
+        cur_road_up_y = self.start_y - 0.5
         cur_road_end_dist = agent_tail_y - cur_road_up_y
 
         cur_crosswalk_discovered = 0 # not found
         cur_crosswalk_x_diff = 0
         if self.crosswalk is not None:
             x_dist = self.crosswalk.col - agent_x
-            if abs(x_dist) < crosswalk_visible_range:
+            if abs(x_dist) <= crosswalk_visible_range + 1:
                 cur_crosswalk_discovered = 1 # found
                 cur_crosswalk_x_diff = x_dist
 
         agent_left_x, agent_right_x = agent_x - agent.RADIUS, agent_x + agent.RADIUS
 
         nearby_car_infos = {}
-        for i in range(self.row2 - self.row1 + 1):
-            row_idx = self.row1 + i
+        for i in range(self.end_y - self.start_y + 1):
+            row_idx = self.start_y + i
             if self.going_right[i]:
                 nearby_car_infos[row_idx] = [-game_screen_visible_range, 0] # stopped at left end, heading right
             else:
@@ -238,7 +236,7 @@ class Road:
 
         # closest lane to farthest + flatten out list
         nearby_cars = []
-        for row_idx in range(self.row2, self.row1 - 1, -1):
+        for row_idx in range(self.end_y, self.start_y - 1, -1):
             nearby_cars.append(nearby_car_infos[row_idx][0])
             nearby_cars.append(nearby_car_infos[row_idx][1])
 
