@@ -184,64 +184,6 @@ class Road:
         self.car_color_type = random.choice([CarColorType.RED, CarColorType.YELLOW, CarColorType.GREEN])
         self.crosswalk = None
 
-    def observe(self, agent, cars, crosswalk_visible_range, game_screen_visible_range):
-        [agent_x, agent_y] = agent.cur_location
-
-        agent_head_y, agent_tail_y = agent_y - agent.RADIUS, agent_y + agent.RADIUS
-        cur_road_up_y = self.start_y - 0.5
-        cur_road_end_dist = agent_tail_y - cur_road_up_y
-
-        cur_crosswalk_discovered = 0 # not found
-        cur_crosswalk_x_diff = 0
-        if self.crosswalk is not None:
-            x_dist = self.crosswalk.col - agent_x
-            if abs(x_dist) <= crosswalk_visible_range + 1:
-                cur_crosswalk_discovered = 1 # found
-                cur_crosswalk_x_diff = x_dist
-
-        agent_left_x, agent_right_x = agent_x - agent.RADIUS, agent_x + agent.RADIUS
-
-        nearby_car_infos = {}
-        for i in range(self.end_y - self.start_y + 1):
-            row_idx = self.start_y + i
-            if self.going_right[i]:
-                nearby_car_infos[row_idx] = [-game_screen_visible_range, 0] # stopped at left end, heading right
-            else:
-                nearby_car_infos[row_idx] = [game_screen_visible_range, 0] # stopped at right end, heading left
-        for car in cars.elements:
-            if car.road.uid != self.uid: continue
-            car_left_x, car_right_x = car.get_cur_x_pos()
-            if abs(agent_x - car_left_x) >= game_screen_visible_range and abs(agent_x - car_right_x) >= game_screen_visible_range:
-                continue # out of sight
-            agent.road_penalty_dict[self.uid] = car.car_detail.penalty
-
-            if is_overlapping(agent_left_x, agent_right_x, car_left_x, car_right_x):
-                x_dist = 0
-            elif car_right_x < agent_left_x:
-                x_dist = car_right_x - agent_left_x
-            elif agent_right_x < car_left_x:
-                x_dist = car_left_x - agent_right_x
-            else:
-                raise Exception("invalid implementation")
-
-            for row_idx in car.row_indices:
-                closest_car_x_dist = nearby_car_infos[row_idx][0]
-                if closest_car_x_dist == 0: continue # another blocked
-                if car.cur_speed > 0 and x_dist > 0: continue # moving away
-                if car.cur_speed < 0 and x_dist < 0: continue # moving away
-                if abs(closest_car_x_dist) < abs(x_dist): continue # farther away
-                # save closest and most dangerous car position
-                actual_car_speed = car.get_cur_speed()
-                nearby_car_infos[row_idx] = [x_dist, actual_car_speed]
-
-        # closest lane to farthest + flatten out list
-        nearby_cars = []
-        for row_idx in range(self.end_y, self.start_y - 1, -1):
-            nearby_cars.append(nearby_car_infos[row_idx][0])
-            nearby_cars.append(nearby_car_infos[row_idx][1])
-
-        return cur_road_end_dist, cur_crosswalk_x_diff, cur_crosswalk_discovered, nearby_cars
-
 class CrossWalk:
     RATIO = 0.6
     THRESHOLD_DISTANCE = 0.3
@@ -260,4 +202,4 @@ class CrossWalk:
         return left, right
 
     def __str__(self):
-        return f"CrossWalk(active={self.is_active}, col={self.col})"
+        return f"CrossWalk(active={self.is_active}, x=({self.left_end}, {self.right_end}), y=({self.top_row}, {self.end_row}))"

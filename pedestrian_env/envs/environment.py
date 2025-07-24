@@ -4,9 +4,8 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.road import Roads, CrossWalk
 from pedestrian_env.envs.game_object import Agent, Car
-from pedestrian_env.envs.car_details import get_max_car_grid_width, get_panalty_range
+from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_panalty
 from pedestrian_env.envs.action import ACTION_DURATION
 from pedestrian_env.envs.grid_type import GridType
 from pedestrian_env.envs.utils import is_overlapping
@@ -62,18 +61,13 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)
-        self.agent_min_x = (1 + agent_x_buffer)
-        self.agent_max_x = self.map_grid_width - 1 - agent_x_buffer
-
         # action
         self.action_space = gym.spaces.Discrete(5)
         # obs
         self._define_observation_space()
 
     def reset(self, seed=None, options=None):
-        # NOTE: following line is needed for self.np_random
-        super().reset(seed=seed)
+        super().reset(seed=seed) # set seed at `self.np_random`
         self.elapsed = 0
 
         self.best_rewards = max(self.best_rewards, self.cur_rewards)
@@ -83,7 +77,10 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.world = World((self.agent_min_x, self.agent_max_x), self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
+        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)
+        agent_min_x = (1 + agent_x_buffer)
+        agent_max_x = self.map_grid_width - 1 - agent_x_buffer
+        self.world = World((agent_min_x, agent_max_x), self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
 
         if self.render_mode == "human":
             self.render()
@@ -326,7 +323,7 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        [_, max_car_penalty] = get_panalty_range()
+        max_car_penalty = get_max_panalty()
         max_car_speed = max(Car.CAR_SPEEDS)
         lower_bounds = (0,               0, -max_car_speed,   0)
         upper_bounds = (3, max_car_penalty,  max_car_speed, 100)
@@ -415,97 +412,6 @@ class PedestrianEnv(gym.Env):
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_right
                         obs[y][x][3] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
         return obs
-
-    def _define_observation_space_mlp(self):
-        agent_min_Y = 0
-        agent_max_Y = self.map_grid_height - 1
-        self.game_screen_visible_range = self.camera_size/2
-        self.crosswalk_visible_range = self.game_screen_visible_range + CrossWalk.VISIBLE_WIDTH
-        [min_car_penalty, max_car_penalty] = get_panalty_range()
-        self.min_car_penalty = min_car_penalty
-        self.max_car_penalty = max_car_penalty
-        max_car_speed = max(Car.CAR_SPEEDS)
-        self.observation_space = gym.spaces.Box(
-            low=np.array([
-                0,
-                self.agent_min_x, agent_min_Y,
-                -Roads.MAX_ROAD_SIZE, -Roads.MAX_ROAD_SIZE, 0.0, 
-                0, -self.crosswalk_visible_range,
-                0, self.min_car_penalty,
-                -self.game_screen_visible_range, -max_car_speed,
-                -self.game_screen_visible_range, -max_car_speed,
-                -self.game_screen_visible_range, -max_car_speed,
-                -self.game_screen_visible_range, -max_car_speed,
-            ]),
-            high=np.array([
-                self.GAME_TIME_MS - 1000,
-                self.agent_max_x, agent_max_Y, 
-                0.0, Roads.MAX_ROAD_SIZE, Roads.MAX_ROAD_SIZE + 1,
-                1, self.crosswalk_visible_range,
-                1, self.max_car_penalty,
-                self.game_screen_visible_range, max_car_speed,
-                self.game_screen_visible_range, max_car_speed,
-                self.game_screen_visible_range, max_car_speed,
-                self.game_screen_visible_range, max_car_speed,
-            ]),
-            dtype=np.float32
-        )
-
-    def _get_obs_mlp(self):
-        """
-        Observation
-        
-        agent position
-        [0] time left in ms (0 ~ 30000)
-        [1] agent x (6.0 ~ 19.0)
-        [2] agent y (0.0 ~ 20.0)
-
-        road
-        [3] y distance until tail entering previously crossed road (-4.0 ~ 0.0)
-        [4] y distance until head entering start of the current/next road (-4.0 ~ 0.0: body inside the road, 0.0 ~ 4.0: before entering the road)
-        [5] y distance until tail escaping end of the current/next road (0.0 ~ 5.0)
-
-        crosswalk (NOTE: crosswalk visible range(4.5) == camera range (3.5) + visible width(1))
-        [6] visible crosswalk in current/next road (0 = False, 1 = True)
-        [7] x distance until discovered crosswalk of current/next road (-4.5 ~ 4.5)
-
-        cars per lane inside current/next road
-        [8] car penalty visible (0 = False, 1 = True)
-        [9] car penalty (max value if unknown) (100, 500, 1000)
-        [10] lane1: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [11] lane1: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        [12] lane2: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [13] lane2: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        [14] lane3: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [15] lane3: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        [16] lane4: closest car x distance (-3.5 ~ 0: going right, 0 ~ 3.5: going left)
-        [17] lane4: closest car speed (-4.5 ~ -3.0: going left, 0: stopped, 3.0 ~ 4.5: going right)
-        """
-        time_left = max(0, self.time_left - 1000)
-        agent_x, agent_y = self.world.agent.get_cur_location_rounded()
-
-        [prev_road_end_dist, cur_road_start_dist, cur_road_end_dist,
-         cur_crosswalk_discovered, cur_crosswalk_x_diff,
-         car_penalty, nearby_cars] = self.world.nearby_road_info(self.game_screen_visible_range, self.crosswalk_visible_range)
-
-        prev_road_end_dist = min(max(prev_road_end_dist, -Roads.MAX_ROAD_SIZE), 0)
-        cur_road_start_dist = min(max(cur_road_start_dist, -Roads.MAX_ROAD_SIZE), Roads.MAX_ROAD_SIZE)
-        cur_road_end_dist = min(max(cur_road_end_dist, 0), Roads.MAX_ROAD_SIZE + 1)
-
-        car_penalty_is_visible = 1.0 if car_penalty is not None else 0.0
-        visible_car_penalty = car_penalty if car_penalty is not None else self.max_car_penalty
-        if len(nearby_cars) < 8:
-            nearby_cars += [-self.game_screen_visible_range, 0] * int((8 - len(nearby_cars)) / 2)
-            if len(nearby_cars) != 8:
-                raise Exception("invalid implementation")
-        return np.array([time_left,
-                         agent_x, agent_y,
-                         prev_road_end_dist, cur_road_start_dist, cur_road_end_dist,
-                         cur_crosswalk_discovered, cur_crosswalk_x_diff,
-                         car_penalty_is_visible, visible_car_penalty,
-                         nearby_cars[0], nearby_cars[1], nearby_cars[2], nearby_cars[3],
-                         nearby_cars[4], nearby_cars[5], nearby_cars[6], nearby_cars[7]
-        ])
 
     def _get_info(self):
         """
