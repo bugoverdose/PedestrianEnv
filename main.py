@@ -29,15 +29,13 @@ def play_episode(env, seed, verbose = False):
         while env.elapsed >= env.step_ms:
             obs, reward, terminated, truncated, info = env.step(last_action.value)
             if verbose:
-                print(f"time_left={obs[0]:.0f}, action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]})"
-                    + f", \nprev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}"
-                    + f", \ncur_crosswalk (discovered={obs[6] == 1}, x_diff={obs[7]:.2f})"
-                    + f", \ncur road penalty (visible={obs[8] == 1}, value={obs[9]:.0f})"
-                    + f", \ncar infos: [lane1=({obs[10]:.2f}, {obs[11]:.1f})" 
-                    + f", lane2=({obs[12]:.2f}, {obs[13]:.1f})"
-                    + f", lane3=({obs[14]:.2f}, {obs[15]:.1f})"
-                    + f", lane4=({obs[16]:.2f}, {obs[17]:.1f})]"
-                )
+                print(f"action={last_action}, reward={reward}")
+                print("Channel 1")
+                for y in range(env.camera_size):
+                    row = []
+                    for x in range(env.camera_size):
+                        row.append(obs[y][x][0])
+                    print(row)
             if terminated or truncated:
                 env.render_game_over()
                 return False

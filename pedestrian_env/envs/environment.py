@@ -8,6 +8,7 @@ from pedestrian_env.envs.road import Roads, CrossWalk
 from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_panalty_range
 from pedestrian_env.envs.action import ACTION_DURATION
+from pedestrian_env.envs.grid_type import GridType
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -59,6 +60,10 @@ class PedestrianEnv(gym.Env):
         self.elapsed = 0
         self.game_over = False
         self.game_end_extra_score = 0
+
+        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)
+        self.agent_min_x = (1 + agent_x_buffer)
+        self.agent_max_x = self.map_grid_width - 1 - agent_x_buffer
 
         # action
         self.action_space = gym.spaces.Discrete(5)
@@ -118,7 +123,7 @@ class PedestrianEnv(gym.Env):
         if not self.realtime:
             # interacting with the environment using RL algorithm  
             for _ in range(ACTION_DURATION[action]):
-                reward, terminated = self.mini_step(action)
+                reward, terminated = self._mini_step(action)
                 cumulative_reward += reward
                 self.apply_time_and_render(self.step_ms)
                 if terminated: break
@@ -132,14 +137,14 @@ class PedestrianEnv(gym.Env):
                     self.elapsed -= self.step_ms
                     if cur_count >= ACTION_DURATION[action]: break
                     cur_count += 1
-                    reward, terminated = self.mini_step(action)
+                    reward, terminated = self._mini_step(action)
                     cumulative_reward += reward
                     if terminated: break
                 self.apply_time_and_render(dt)
         return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
     
     # the discretized process of each action
-    def mini_step(self, action):
+    def _mini_step(self, action):
         prev_up_rewards = self.world.calculate_up_rewards()
         self.world.agent.update_target(action)
 
@@ -320,9 +325,67 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)
-        self.agent_min_x = (1 + agent_x_buffer)
-        self.agent_max_x = self.map_grid_width - 1 - agent_x_buffer
+        [_, max_car_penalty] = get_panalty_range()
+        max_car_speed = max(Car.CAR_SPEEDS)
+        lower_bounds = (0,               0, -max_car_speed,   0)
+        upper_bounds = (3, max_car_penalty,  max_car_speed, 100)
+        low = np.full((self.camera_size, self.camera_size, 4), lower_bounds)
+        high = np.full((self.camera_size, self.camera_size, 4), upper_bounds)
+        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+
+    def _get_obs(self):
+        """
+        Observation
+        - structure: (y, x, channels)
+
+        Relative position of each tiles from the agent: (y, x)
+        - agent: o
+        - tiles: x
+            x x x x x x x (y=0)
+            x x x x x x x
+            x x x x x x x
+            x x x o x x x
+            x x x x x x x
+            x x x x x x x
+            x x x x x x x (y=6)
+          (x=0)       (x=6) 
+
+        Channel 0: Tile type
+        - 0: crosswalk
+        - 1: safe zone
+        - 2: danger zone
+        - 3: unreachable
+
+        Channel 1: Car penalty
+        - 0 : no car in the tile
+        - 100 ~ 1000 : penalty of the existing car
+
+        Channel 2: Car speed if exists
+        - 0: stopped car or no car in the tile
+        - -4.5 ~ -3.0: going left
+        - 3.0 ~ 4.5: going right
+
+        Channel 3: Risk level
+        - 0: no car visible in the tile (safe)
+        - 1 ~ 99: how close the agent is from the car (x distance only)
+        - 100: in front of the agent or hit the agent (maximum danger)
+        """
+        agent_x, agent_y = self.world.agent.get_cur_location_grid()
+        x_idx_buffer = agent_x - self.camera_size//2
+        y_idx_buffer = agent_y - self.camera_size//2
+        obs = np.zeros((self.camera_size, self.camera_size, 4), dtype=np.float32)
+        for y in range(self.camera_size):
+            for x in range(self.camera_size):
+                # Channel 0: Tile type
+                grid_x = x + x_idx_buffer
+                grid_y = y + y_idx_buffer
+                if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
+                    obs[y][x][0] = self.world.grid_type_dict[grid_y][grid_x].value
+                else:
+                    obs[y][x][0] = GridType.UNREACHABLE.value
+        return obs
+
+    def _define_observation_space_mlp(self):
         agent_min_Y = 0
         agent_max_Y = self.map_grid_height - 1
         self.game_screen_visible_range = self.camera_size/2
@@ -357,7 +420,7 @@ class PedestrianEnv(gym.Env):
             dtype=np.float32
         )
 
-    def _get_obs(self):
+    def _get_obs_mlp(self):
         """
         Observation
         

@@ -64,6 +64,9 @@ class Agent(GameObject):
         self.last_direction = ACTION_TO_DELTA[Action.UP.value]
         self.road_penalty_dict = {}
 
+    def get_cur_location_grid(self):
+        return int(round(self.cur_location[0], 2)), int(round(self.cur_location[1], 2))
+
     def get_cur_location_rounded(self):
         return round(self.cur_location[0], 2), round(self.cur_location[1], 2)
 
