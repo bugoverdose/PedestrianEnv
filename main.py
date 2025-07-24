@@ -29,13 +29,14 @@ def play_episode(env, seed, verbose = False):
         while env.elapsed >= env.step_ms:
             obs, reward, terminated, truncated, info = env.step(last_action.value)
             if verbose:
-                print(f"time_left={obs[0]:.0f}, " +
-                    f"action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]}), " +
-                    f"prev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}, " +
-                    f"\ncur_crosswalk (discovered={obs[6] == 1}, x_diff={obs[7]:.2f}), " +
-                    f"\ncur road penalty (visible={obs[8] == 1}, value={obs[9]:.0f})",
-                    f"\ncar infos [lane1=({obs[10]:.2f}, {obs[11]:.1f}), lane2=({obs[12]:.2f}, {obs[13]:.1f}), " + 
-                    f"lane3=({obs[14]:.2f}, {obs[15]:.1f}), lane4=({obs[16]:.2f}, {obs[17]:.1f})]",
+                print(f"time_left={obs[0]:.0f}, action={last_action}, reward={reward}, cur_pos=({obs[1], obs[2]})"
+                    + f", \nprev_road_end_dist={obs[3]}, cur_road_start_dist={obs[4]}, cur_road_end_dist={obs[5]}"
+                    + f", \ncur_crosswalk (discovered={obs[6] == 1}, x_diff={obs[7]:.2f})"
+                    + f", \ncur road penalty (visible={obs[8] == 1}, value={obs[9]:.0f})"
+                    + f", \ncar infos: [lane1=({obs[10]:.2f}, {obs[11]:.1f})" 
+                    + f", lane2=({obs[12]:.2f}, {obs[13]:.1f})"
+                    + f", lane3=({obs[14]:.2f}, {obs[15]:.1f})"
+                    + f", lane4=({obs[16]:.2f}, {obs[17]:.1f})]"
                 )
             if terminated or truncated:
                 env.render_game_over()
@@ -63,19 +64,20 @@ def play_episode(env, seed, verbose = False):
                     last_action = Action.NOTHING
                     break
 
-def play_game(seed, max_episodes, debug):
+def play_game(seed, max_episodes, debug, verbose):
     episode_duration_sec = 10 if debug else 30
-    env = PedestrianEnv(render_mode="human", use_clock_tick=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     for i in range(max_episodes):
-        quit_game = play_episode(env, seed + i) #, verbose=True)
+        quit_game = play_episode(env, seed + i, verbose)
         if quit_game: break
     env.close()
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Run for test")
+    arg_parser.add_argument('--verbose', action='store_true', help='enable verbose log')
     arg_parser.add_argument('--debug', action='store_true', help='enable debugging mode')
     arg_parser.add_argument('--seed', type=int, default=1000, help='initial seed used for each episode')
     arg_parser.add_argument('--max_episodes', type=int, default=10, help='total number of episodes')
     args = arg_parser.parse_args()
 
-    play_game(seed=args.seed, max_episodes=args.max_episodes, debug=args.debug)
+    play_game(seed=args.seed, max_episodes=args.max_episodes, debug=args.debug, verbose=args.verbose)

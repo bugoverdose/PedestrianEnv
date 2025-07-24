@@ -24,7 +24,7 @@ class PedestrianEnv(gym.Env):
     BONUS_SCORE_PER_SEC = 50
     TIME_OVER_ALERT_SEC = 10
 
-    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second=10, use_clock_tick=False, episode_duration_sec=30, debug=False, render_sprite=False):
+    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second=10, realtime=False, episode_duration_sec=30, debug=False, render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
@@ -34,7 +34,7 @@ class PedestrianEnv(gym.Env):
         self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
-        self.use_clock_tick = use_clock_tick
+        self.realtime = realtime
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         game_window_size = 2048
         self.pix_square_size = max(80, (game_window_size / max(self.map_grid_width, self.map_grid_height))) # The size of a single grid square in pixels
@@ -115,20 +115,23 @@ class PedestrianEnv(gym.Env):
         """
         cumulative_reward = 0
         terminated = False
-        if not self.use_clock_tick:
+        if not self.realtime:
+            # interacting with the environment using RL algorithm  
             for _ in range(ACTION_DURATION[action]):
                 reward, terminated = self.mini_step(action)
                 cumulative_reward += reward
                 self.apply_time_and_render(self.step_ms)
                 if terminated: break
         else:
+            # behaviour task for humans
             cur_count = 0
-            while cur_count < ACTION_DURATION[action]:
+            while True:
                 dt = self.clock_tick()
                 self.elapsed += dt
                 if self.elapsed >= self.step_ms:
-                    cur_count += 1
                     self.elapsed -= self.step_ms
+                    if cur_count >= ACTION_DURATION[action]: break
+                    cur_count += 1
                     reward, terminated = self.mini_step(action)
                     cumulative_reward += reward
                     if terminated: break
