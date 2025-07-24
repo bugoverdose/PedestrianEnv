@@ -30,8 +30,11 @@ class GameObject:
             dy = 0
         if dx == 0 and dy == 0: return
 
+        if dx != 0 and dy != 0: # diagonal move
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+        else: # straight move
+            dist = max(abs(dx), abs(dy))
         step_dist = self.default_speed * (dt / 1000.0) # dt in ms
-        dist = (dx ** 2 + dy ** 2) ** 0.5
         ratio = min(1.0, step_dist / dist)
         self.cur_location[0] += dx * ratio
         self.cur_location[1] += dy * ratio
