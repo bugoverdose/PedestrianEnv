@@ -115,20 +115,17 @@ class Roads:
         self.agent = agent
         self.elements = roads
 
-    def update_crosswalk_activation(self):
-        [agent_x, agent_y] = self.agent.cur_location
+    def activate_crosswalks(self):
+        agent_x, agent_y = self.agent.get_cur_location_rounded()
         for road in self.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
-            start_y = road.row1 - 1
-            end_y = road.row2 + 1
-            if start_y <= agent_y <= end_y:
-                distance = abs(agent_x - crosswalk.col) # check only row distance if in the same danger zone
-            else:
-                dy = min(abs(agent_y - start_y), abs(agent_y - end_y))
-                dx = abs(agent_x - crosswalk.col)
-                distance = math.hypot(dx, dy)
-            crosswalk.is_active = distance <= CrossWalk.THRESHOLD_DISTANCE
+            # deactivate right after crossing the road
+            start_y = crosswalk.top_row - 1
+            # activate before crossing the road
+            end_y = crosswalk.end_row + 1 
+            left_x, right_x = crosswalk.left_end, crosswalk.right_end
+            crosswalk.is_active = (start_y < agent_y <= end_y) and (left_x <= agent_x <= right_x)
 
     def render(self, background, map_grid_width, pix_square_size):
         map_width = map_grid_width * pix_square_size
@@ -163,7 +160,7 @@ class Roads:
         for road in self.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
-            start_x, end_x = crosswalk.get_visible_left_right()
+            start_x, end_x = crosswalk.left_end, crosswalk.right_end
             cw_width = (end_x - start_x) * pix_square_size
             start_x = start_x * pix_square_size
             start_y = road.row1 * pix_square_size - adjustment
@@ -249,24 +246,20 @@ class Road:
 
 class CrossWalk:
     RATIO = 0.6
-    THRESHOLD_DISTANCE = 1.2
+    THRESHOLD_DISTANCE = 0.2
     VISIBLE_WIDTH = 1
 
-    def __init__(self, col, start_row, end_row):
-        self.col = col
-        self.left_end = self.col - self.VISIBLE_WIDTH
-        self.right_end = self.col + self.VISIBLE_WIDTH
-        self.start_row = start_row
+    def __init__(self, col, top_row, end_row):
+        self.left_end = col - self.VISIBLE_WIDTH
+        self.right_end = col + self.VISIBLE_WIDTH
+        self.top_row = top_row
         self.end_row = end_row
         self.is_active = False
 
     def get_activation_left_right(self):
-        left = self.col - self.THRESHOLD_DISTANCE
-        right = self.col + self.THRESHOLD_DISTANCE
+        left = self.left_end - self.THRESHOLD_DISTANCE
+        right = self.right_end + self.THRESHOLD_DISTANCE
         return left, right
-
-    def get_visible_left_right(self):
-        return self.left_end, self.right_end
 
     def __str__(self):
         return f"CrossWalk(active={self.is_active}, col={self.col})"

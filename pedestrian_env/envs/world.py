@@ -29,7 +29,7 @@ class World:
         for road in self.roads.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
-            for y in range(crosswalk.start_row, crosswalk.end_row+2):
+            for y in range(crosswalk.top_row, crosswalk.end_row+2):
                 for x in range(crosswalk.left_end, crosswalk.right_end+1):
                     self.grid_type_dict[y][x] = GridType.CROSSWALK
 
@@ -85,7 +85,7 @@ class World:
 
     def update_positions(self, dt):
         self.agent.update_position(dt)
-        self.roads.update_crosswalk_activation()
+        self.roads.activate_crosswalks()
         self.cars.update_positions(dt)
 
     def calculate_up_rewards(self):
