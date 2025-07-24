@@ -32,28 +32,16 @@ def play_episode(env, seed, verbose = False):
                 print(f"action={last_action}, reward={reward}")
                 print("Channel 0: Tile type")
                 for y in range(env.camera_size):
-                    row = []
-                    for x in range(env.camera_size):
-                        row.append(obs[y][x][0])
-                    print(row)
+                    print(obs[0][y])
                 print("Channel 1: Car penalty")
                 for y in range(env.camera_size):
-                    row = []
-                    for x in range(env.camera_size):
-                        row.append(obs[y][x][1])
-                    print(row)
+                    print(obs[1][y])
                 print("Channel 2: Car speed")
                 for y in range(env.camera_size):
-                    row = []
-                    for x in range(env.camera_size):
-                        row.append(obs[y][x][2])
-                    print(row)
+                    print(obs[2][y])
                 print("Channel 3: Risk level")
                 for y in range(env.camera_size):
-                    row = []
-                    for x in range(env.camera_size):
-                        row.append(obs[y][x][3])
-                    print(row)
+                    print(obs[3][y])
             if terminated or truncated:
                 env.render_game_over()
                 return False

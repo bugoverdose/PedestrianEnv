@@ -327,14 +327,18 @@ class PedestrianEnv(gym.Env):
         max_car_speed = max(Car.CAR_SPEEDS)
         lower_bounds = (0,               0, -max_car_speed,   0)
         upper_bounds = (3, max_car_penalty,  max_car_speed, 100)
-        low = np.full((self.camera_size, self.camera_size, 4), lower_bounds)
-        high = np.full((self.camera_size, self.camera_size, 4), upper_bounds)
-        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+
+        low_hwc = np.full((self.camera_size, self.camera_size, 4), lower_bounds)
+        high_hwc = np.full((self.camera_size, self.camera_size, 4), upper_bounds)
+
+        low_chw = np.transpose(low_hwc, (2, 0, 1))
+        high_chw = np.transpose(high_hwc, (2, 0, 1))
+        self.observation_space = gym.spaces.Box(low=low_chw, high=high_chw, dtype=np.float32)
 
     def _get_obs(self):
         """
         Observation
-        - structure: (y, x, channels)
+        - structure: (C, H, W) = (channels, y, x)
 
         Relative position of each tiles from the agent: (y, x)
         - agent: o
@@ -375,7 +379,7 @@ class PedestrianEnv(gym.Env):
         grid_x_start = agent_x - self.camera_size//2
         visible_x_start = grid_x_start - 0.5
         visible_x_end = visible_x_start + self.camera_size
-        obs = np.zeros((self.camera_size, self.camera_size, 4), dtype=np.float32)
+        obs = np.zeros((4, self.camera_size, self.camera_size), dtype=np.float32)
         for y in range(self.camera_size):
             grid_y = grid_y_start + y
 
@@ -383,9 +387,9 @@ class PedestrianEnv(gym.Env):
             for x in range(self.camera_size):
                 grid_x = grid_x_start + x
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
-                    obs[y][x][0] = self.world.grid_type_map[grid_y][grid_x].value
+                    obs[0][y][x] = self.world.grid_type_map[grid_y][grid_x].value
                 else:
-                    obs[y][x][0] = GridType.UNREACHABLE.value
+                    obs[0][y][x] = GridType.UNREACHABLE.value
 
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
@@ -397,20 +401,20 @@ class PedestrianEnv(gym.Env):
                     block_right = x + visible_x_start + 1
                     if not is_overlapping(left_x, right_x, block_left, block_right): continue
                     # Channel 1: Car penalty
-                    obs[y][x][1] = car.car_detail.penalty
+                    obs[1][y][x] = car.car_detail.penalty
                     # Channel 2: Car speed
-                    obs[y][x][2] = car.get_cur_speed()
+                    obs[2][y][x] = car.get_cur_speed()
                     # Channel 3: Risk level
                     if x == self.camera_size//2: # same column as the agent
-                        obs[y][x][3] = 100
+                        obs[3][y][x] = 100
                     elif x < self.camera_size//2: # left from the agent
                         if car.default_speed < 0: continue # going away
                         car_right_block_end = right_x if block_left <= right_x < block_right else block_right
-                        obs[y][x][3] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
+                        obs[3][y][x] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
                     else: # right from the agent
                         if car.default_speed > 0: continue # going away
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_right
-                        obs[y][x][3] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
+                        obs[3][y][x] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
         return obs
 
     def _get_info(self):
