@@ -2,6 +2,7 @@ import pygame
 
 from pedestrian_env.envs.road import Roads
 from pedestrian_env.envs.game_object import Agent, Cars
+from pedestrian_env.envs.grid_type import GridType
 
 class World:
     UP_REWARD_PER_UNIT = 5
@@ -19,6 +20,23 @@ class World:
 
         self.roads = Roads(self.agent, camera_size, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite)
+
+        self.grid_type_dict = [[GridType.DANGER for _ in range(map_grid_width)] for _ in range(map_grid_height)]
+        for y in self.roads.safe_row_idx_list:
+            for x in range(map_grid_width):
+                self.grid_type_dict[y][x] = GridType.SAFE
+
+        for road in self.roads.elements:
+            crosswalk = road.crosswalk
+            if crosswalk is None: continue
+            for y in range(crosswalk.start_row, crosswalk.end_row+2):
+                for x in range(crosswalk.left_end, crosswalk.right_end+1):
+                    self.grid_type_dict[y][x] = GridType.CROSSWALK
+
+        for y in range(map_grid_height):
+            for x in range(map_grid_width):
+                if agent_x_range[0] <= x <= agent_x_range[1]: continue
+                self.grid_type_dict[y][x] = GridType.UNREACHABLE
 
     def target_lane_reached(self):
         cur_y = self.agent.cur_location[1]

@@ -110,7 +110,7 @@ class Roads:
             crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X, agent_initial_col + buffer), agent.MAX_X+1)
             left = not left
             col = random.integers(crosswalk_range[0], crosswalk_range[1])
-            road.crosswalk = CrossWalk(col)
+            road.crosswalk = CrossWalk(col, road.row1, road.row2)
 
         self.agent = agent
         self.elements = roads
@@ -250,10 +250,14 @@ class Road:
 class CrossWalk:
     RATIO = 0.6
     THRESHOLD_DISTANCE = 1.2
-    VISIBLE_WIDTH = 1.0
+    VISIBLE_WIDTH = 1
 
-    def __init__(self, col):
+    def __init__(self, col, start_row, end_row):
         self.col = col
+        self.left_end = self.col - self.VISIBLE_WIDTH
+        self.right_end = self.col + self.VISIBLE_WIDTH
+        self.start_row = start_row
+        self.end_row = end_row
         self.is_active = False
 
     def get_activation_left_right(self):
@@ -262,9 +266,7 @@ class CrossWalk:
         return left, right
 
     def get_visible_left_right(self):
-        left = self.col - self.VISIBLE_WIDTH
-        right = self.col + self.VISIBLE_WIDTH
-        return left, right
+        return self.left_end, self.right_end
 
     def __str__(self):
         return f"CrossWalk(active={self.is_active}, col={self.col})"
