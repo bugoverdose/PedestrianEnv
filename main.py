@@ -30,11 +30,23 @@ def play_episode(env, seed, verbose = False):
             obs, reward, terminated, truncated, info = env.step(last_action.value)
             if verbose:
                 print(f"action={last_action}, reward={reward}")
-                print("Channel 1")
+                print("Channel 0")
                 for y in range(env.camera_size):
                     row = []
                     for x in range(env.camera_size):
                         row.append(obs[y][x][0])
+                    print(row)
+                print("Channel 1")
+                for y in range(env.camera_size):
+                    row = []
+                    for x in range(env.camera_size):
+                        row.append(obs[y][x][1])
+                    print(row)
+                print("Channel 2")
+                for y in range(env.camera_size):
+                    row = []
+                    for x in range(env.camera_size):
+                        row.append(obs[y][x][2])
                     print(row)
             if terminated or truncated:
                 env.render_game_over()

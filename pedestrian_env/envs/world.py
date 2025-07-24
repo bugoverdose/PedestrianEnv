@@ -21,22 +21,27 @@ class World:
         self.roads = Roads(self.agent, camera_size, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite)
 
-        self.grid_type_dict = [[GridType.DANGER for _ in range(map_grid_width)] for _ in range(map_grid_height)]
+        self.row_to_cars_dict = {}
+        for car in self.cars.elements:
+            for row in car.rows:
+                if row not in self.row_to_cars_dict:
+                    self.row_to_cars_dict[row] = []
+                self.row_to_cars_dict[row].append(car)
+            
+        self.grid_type_map = [[GridType.DANGER for _ in range(map_grid_width)] for _ in range(map_grid_height)]
         for y in self.roads.safe_row_idx_list:
             for x in range(map_grid_width):
-                self.grid_type_dict[y][x] = GridType.SAFE
-
+                self.grid_type_map[y][x] = GridType.SAFE
         for road in self.roads.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
             for y in range(crosswalk.top_row, crosswalk.end_row+2):
                 for x in range(crosswalk.left_end, crosswalk.right_end+1):
-                    self.grid_type_dict[y][x] = GridType.CROSSWALK
-
+                    self.grid_type_map[y][x] = GridType.CROSSWALK
         for y in range(map_grid_height):
             for x in range(map_grid_width):
                 if agent_x_range[0] <= x <= agent_x_range[1]: continue
-                self.grid_type_dict[y][x] = GridType.UNREACHABLE
+                self.grid_type_map[y][x] = GridType.UNREACHABLE
 
     def target_lane_reached(self):
         cur_y = self.agent.cur_location[1]

@@ -231,7 +231,7 @@ class Road:
                 if car.cur_speed < 0 and x_dist < 0: continue # moving away
                 if abs(closest_car_x_dist) < abs(x_dist): continue # farther away
                 # save closest and most dangerous car position
-                actual_car_speed = car.cur_speed if car.is_moving else 0
+                actual_car_speed = car.get_cur_speed()
                 nearby_car_infos[row_idx] = [x_dist, actual_car_speed]
 
         # closest lane to farthest + flatten out list
@@ -244,7 +244,7 @@ class Road:
 
 class CrossWalk:
     RATIO = 0.6
-    THRESHOLD_DISTANCE = 0.2
+    THRESHOLD_DISTANCE = 0.3
     VISIBLE_WIDTH = 1
 
     def __init__(self, col, top_row, end_row):

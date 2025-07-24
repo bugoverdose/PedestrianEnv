@@ -9,6 +9,7 @@ from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_panalty_range
 from pedestrian_env.envs.action import ACTION_DURATION
 from pedestrian_env.envs.grid_type import GridType
+from pedestrian_env.envs.utils import is_overlapping
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -360,7 +361,7 @@ class PedestrianEnv(gym.Env):
         - 0 : no car in the tile
         - 100 ~ 1000 : penalty of the existing car
 
-        Channel 2: Car speed if exists
+        Channel 2: Car speed
         - 0: stopped car or no car in the tile
         - -4.5 ~ -3.0: going left
         - 3.0 ~ 4.5: going right
@@ -371,18 +372,36 @@ class PedestrianEnv(gym.Env):
         - 100: in front of the agent or hit the agent (maximum danger)
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
-        x_idx_buffer = agent_x - self.camera_size//2
-        y_idx_buffer = agent_y - self.camera_size//2
+        grid_y_start = agent_y - self.camera_size//2
+        grid_x_start = agent_x - self.camera_size//2
+        visible_x_start = grid_x_start - 0.5
+        visible_x_end = visible_x_start + self.camera_size
         obs = np.zeros((self.camera_size, self.camera_size, 4), dtype=np.float32)
         for y in range(self.camera_size):
+            grid_y = grid_y_start + y
+
+            # Channel 0: Tile type
             for x in range(self.camera_size):
-                # Channel 0: Tile type
-                grid_x = x + x_idx_buffer
-                grid_y = y + y_idx_buffer
+                grid_x = grid_x_start + x
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
-                    obs[y][x][0] = self.world.grid_type_dict[grid_y][grid_x].value
+                    obs[y][x][0] = self.world.grid_type_map[grid_y][grid_x].value
                 else:
                     obs[y][x][0] = GridType.UNREACHABLE.value
+            if grid_y not in self.world.row_to_cars_dict: continue # no car
+            for car in self.world.row_to_cars_dict[grid_y]:
+                left_x, right_x = car.get_cur_x_pos()
+                if right_x < visible_x_start: continue # out of sight
+                if visible_x_end < left_x: continue # out of sight
+                for x in range(self.camera_size):
+                    block_left = x + visible_x_start
+                    block_right = x + visible_x_start + 1
+                    if not is_overlapping(left_x, right_x, block_left, block_right): continue
+                    # Channel 1: Car penalty
+                    obs[y][x][1] = car.car_detail.penalty
+                    # Channel 2: Car speed
+                    obs[y][x][2] = car.get_cur_speed()
+                    # Channel 3: Risk level
+                    # TODO
         return obs
 
     def _define_observation_space_mlp(self):

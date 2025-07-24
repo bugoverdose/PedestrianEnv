@@ -148,6 +148,7 @@ class Car(GameObject):
         cur_location = np.array([initial_x, initial_y], dtype=float)
         super().__init__(0, cur_location, pix_square_size, steps_per_second)
         self.uid = uid
+        self.rows = row_indices
         self.map_grid_width = map_grid_width
         self.car_grid_width = car_grid_height * float(size_ratio)
         self.car_width = self.car_grid_width * pix_square_size
@@ -164,6 +165,9 @@ class Car(GameObject):
         if render_sprite:
             object_image = pygame.image.load(self.car_detail.image_path)
             self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height))
+
+    def get_cur_speed(self):
+        return self.cur_speed if self.is_moving else 0
 
     def get_cur_x_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
@@ -229,6 +233,7 @@ class Car(GameObject):
                     self.stop()
                     return
         self.target_location[0] = self.cur_location[0] + (self.cur_speed * dt / 1000)
+        self.is_moving = True # moving unless stopped
 
     def render(self, background):
         left_x, right_x = self.get_cur_x_pos()
