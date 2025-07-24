@@ -77,8 +77,8 @@ def run_DQN(seed=42,
     print(f"test score: {mean_reward:.4f}")
 
     if saved_model_name is not None:
-        model.save(saved_model_name)
-        env.save(f"{saved_model_name}.pkl")
+        model.save(f"saved/{saved_model_name}")
+        env.save(f"saved/{saved_model_name}.pkl")
 
 def visualize_test(model_name, episode_count=10, seed=42):
     model, env = _load_DQN_model(model_name, seed)
@@ -104,30 +104,29 @@ def _load_DQN_model(saved_model_name, seed=42):
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
 
-    env = VecNormalize.load(f"{saved_model_name}.pkl", env)
+    env = VecNormalize.load(f"saved/{saved_model_name}.pkl", env)
     env.training = False
     env.norm_reward = False
-    model = DQN.load(saved_model_name, env=env)
+    model = DQN.load(f"saved/{saved_model_name}", env=env)
     return model, env
 
 if __name__ == "__main__":
-    model_name = "step_train_best"
-    # dqn_hp_tuning_29
-    # run_DQN(total_timesteps=300_000,
-    #     net_arch=[256, 256, 256],
-    #     learning_rate=1e-4, 
-    #     exploration_initial_eps=1.0,
-    #     exploration_fraction = 0.6,
-    #     exploration_final_eps = 0.05,
-    #     train_freq = 1, # vs (4, "episode")
-    #     gradient_steps=1,
-    #     tau=1.0, # hard
-    #     target_update_interval = 500,
-    #     buffer_size = 5_000,
-    #     batch_size=32,
-    #     learning_starts = 10_000,
-    #     tb_log_name="dqn_hp_tuning",
-    #     verbose=False,
-    #     saved_model_name=model_name) 
-    # test score: 6.6500
+    model_name = "dqn_episode"
+    # dqn_episode_1 # does nothing
+    # run_DQN(total_timesteps=1_000_000,
+    #         net_arch=[256, 256, 256],
+    #         learning_rate=1e-4,
+    #         exploration_initial_eps=1.0,
+    #         exploration_fraction = 0.8,
+    #         exploration_final_eps = 0.1,
+    #         train_freq = (4, "episode"),
+    #         gradient_steps=1,
+    #         tau=1.0, # hard
+    #         target_update_interval = 50,
+    #         buffer_size = 10_000,
+    #         batch_size=32,
+    #         learning_starts = 10_000,
+    #         tb_log_name="dqn_episode",
+    #         verbose=False,
+    #         saved_model_name=model_name) # test score: 0.0000
     visualize_test(model_name)
