@@ -8,8 +8,8 @@ from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES
 
 class GameObject:
 
-    def __init__(self, cur_speed, cur_location, pix_square_size, steps_per_second):
-        self.cur_speed = cur_speed
+    def __init__(self, default_speed, cur_location, pix_square_size, steps_per_second):
+        self.default_speed = default_speed
         self.cur_location = cur_location
         self.target_location = self.cur_location
         self.pix_square_size = pix_square_size
@@ -30,7 +30,7 @@ class GameObject:
             dy = 0
         if dx == 0 and dy == 0: return
 
-        step_dist = self.cur_speed * (dt / 1000.0) # dt in ms
+        step_dist = self.default_speed * (dt / 1000.0) # dt in ms
         dist = (dx ** 2 + dy ** 2) ** 0.5
         ratio = min(1.0, step_dist / dist)
         self.cur_location[0] += dx * ratio
@@ -77,7 +77,7 @@ class Agent(GameObject):
         direction = ACTION_TO_DELTA[action_value]
         if action_value != Action.NOTHING.value:
             self.last_direction = direction
-        delta = direction * (self.cur_speed / self.steps_per_second)
+        delta = direction * (self.default_speed / self.steps_per_second)
         self.target_location = np.clip(self.cur_location + delta,
                                        [self.MIN_X, self.TARGET_LANE],
                                        [self.MAX_X, self.map_grid_height - 1])
@@ -167,7 +167,7 @@ class Car(GameObject):
             self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height))
 
     def get_cur_speed(self):
-        return self.cur_speed if self.is_moving else 0
+        return self.default_speed if self.is_moving else 0
 
     def get_cur_x_pos(self):
         left_x = self.cur_location[0] - (self.car_grid_width/2)
@@ -180,9 +180,9 @@ class Car(GameObject):
         return top_y, bottom_y
 
     def set_random_speed(self):
-        self.cur_speed = self.random.choice(self.CAR_SPEEDS)
+        self.default_speed = self.random.choice(self.CAR_SPEEDS)
         if not self.go_right:
-            self.cur_speed *= -1
+            self.default_speed *= -1
 
     def restart_if_needed(self):
         # teleport to start of the lane when reaching the end
@@ -232,7 +232,7 @@ class Car(GameObject):
                 else:
                     self.stop()
                     return
-        self.target_location[0] = self.cur_location[0] + (self.cur_speed * dt / 1000)
+        self.target_location[0] = self.cur_location[0] + (self.default_speed * dt / 1000)
         self.is_moving = True # moving unless stopped
 
     def render(self, background):

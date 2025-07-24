@@ -5,7 +5,7 @@ import numpy as np
 
 from pedestrian_env.envs.world import World
 from pedestrian_env.envs.road import Roads, CrossWalk
-from pedestrian_env.envs.game_object import Car
+from pedestrian_env.envs.game_object import Agent, Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_panalty_range
 from pedestrian_env.envs.action import ACTION_DURATION
 from pedestrian_env.envs.grid_type import GridType
@@ -367,11 +367,13 @@ class PedestrianEnv(gym.Env):
         - 3.0 ~ 4.5: going right
 
         Channel 3: Risk level
-        - 0: no car visible in the tile (safe)
-        - 1 ~ 99: how close the agent is from the car (x distance only)
+        - 0: no car visible or moving away from the agent (safe)
+        - 1 ~ 99: how close the agent is from the car
         - 100: in front of the agent or hit the agent (maximum danger)
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
+        agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
+        max_x_dist_from_agent = self.camera_size/2 - Agent.RADIUS
         grid_y_start = agent_y - self.camera_size//2
         grid_x_start = agent_x - self.camera_size//2
         visible_x_start = grid_x_start - 0.5
@@ -387,6 +389,7 @@ class PedestrianEnv(gym.Env):
                     obs[y][x][0] = self.world.grid_type_map[grid_y][grid_x].value
                 else:
                     obs[y][x][0] = GridType.UNREACHABLE.value
+
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
                 left_x, right_x = car.get_cur_x_pos()
@@ -401,7 +404,16 @@ class PedestrianEnv(gym.Env):
                     # Channel 2: Car speed
                     obs[y][x][2] = car.get_cur_speed()
                     # Channel 3: Risk level
-                    # TODO
+                    if x == self.camera_size//2: # same column as the agent
+                        obs[y][x][3] = 100
+                    elif x < self.camera_size//2: # left from the agent
+                        if car.default_speed < 0: continue # going away
+                        car_right_block_end = right_x if block_left <= right_x < block_right else block_right
+                        obs[y][x][3] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
+                    else: # right from the agent
+                        if car.default_speed > 0: continue # going away
+                        car_left_block_end = left_x if block_left <= left_x < block_right else block_right
+                        obs[y][x][3] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
         return obs
 
     def _define_observation_space_mlp(self):
