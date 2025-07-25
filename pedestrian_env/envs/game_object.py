@@ -212,9 +212,13 @@ class Car(GameObject):
                     self.stop()
                     return
 
-                # make the one with lower uid stop if the both cars are overlapping
-                if self.uid < other_car.uid:
-                    other_left, other_right = other_car.get_cur_x_pos()
+                # make the one in the back stop if the both cars are overlapping
+                # make the one with lower uid stop if the front positions are the same
+                if self.go_right:
+                    front_diff = other_right - my_right
+                else:
+                    front_diff = my_left - other_left
+                if front_diff > 0 or (front_diff == 0 and self.uid < other_car.uid):
                     if is_overlapping(my_left, my_right, other_left, other_right):
                         self.stop()
                         return
