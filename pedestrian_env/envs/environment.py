@@ -358,9 +358,10 @@ class PedestrianEnv(gym.Env):
         - 0: safe zone (or unreachable)
         - 1: danger zone
 
-        Channel 1: Crosswalk tile
-        - 0: no crosswalk (or unreachable)
-        - 1: crosswalk
+        Channel 1: Closeness to crosswalk
+        - 0.0: crosswalk not visible (or unreachable)
+        - 0.0 ~ 1.0: closeness to the crosswalk
+        - 1.0: crosswalk
 
         Channel 2: Reachable tile
         - 0: unreachable
@@ -388,6 +389,7 @@ class PedestrianEnv(gym.Env):
         visible_x_start = grid_x_start - 0.5
         visible_x_end = visible_x_start + self.camera_size
         obs = np.zeros((6, self.camera_size, self.camera_size), dtype=np.float32)
+        crosswalk_pos_set = set()
         for y in range(self.camera_size):
             grid_y = grid_y_start + y
 
@@ -396,8 +398,10 @@ class PedestrianEnv(gym.Env):
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
                     # Channel 0: Danger tile
                     obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
-                    # Channel 1: Crosswalk tile
-                    obs[1][y][x] = 1 if self.world.crosswalk_map[grid_y][grid_x] else 0
+                    # Channel 1: Closeness to crosswalk
+                    if self.world.crosswalk_map[grid_y][grid_x]:
+                        crosswalk_pos_set.add((y, x))
+                        obs[1][y][x] = 1.0
                     # Channel 2: Reachable tile
                     obs[2][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
 
@@ -425,6 +429,21 @@ class PedestrianEnv(gym.Env):
                         if car.default_speed > 0: continue # going away
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_left
                         obs[5][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
+
+        # Channel 1: Closeness to crosswalk
+        for i in range(1, 4):
+            dist = 1.0 - 0.3*i
+            new_set = set()
+            for (y, x) in crosswalk_pos_set:
+                for j in range(4):
+                    adj_y = y + [0, 0, 1, -1][j]
+                    adj_x = x + [1, -1, 0, 0][j]
+                    if adj_y < 0 or adj_y >= self.camera_size: continue
+                    if adj_x < 0 or adj_x >= self.camera_size: continue
+                    if obs[1][adj_y][adj_x] > dist: continue
+                    obs[1][adj_y][adj_x] = dist
+                    new_set.add((adj_y, adj_x))
+            crosswalk_pos_set = new_set
         return obs
 
     def _get_info(self):
