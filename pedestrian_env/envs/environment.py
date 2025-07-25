@@ -118,7 +118,7 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
-        cumulative_reward = 0
+        cumulative_reward = -self.world.calculate_cum_crossing_rewards()
         terminated = False
         if not self.realtime:
             # interacting with the environment using RL algorithm  
@@ -143,15 +143,15 @@ class PedestrianEnv(gym.Env):
                         self._render_game_over()
                         break
                 self.apply_time_and_render(dt)
+        cumulative_reward += self.world.calculate_cum_crossing_rewards()
+        self.game_over = terminated
+        self.cur_rewards += cumulative_reward
         return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
     
     # the discretized process of each action
     def _mini_step(self, action):
-        prev_up_rewards = self.world.calculate_up_rewards()
         self.world.agent.update_target(action)
-
-        cur_up_rewards = self.world.calculate_up_rewards()
-        reward = cur_up_rewards - prev_up_rewards
+        reward = 0
         agent_dead, death_penalty = self.world.cars.has_hit_agent()
         if agent_dead:
             terminated = True
@@ -167,8 +167,6 @@ class PedestrianEnv(gym.Env):
                 game_end_extra_score = self._get_time_left_sec()
                 reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
                 self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
-        self.game_over = terminated
-        self.cur_rewards += reward
         return reward, terminated
 
     def clock_tick(self):

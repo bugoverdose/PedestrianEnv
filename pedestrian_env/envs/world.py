@@ -46,6 +46,14 @@ class World:
                 if agent_x_range[0] <= x <= agent_x_range[1]: continue
                 self.reachable_map[y][x] = False # unreachable
 
+        self.reward_per_y = [0 for _ in range(map_grid_height)]
+        for road in self.roads.elements:
+            road_crossed_y = road.start_y - 1
+            cum_reward = int(self.steps_per_second * (self.initial_player_y - road_crossed_y)) * self.UP_REWARD_PER_UNIT
+            self.reward_per_y[road_crossed_y] = cum_reward
+        for y in range(map_grid_height-1, 0, -1):
+            self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])
+
     def target_lane_reached(self):
         cur_y = self.agent.cur_location[1]
         return cur_y == Agent.TARGET_LANE
@@ -55,8 +63,9 @@ class World:
         self.roads.activate_crosswalks()
         self.cars.update_positions(dt)
 
-    def calculate_up_rewards(self):
-        return int(self.steps_per_second * (self.initial_player_y - self.agent.get_target_y())) * self.UP_REWARD_PER_UNIT
+    def calculate_cum_crossing_rewards(self):
+        _, agent_y = self.agent.get_cur_location_grid()
+        return self.reward_per_y[agent_y]
 
     def render(self):
         map_width = self.map_grid_width * self.pix_square_size
