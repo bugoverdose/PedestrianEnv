@@ -3,8 +3,8 @@ import numpy as np
 
 from pedestrian_env.envs.action import Action, ACTION_TO_DELTA
 from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
-from pedestrian_env.envs.road import CrossWalk
-from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES
+from pedestrian_env.envs.road import Road, CrossWalk
+from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES, CARS_PER_LANE_PAIR_COMPOSITION
 
 class GameObject:
 
@@ -310,16 +310,30 @@ class Cars:
         cars = []
         uid = 0
         for road in roads.elements:
-            for height in CAR_CANDIDATES.keys():
-                for i in range(0, road.end_y - road.start_y + 1, height):
-                    uid += 1
-                    row_idx = road.start_y + i
-                    height = min(roads.max_height_dic[row_idx], height)
-                    (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
-                    initial_x = random.integers(0, map_grid_width)
-                    going_right = road.going_right[i]
-                    cars.append(Car(uid, car_name, initial_x, row_idx, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
-            
+            road_height = road.end_y - road.start_y + 1
+            for i in range(0, road_height, Road.COMPOSITION_SIZE):
+                cars_per_lane_pair = random.choice(CARS_PER_LANE_PAIR_COMPOSITION)
+                for j in cars_per_lane_pair.keys():
+                    start_row_idx = road.start_y + i + j
+                    for height in cars_per_lane_pair[j]:
+                        uid += 1
+                        (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
+                        initial_x = random.integers(0, map_grid_width)
+                        going_right = road.going_right[i]
+                        cars.append(Car(uid, car_name, initial_x, start_row_idx, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
+
+        # NOTE(maximum difficulty): add one height=1 car for each lane & add one height=2 car for each 2 lanes
+        # for road in roads.elements:
+        #     for height in CAR_CANDIDATES.keys():
+        #         for i in range(0, road.end_y - road.start_y + 1, height):
+        #             uid += 1
+        #             row_idx = road.start_y + i
+        #             height = min(roads.max_height_dic[row_idx], height)
+        #             (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
+        #             initial_x = random.integers(0, map_grid_width)
+        #             going_right = road.going_right[i]
+        #             cars.append(Car(uid, car_name, initial_x, row_idx, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
+
         # add nearby_cars info
         for i in range(len(cars)):
             cur_car = cars[i]

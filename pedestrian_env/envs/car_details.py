@@ -24,6 +24,20 @@ def get_max_panalty():
         max_penalty = max(max_penalty, _RiskDetails[key].penalty)
     return max_penalty
 
+# key = start_row_idx, value = car_heights 
+CARS_PER_LANE_PAIR_COMPOSITION = [
+    # 2 small cars
+    {0: [1], 1: [1]},
+    # 3 small cars
+    {0: [1], 1: [1, 1]},
+    {0: [1, 1], 1: [1]},
+    # 1 big car, 1 small car
+    {0: [2, 1], 1: []},
+    {0: [2], 1: [1]},
+    # 1 big car, 2 small cars
+    {0: [2, 1], 1: [1]},
+]
+
 # key=height, value=(car_name, height:width ratio)
 CAR_CANDIDATES = {
     1: [

@@ -4,7 +4,6 @@ from enum import Enum
 import pygame
 
 from pedestrian_env.envs.car_details import CarColorType, get_max_car_grid_height
-from pedestrian_env.envs.utils import is_overlapping
 
 class RowType(Enum):
     SAFE = 0
@@ -176,6 +175,8 @@ class Roads:
                     pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
+    COMPOSITION_SIZE = 2
+
     def __init__(self, uid, start_y, end_y, row_types, random):
         self.uid = uid
         self.start_y = start_y
