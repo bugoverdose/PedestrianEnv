@@ -420,7 +420,7 @@ class PedestrianEnv(gym.Env):
                         obs[5][y][x] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
                     else: # right from the agent
                         if car.default_speed > 0: continue # going away
-                        car_left_block_end = left_x if block_left <= left_x < block_right else block_right
+                        car_left_block_end = left_x if block_left <= left_x < block_right else block_left
                         obs[5][y][x] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
         return obs
 
