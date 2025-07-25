@@ -60,6 +60,9 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
+        self.max_car_penalty = get_max_panalty()
+        self.max_car_speed = max(Car.CAR_SPEEDS)
+
         # action
         self.action_space = gym.spaces.Discrete(5)
         # obs
@@ -322,10 +325,8 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        max_car_penalty = get_max_panalty()
-        max_car_speed = max(Car.CAR_SPEEDS)
-        lower_bounds = (0, 0, 0,               0, -max_car_speed,   0)
-        upper_bounds = (1, 1, 1, max_car_penalty,  max_car_speed, 100)
+        lower_bounds = (0, 0, 0, 0, -1, 0)
+        upper_bounds = (1, 1, 1, 1,  1, 1)
 
         low_hwc = np.full((self.camera_size, self.camera_size, 6), lower_bounds)
         high_hwc = np.full((self.camera_size, self.camera_size, 6), upper_bounds)
@@ -336,7 +337,7 @@ class PedestrianEnv(gym.Env):
 
     def _get_obs(self):
         """
-        Observation
+        Observation (normalized)
         - structure: (C, H, W) = (channels, y, x)
 
         Relative position of each tiles from the agent: (y, x)
@@ -365,17 +366,17 @@ class PedestrianEnv(gym.Env):
 
         Channel 3: Car penalty
         - 0 : no car in the tile
-        - 100, 500, 1000 : penalty of the existing car
+        - 0.1, 0.5, 1.0 : penalty of the existing car (raw range: 100, 500, 1000)
 
         Channel 4: Car speed
         - 0: stopped car or no car in the tile
-        - -4.5 ~ -3.0: going left
-        - 3.0 ~ 4.5: going right
+        - -1.0 ~ 0: going left (raw range: -4.5 ~ -3.0)
+        - 0 ~ 1.0: going right (raw range: 3.0 ~ 4.5)
 
         Channel 5: Risk level
-        - 0: no car visible or moving away from the agent (safe)
-        - 1 ~ 99: how close the agent is from the car
-        - 100: in front of the agent or hit the agent (maximum danger)
+        - 0.0: no car visible or moving away from the agent (safe)
+        - 0 ~ 1: how close the agent is from the car
+        - 1.0: in front of the agent or hit the agent (maximum danger)
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
@@ -408,20 +409,20 @@ class PedestrianEnv(gym.Env):
                     block_right = x + visible_x_start + 1
                     if not is_overlapping(left_x, right_x, block_left, block_right): continue
                     # Channel 3: Car penalty
-                    obs[3][y][x] = car.car_detail.penalty
+                    obs[3][y][x] = car.car_detail.penalty / self.max_car_penalty
                     # Channel 4: Car speed
-                    obs[4][y][x] = car.get_cur_speed()
+                    obs[4][y][x] = car.get_cur_speed() / self.max_car_speed
                     # Channel 5: Risk level
                     if x == self.camera_size//2: # same column as the agent
-                        obs[5][y][x] = 100
+                        obs[5][y][x] = 1
                     elif x < self.camera_size//2: # left from the agent
                         if car.default_speed < 0: continue # going away
                         car_right_block_end = right_x if block_left <= right_x < block_right else block_right
-                        obs[5][y][x] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
+                        obs[5][y][x] = max(obs[5][y][x], 1 - ((agent_left_x - car_right_block_end) / max_x_dist_from_agent))
                     else: # right from the agent
                         if car.default_speed > 0: continue # going away
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_left
-                        obs[5][y][x] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
+                        obs[5][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
         return obs
 
     def _get_info(self):
