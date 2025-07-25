@@ -55,8 +55,8 @@ class World:
             self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])
 
     def target_lane_reached(self):
-        cur_y = self.agent.cur_location[1]
-        return cur_y == Agent.TARGET_LANE
+        _, agent_y = self.agent.get_cur_location_grid()
+        return agent_y == Agent.TARGET_LANE
 
     def update_positions(self, dt):
         self.agent.update_position(dt)

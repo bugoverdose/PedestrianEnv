@@ -29,7 +29,7 @@ def play_episode(env, seed, verbose = False):
         while env.elapsed >= env.step_ms:
             obs, reward, terminated, truncated, info = env.step(last_action.value)
             if verbose:
-                print(f"action={last_action}, reward={reward}")
+                print(f"action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
                 print("Channel 0: Danger tile")
                 for y in range(env.camera_size):
                     print(obs[0][y])

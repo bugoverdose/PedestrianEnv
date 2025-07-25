@@ -139,19 +139,28 @@ class PedestrianEnv(gym.Env):
                     cur_count += 1
                     reward, terminated = self._mini_step(action)
                     cumulative_reward += reward
-                    if terminated:
-                        self._render_game_over()
-                        break
+                    if terminated: break
                 self.apply_time_and_render(dt)
+
         cumulative_reward += self.world.calculate_cum_crossing_rewards()
-        self.game_over = terminated
         self.cur_rewards += cumulative_reward
+
+        # An episode is finished if the agent has reached the target lane
+        if self.world.target_lane_reached():
+            terminated = True
+            game_end_extra_score = self._get_time_left_sec()
+            reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
+            self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
+
+        self.game_over = terminated
+        if terminated and self.realtime:
+            self._render_game_over()
         return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
     
     # the discretized process of each action
     def _mini_step(self, action):
         self.world.agent.update_target(action)
-        reward = 0
+        reward, terminated = 0, False
         agent_dead, death_penalty = self.world.cars.has_hit_agent()
         if agent_dead:
             terminated = True
@@ -160,13 +169,6 @@ class PedestrianEnv(gym.Env):
             self.game_end_extra_score = -death_penalty
         elif self._get_time_left_sec() <= 0:
             terminated = True
-        else:
-            # An episode is finished if the agent has reached the target lane
-            terminated = self.world.target_lane_reached()
-            if terminated:
-                game_end_extra_score = self._get_time_left_sec()
-                reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
-                self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
         return reward, terminated
 
     def clock_tick(self):
