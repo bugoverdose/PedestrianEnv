@@ -6,15 +6,42 @@ import time
 import numpy as np
 import random
 
+import gymnasium as gym
+import torch
+import torch.nn as nn
 from stable_baselines3 import DQN
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from pedestrian_env.envs import PedestrianEnv
 
-def run_DQN(seed=42,
-            net_arch=[256, 256, 256],
+class SimpleCNN(BaseFeaturesExtractor):
+    def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 256):
+        super().__init__(observation_space, features_dim)
+
+        n_input_channels = observation_space.shape[0] # number of channels
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Flatten()
+        )
+
+        # Compute output shape
+        with torch.no_grad():
+            sample_input = torch.as_tensor(observation_space.sample()[None]).float()
+            n_flatten = self.cnn(sample_input).shape[1]
+
+        self.linear = nn.Sequential(
+            nn.Linear(n_flatten, features_dim),
+            nn.ReLU()
+        )
+
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        return self.linear(self.cnn(observations))
+
+def run_DQN_CnnPolicy(seed=42,
             gamma=0.99, # default=0.99
             learning_rate=1e-4, # default=1e-4
             train_freq = 1, # default=4
@@ -33,7 +60,6 @@ def run_DQN(seed=42,
             tb_log_name="dqn",
             verbose=True,
             ):
-    print("net_arch", net_arch)
     print("target_update_interval", target_update_interval)
     print("buffer_size", buffer_size)
     print("learning_starts", learning_starts)
@@ -52,9 +78,11 @@ def run_DQN(seed=42,
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
-    env = VecNormalize(env, norm_obs=True, norm_reward=False)
-    model = DQN("MlpPolicy", env, seed=seed,
-                policy_kwargs=dict(net_arch=net_arch),
+    model = DQN("CnnPolicy", env, seed=seed,
+                policy_kwargs=dict(
+                    features_extractor_class=SimpleCNN,
+                    features_extractor_kwargs=dict(features_dim=256)
+                ),
                 gamma=gamma,
                 learning_rate=learning_rate,
                 buffer_size=buffer_size,
@@ -71,24 +99,19 @@ def run_DQN(seed=42,
                 tensorboard_log="./tb_logs/",
     )
     model.learn(total_timesteps=total_timesteps, tb_log_name=tb_log_name)
-    env.training = False
-    env.norm_reward = False
     mean_reward, _ = evaluate_policy(model, env, n_eval_episodes=n_eval_episodes, deterministic=True)
     print(f"test score: {mean_reward:.4f}")
 
     if saved_model_name is not None:
         model.save(f"saved/{saved_model_name}")
-        env.save(f"saved/{saved_model_name}.pkl")
 
-def visualize_test(model_name, episode_count=10, seed=42):
+def visualize_test(model_name, episode_count=20, seed=42):
     model, env = _load_DQN_model(model_name, seed)
     obs = env.reset()
     episode_count = 0
     while episode_count < 10:
         action, _states = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
-        env.render()
-        time.sleep(0.1)
         if done:
             episode_count += 1
 
@@ -97,36 +120,14 @@ def _load_DQN_model(saved_model_name, seed=42):
     random.seed(seed)
 
     def make_env():
-        env = PedestrianEnv(render_mode = "human", render_sprite=True)
+        env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
         env.reset(seed=seed)
         return env
 
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
-
-    env = VecNormalize.load(f"saved/{saved_model_name}.pkl", env)
-    env.training = False
-    env.norm_reward = False
     model = DQN.load(f"saved/{saved_model_name}", env=env)
     return model, env
 
 if __name__ == "__main__":
-    model_name = "dqn_episode"
-    # dqn_episode_1 # does nothing
-    # run_DQN(total_timesteps=1_000_000,
-    #         net_arch=[256, 256, 256],
-    #         learning_rate=1e-4,
-    #         exploration_initial_eps=1.0,
-    #         exploration_fraction = 0.8,
-    #         exploration_final_eps = 0.1,
-    #         train_freq = (4, "episode"),
-    #         gradient_steps=1,
-    #         tau=1.0, # hard
-    #         target_update_interval = 50,
-    #         buffer_size = 10_000,
-    #         batch_size=32,
-    #         learning_starts = 10_000,
-    #         tb_log_name="dqn_episode",
-    #         verbose=False,
-    #         saved_model_name=model_name) # test score: 0.0000
-    visualize_test(model_name)
+    pass
