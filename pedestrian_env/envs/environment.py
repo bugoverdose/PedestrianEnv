@@ -7,7 +7,6 @@ from pedestrian_env.envs.world import World
 from pedestrian_env.envs.game_object import Agent, Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_panalty
 from pedestrian_env.envs.action import ACTION_DURATION
-from pedestrian_env.envs.grid_type import GridType
 from pedestrian_env.envs.utils import is_overlapping
 
 class PedestrianEnv(gym.Env):
@@ -325,11 +324,11 @@ class PedestrianEnv(gym.Env):
     def _define_observation_space(self):
         max_car_penalty = get_max_panalty()
         max_car_speed = max(Car.CAR_SPEEDS)
-        lower_bounds = (0,               0, -max_car_speed,   0)
-        upper_bounds = (3, max_car_penalty,  max_car_speed, 100)
+        lower_bounds = (0, 0, 0,               0, -max_car_speed,   0)
+        upper_bounds = (1, 1, 1, max_car_penalty,  max_car_speed, 100)
 
-        low_hwc = np.full((self.camera_size, self.camera_size, 4), lower_bounds)
-        high_hwc = np.full((self.camera_size, self.camera_size, 4), upper_bounds)
+        low_hwc = np.full((self.camera_size, self.camera_size, 6), lower_bounds)
+        high_hwc = np.full((self.camera_size, self.camera_size, 6), upper_bounds)
 
         low_chw = np.transpose(low_hwc, (2, 0, 1))
         high_chw = np.transpose(high_hwc, (2, 0, 1))
@@ -352,22 +351,28 @@ class PedestrianEnv(gym.Env):
             x x x x x x x (y=6)
           (x=0)       (x=6) 
 
-        Channel 0: Tile type
-        - 0: crosswalk
-        - 1: safe zone
-        - 2: danger zone
-        - 3: unreachable
+        Channel 0: Danger tile
+        - 0: safe zone (or unreachable)
+        - 1: danger zone
 
-        Channel 1: Car penalty
+        Channel 1: Crosswalk tile
+        - 0: no crosswalk (or unreachable)
+        - 1: crosswalk
+
+        Channel 2: Reachable tile
+        - 0: unreachable
+        - 1: reachable
+
+        Channel 3: Car penalty
         - 0 : no car in the tile
-        - 100 ~ 1000 : penalty of the existing car
+        - 100, 500, 1000 : penalty of the existing car
 
-        Channel 2: Car speed
+        Channel 4: Car speed
         - 0: stopped car or no car in the tile
         - -4.5 ~ -3.0: going left
         - 3.0 ~ 4.5: going right
 
-        Channel 3: Risk level
+        Channel 5: Risk level
         - 0: no car visible or moving away from the agent (safe)
         - 1 ~ 99: how close the agent is from the car
         - 100: in front of the agent or hit the agent (maximum danger)
@@ -379,17 +384,19 @@ class PedestrianEnv(gym.Env):
         grid_x_start = agent_x - self.camera_size//2
         visible_x_start = grid_x_start - 0.5
         visible_x_end = visible_x_start + self.camera_size
-        obs = np.zeros((4, self.camera_size, self.camera_size), dtype=np.float32)
+        obs = np.zeros((6, self.camera_size, self.camera_size), dtype=np.float32)
         for y in range(self.camera_size):
             grid_y = grid_y_start + y
 
-            # Channel 0: Tile type
             for x in range(self.camera_size):
                 grid_x = grid_x_start + x
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
-                    obs[0][y][x] = self.world.grid_type_map[grid_y][grid_x].value
-                else:
-                    obs[0][y][x] = GridType.UNREACHABLE.value
+                    # Channel 0: Danger tile
+                    obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
+                    # Channel 1: Crosswalk tile
+                    obs[1][y][x] = 1 if self.world.crosswalk_map[grid_y][grid_x] else 0
+                    # Channel 2: Reachable tile
+                    obs[2][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
 
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
@@ -400,21 +407,21 @@ class PedestrianEnv(gym.Env):
                     block_left = x + visible_x_start
                     block_right = x + visible_x_start + 1
                     if not is_overlapping(left_x, right_x, block_left, block_right): continue
-                    # Channel 1: Car penalty
-                    obs[1][y][x] = car.car_detail.penalty
-                    # Channel 2: Car speed
-                    obs[2][y][x] = car.get_cur_speed()
-                    # Channel 3: Risk level
+                    # Channel 3: Car penalty
+                    obs[3][y][x] = car.car_detail.penalty
+                    # Channel 4: Car speed
+                    obs[4][y][x] = car.get_cur_speed()
+                    # Channel 5: Risk level
                     if x == self.camera_size//2: # same column as the agent
-                        obs[3][y][x] = 100
+                        obs[5][y][x] = 100
                     elif x < self.camera_size//2: # left from the agent
                         if car.default_speed < 0: continue # going away
                         car_right_block_end = right_x if block_left <= right_x < block_right else block_right
-                        obs[3][y][x] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
+                        obs[5][y][x] = 100 - int((agent_left_x - car_right_block_end) / max_x_dist_from_agent * 100)
                     else: # right from the agent
                         if car.default_speed > 0: continue # going away
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_right
-                        obs[3][y][x] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
+                        obs[5][y][x] = 100 - int((car_left_block_end - agent_right_x) / max_x_dist_from_agent * 100)
         return obs
 
     def _get_info(self):

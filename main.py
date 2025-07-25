@@ -30,18 +30,24 @@ def play_episode(env, seed, verbose = False):
             obs, reward, terminated, truncated, info = env.step(last_action.value)
             if verbose:
                 print(f"action={last_action}, reward={reward}")
-                print("Channel 0: Tile type")
+                print("Channel 0: Danger tile")
                 for y in range(env.camera_size):
                     print(obs[0][y])
-                print("Channel 1: Car penalty")
+                print("Channel 1: Crosswalk tile")
                 for y in range(env.camera_size):
                     print(obs[1][y])
-                print("Channel 2: Car speed")
+                print("Channel 2: Reachable tile")
                 for y in range(env.camera_size):
                     print(obs[2][y])
-                print("Channel 3: Risk level")
+                print("Channel 3: Car penalty")
                 for y in range(env.camera_size):
                     print(obs[3][y])
+                print("Channel 4: Car speed")
+                for y in range(env.camera_size):
+                    print(obs[4][y])
+                print("Channel 5: Risk level")
+                for y in range(env.camera_size):
+                    print(obs[5][y])
             if terminated or truncated:
                 env.render_game_over()
                 return False

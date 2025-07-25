@@ -2,7 +2,6 @@ import pygame
 
 from pedestrian_env.envs.road import Roads
 from pedestrian_env.envs.game_object import Agent, Cars
-from pedestrian_env.envs.grid_type import GridType
 
 class World:
     UP_REWARD_PER_UNIT = 5
@@ -27,21 +26,25 @@ class World:
                 if row not in self.row_to_cars_dict:
                     self.row_to_cars_dict[row] = []
                 self.row_to_cars_dict[row].append(car)
-            
-        self.grid_type_map = [[GridType.DANGER for _ in range(map_grid_width)] for _ in range(map_grid_height)]
+
+        self.danger_map = [[True for _ in range(map_grid_width)] for _ in range(map_grid_height)]
         for y in self.roads.safe_row_idx_list:
             for x in range(map_grid_width):
-                self.grid_type_map[y][x] = GridType.SAFE
+                self.danger_map[y][x] = False # safe
+
+        self.crosswalk_map = [[False for _ in range(map_grid_width)] for _ in range(map_grid_height)]
         for road in self.roads.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
             for y in range(crosswalk.top_row, crosswalk.end_row+2):
                 for x in range(crosswalk.left_end, crosswalk.right_end+1):
-                    self.grid_type_map[y][x] = GridType.CROSSWALK
+                    self.crosswalk_map[y][x] = True # crosswalk
+
+        self.reachable_map = [[True for _ in range(map_grid_width)] for _ in range(map_grid_height)]
         for y in range(map_grid_height):
             for x in range(map_grid_width):
                 if agent_x_range[0] <= x <= agent_x_range[1]: continue
-                self.grid_type_map[y][x] = GridType.UNREACHABLE
+                self.reachable_map[y][x] = False # unreachable
 
     def target_lane_reached(self):
         cur_y = self.agent.cur_location[1]
