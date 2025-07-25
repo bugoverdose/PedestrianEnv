@@ -48,9 +48,7 @@ def play_episode(env, seed, verbose = False):
                 print("Channel 5: Risk level")
                 for y in range(env.camera_size):
                     print(obs[5][y])
-            if terminated or truncated:
-                env.render_game_over()
-                return False
+            if terminated or truncated: return False
             last_action = Action.NOTHING
 
         # check if a key was being pressed down (needed for continuous movement)
