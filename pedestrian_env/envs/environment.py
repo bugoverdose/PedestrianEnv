@@ -179,19 +179,19 @@ class PedestrianEnv(gym.Env):
                 if is_crosswalk[prev_agent_y][prev_agent_x] and not is_crosswalk[agent_y][agent_x]:
                     cumulative_reward -= 20 # leaved crosswalk
 
-        cumulative_reward += self.world.calculate_cum_crossing_rewards()
-        self.cur_rewards += cumulative_reward
-
         # An episode is finished if the agent has reached the target lane
         if self.world.target_lane_reached():
             terminated = True
             game_end_extra_score = self._get_time_left_sec()
-            reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
+            cumulative_reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
             self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
 
         self.game_over = terminated
         if terminated and self.realtime:
             self._render_game_over()
+        
+        cumulative_reward += self.world.calculate_cum_crossing_rewards()
+        self.cur_rewards += cumulative_reward
         return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
     
     def _check_gameover(self):
