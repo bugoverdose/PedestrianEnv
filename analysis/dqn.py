@@ -1,7 +1,6 @@
 # needed to import `pedestrian_env` module
 import sys
 import os
-import time
 
 import numpy as np
 import random
@@ -11,7 +10,7 @@ import torch
 import torch.nn as nn
 from stable_baselines3 import DQN
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

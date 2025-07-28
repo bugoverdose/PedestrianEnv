@@ -6,7 +6,7 @@ from pedestrian_env.envs.game_object import Agent, Cars
 class World:
     UP_REWARD_PER_UNIT = 5
 
-    def __init__(self, agent_x_range, map_grid_width, map_grid_height, camera_size, pix_square_size, steps_per_second, random, debug, render_sprite):
+    def __init__(self, agent_x_range, map_grid_width, map_grid_height, camera_width, pix_square_size, steps_per_second, random, debug, render_sprite):
         self.random = random
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
@@ -16,8 +16,7 @@ class World:
 
         self.agent = Agent(agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug)
         self.initial_player_y = self.agent.cur_location[1]
-
-        self.roads = Roads(self.agent, camera_size, map_grid_height, self.random)
+        self.roads = Roads(self.agent, camera_width, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, random, render_sprite)
 
         self.row_to_cars_dict = {}

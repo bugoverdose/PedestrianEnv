@@ -31,22 +31,22 @@ def play_episode(env, seed, verbose = False):
             if verbose:
                 print(f"action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
                 print("Channel 0: Danger tile")
-                for y in range(env.camera_size):
+                for y in range(env.camera_height):
                     print(obs[0][y])
                 print("Channel 1: Closeness to crosswalk")
-                for y in range(env.camera_size):
+                for y in range(env.camera_height):
                     print(obs[1][y])
                 print("Channel 2: Reachable tile")
-                for y in range(env.camera_size):
+                for y in range(env.camera_height):
                     print(obs[2][y])
                 print("Channel 3: Car penalty")
-                for y in range(env.camera_size):
+                for y in range(env.camera_height):
                     print(obs[3][y])
                 print("Channel 4: Car speed")
-                for y in range(env.camera_size):
+                for y in range(env.camera_height):
                     print(obs[4][y])
                 print("Channel 5: Risk level")
-                for y in range(env.camera_size):
+                for y in range(env.camera_height):
                     print(obs[5][y])
             if terminated or truncated: return False
             last_action = Action.NOTHING
@@ -74,7 +74,8 @@ def play_episode(env, seed, verbose = False):
 
 def play_game(seed, max_episodes, debug, verbose):
     episode_duration_sec = 10 if debug else 30
-    env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    # env = PedestrianEnv(gamescreen_width_fixed=False, render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(gamescreen_width_fixed=True, render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i, verbose)
         if quit_game: break

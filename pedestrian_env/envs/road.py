@@ -1,4 +1,3 @@
-import math
 from enum import Enum
 
 import pygame
@@ -19,7 +18,7 @@ class Roads:
     ROAD_WHITE_COLOR = (250, 250, 250)
     SAFE_WHITE_COLOR = (217, 217, 217)
 
-    def __init__(self, agent, camera_size, map_grid_height, random):
+    def __init__(self, agent, camera_width, map_grid_height, random):
         max_car_grid_height = get_max_car_grid_height()
         if max_car_grid_height > self.MIN_ROAD_SIZE:
             raise Exception(f"maximum car height can not be bigger than minimum road size {max_car_grid_height} > {self.MIN_ROAD_SIZE}")
@@ -100,7 +99,7 @@ class Roads:
 
         # add crosswalks on road
         [agent_initial_col, _] = agent.cur_location
-        buffer = int(camera_size * 0.4) # some are visible from the starting point
+        buffer = int(camera_width * 0.4) # some are visible from the starting point
         left = random.random() >= 0.5
         for road in roads:
             if random.random() >= CrossWalk.RATIO: continue

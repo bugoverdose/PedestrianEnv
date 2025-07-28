@@ -23,7 +23,7 @@ class PedestrianEnv(gym.Env):
     BONUS_SCORE_PER_SEC = 50
     TIME_OVER_ALERT_SEC = 10
 
-    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_size=7, render_mode=None, tick_on_render=False, steps_per_second=10, realtime=False, episode_duration_sec=30, gameover_screen_time=5000, debug=False, render_sprite=False):
+    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_width=11, camera_height=7, gamescreen_width_fixed=False, render_mode=None, tick_on_render=False, steps_per_second=10, realtime=False, episode_duration_sec=30, gameover_screen_time=5000, debug=False, render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
@@ -38,10 +38,13 @@ class PedestrianEnv(gym.Env):
         self.metadata["render_fps"] = 60 # NOTE: must render multiple times between each step
         game_window_size = 2048
         self.pix_square_size = max(80, (game_window_size / max(self.map_grid_width, self.map_grid_height))) # The size of a single grid square in pixels
-        self.camera_size = camera_size
-        self.camera_size_pixel = camera_size * self.pix_square_size
+        self.camera_width = camera_width
+        self.camera_height = camera_height
+        self.camera_width_pixel = camera_width * self.pix_square_size
+        self.camera_height_pixel = camera_height * self.pix_square_size
         self.map_width = self.map_grid_width * self.pix_square_size
         self.map_height = self.map_grid_height * self.pix_square_size
+        self.gamescreen_width_fixed = gamescreen_width_fixed
         self.debug = debug
         self.render_sprite = render_sprite
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -79,10 +82,10 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_size)/2)
-        agent_min_x = (1 + agent_x_buffer)
+        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
+        agent_min_x = (agent_x_buffer)
         agent_max_x = self.map_grid_width - 1 - agent_x_buffer
-        self.world = World((agent_min_x, agent_max_x), self.map_grid_width, self.map_grid_height, self.camera_size, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
+        self.world = World((agent_min_x, agent_max_x), self.map_grid_width, self.map_grid_height, self.camera_width, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
 
         if self.render_mode == "human":
             self.render()
@@ -183,8 +186,8 @@ class PedestrianEnv(gym.Env):
 
     def render(self):
         if self.render_mode is None: return
-        total_window_width = self.camera_size_pixel + self.EXTRA_WIDTH
-        total_window_height = self.camera_size_pixel + self.EXTRA_HEIGHT
+        total_window_width = self.camera_width_pixel + self.EXTRA_WIDTH
+        total_window_height = self.camera_height_pixel + self.EXTRA_HEIGHT
 
         if self.window is None:
             pygame.init()
@@ -204,8 +207,11 @@ class PedestrianEnv(gym.Env):
         bg_rect = pygame.Rect(0, 0, total_window_width, total_window_height)
         pygame.draw.rect(self.window, self.OFF_SCREEN_BLACK_COLOR, bg_rect)
 
-        camera_rect = pygame.Rect(0, 0, self.camera_size_pixel, self.camera_size_pixel)
-        camera_rect.center = rendered_agent_position
+        camera_rect = pygame.Rect(0, 0, self.camera_width_pixel, self.camera_height_pixel)
+        if self.gamescreen_width_fixed:
+            camera_rect.center = (int(self.map_grid_width / 2) * self.pix_square_size, rendered_agent_position[1])
+        else:
+            camera_rect.center = rendered_agent_position
         # camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         font_size_s = 32
@@ -330,8 +336,8 @@ class PedestrianEnv(gym.Env):
         lower_bounds = (0, 0, 0, 0, -1, 0)
         upper_bounds = (1, 1, 1, 1,  1, 1)
 
-        low_hwc = np.full((self.camera_size, self.camera_size, 6), lower_bounds)
-        high_hwc = np.full((self.camera_size, self.camera_size, 6), upper_bounds)
+        low_hwc = np.full((self.camera_height, self.camera_width, 6), lower_bounds)
+        high_hwc = np.full((self.camera_height, self.camera_width, 6), upper_bounds)
 
         low_chw = np.transpose(low_hwc, (2, 0, 1))
         high_chw = np.transpose(high_hwc, (2, 0, 1))
@@ -383,17 +389,17 @@ class PedestrianEnv(gym.Env):
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
-        max_x_dist_from_agent = self.camera_size/2 - Agent.RADIUS
-        grid_y_start = agent_y - self.camera_size//2
-        grid_x_start = agent_x - self.camera_size//2
+        max_x_dist_from_agent = self.camera_width/2 - Agent.RADIUS
+        grid_y_start = agent_y - self.camera_height//2
+        grid_x_start = agent_x - self.camera_height//2
         visible_x_start = grid_x_start - 0.5
-        visible_x_end = visible_x_start + self.camera_size
-        obs = np.zeros((6, self.camera_size, self.camera_size), dtype=np.float32)
+        visible_x_end = visible_x_start + self.camera_width
+        obs = np.zeros((6, self.camera_height, self.camera_width), dtype=np.float32)
         crosswalk_pos_set = set()
-        for y in range(self.camera_size):
+        for y in range(self.camera_height):
             grid_y = grid_y_start + y
 
-            for x in range(self.camera_size):
+            for x in range(self.camera_width):
                 grid_x = grid_x_start + x
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
                     # Channel 0: Danger tile
@@ -410,7 +416,7 @@ class PedestrianEnv(gym.Env):
                 left_x, right_x = car.get_cur_x_pos()
                 if right_x < visible_x_start: continue # out of sight
                 if visible_x_end < left_x: continue # out of sight
-                for x in range(self.camera_size):
+                for x in range(self.camera_width):
                     block_left = x + visible_x_start
                     block_right = x + visible_x_start + 1
                     if not is_overlapping(left_x, right_x, block_left, block_right): continue
@@ -419,9 +425,9 @@ class PedestrianEnv(gym.Env):
                     # Channel 4: Car speed
                     obs[4][y][x] = car.get_cur_speed() / self.max_car_speed
                     # Channel 5: Risk level
-                    if x == self.camera_size//2: # same column as the agent
+                    if x == self.camera_width//2: # same column as the agent
                         obs[5][y][x] = 1
-                    elif x < self.camera_size//2: # left from the agent
+                    elif x < self.camera_width//2: # left from the agent
                         if car.default_speed < 0: continue # going away
                         car_right_block_end = right_x if block_left <= right_x < block_right else block_right
                         obs[5][y][x] = max(obs[5][y][x], 1 - ((agent_left_x - car_right_block_end) / max_x_dist_from_agent))
@@ -438,8 +444,8 @@ class PedestrianEnv(gym.Env):
                 for j in range(4):
                     adj_y = y + [0, 0, 1, -1][j]
                     adj_x = x + [1, -1, 0, 0][j]
-                    if adj_y < 0 or adj_y >= self.camera_size: continue
-                    if adj_x < 0 or adj_x >= self.camera_size: continue
+                    if adj_y < 0 or adj_y >= self.camera_height: continue
+                    if adj_x < 0 or adj_x >= self.camera_width: continue
                     if obs[1][adj_y][adj_x] > dist: continue
                     obs[1][adj_y][adj_x] = dist
                     new_set.add((adj_y, adj_x))
