@@ -99,11 +99,11 @@ class Roads:
 
         # add crosswalks on road
         [agent_initial_col, _] = agent.cur_location
-        buffer = int(camera_width * 0.4) # some are visible from the starting point
+        buffer = int(camera_width * 0.1)
         left = random.random() >= 0.5
         for road in roads:
             if random.random() >= CrossWalk.RATIO: continue
-            crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X, agent_initial_col + buffer), agent.MAX_X+1)
+            crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X-1, agent_initial_col + buffer), agent.MAX_X)
             left = not left
             col = random.integers(crosswalk_range[0], crosswalk_range[1])
             road.crosswalk = CrossWalk(col, road.start_y, road.end_y)
