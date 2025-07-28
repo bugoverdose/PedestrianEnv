@@ -17,13 +17,22 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from pedestrian_env.envs import PedestrianEnv
 
 class SimpleCNN(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 256):
+    def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 512):
         super().__init__(observation_space, features_dim)
 
         n_input_channels = observation_space.shape[0] # number of channels
+        # 5 filters per each channel => 5 feature map for each of the input channel
+        n_output_channels = n_input_channels * 5 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=1),
+            # Group Conv: convolution for each channel. 
+            nn.Conv2d(n_input_channels, n_output_channels, kernel_size=3, stride=1, padding=3, groups=n_input_channels),
             nn.ReLU(),
+            # use multiple feature map together
+            nn.Conv2d(n_output_channels, 64, kernel_size=3, stride=1, padding=3),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            # CNN to vector
             nn.Flatten()
         )
 

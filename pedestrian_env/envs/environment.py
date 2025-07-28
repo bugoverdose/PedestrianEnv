@@ -23,7 +23,7 @@ class PedestrianEnv(gym.Env):
     BONUS_SCORE_PER_SEC = 50
     TIME_OVER_ALERT_SEC = 10
 
-    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_width=11, camera_height=7, gamescreen_width_fixed=False, render_mode=None, tick_on_render=False, steps_per_second=10, realtime=False, episode_duration_sec=30, gameover_screen_time=5000, debug=False, render_sprite=False):
+    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_width=11, camera_height=7, gamescreen_width_fixed=True, render_mode=None, tick_on_render=False, steps_per_second=10, realtime=False, episode_duration_sec=30, gameover_screen_time=5000, debug=False, render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")

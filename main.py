@@ -78,7 +78,7 @@ def play_episode(env, seed, verbose = False):
 def play_game(seed, max_episodes, debug, verbose):
     episode_duration_sec = 10 if debug else 30
     # env = PedestrianEnv(gamescreen_width_fixed=False, render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
-    env = PedestrianEnv(gamescreen_width_fixed=True, render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     for i in range(max_episodes):
         quit_game = play_episode(env, seed + i, verbose)
         if quit_game: break
