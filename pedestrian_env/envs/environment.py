@@ -440,19 +440,19 @@ class PedestrianEnv(gym.Env):
                         obs[5][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
 
         # Channel 1: Closeness to crosswalk
-        for i in range(1, 4):
-            dist = 1.0 - 0.3*i
+        for i in range(1, 10):
+            dist = 1.0 - 0.1*i
             new_set = set()
             for (y, x) in crosswalk_pos_set:
-                for j in range(4):
-                    adj_y = y + [0, 0, 1, -1][j]
-                    adj_x = x + [1, -1, 0, 0][j]
-                    if adj_y < 0 or adj_y >= self.camera_height: continue
+                for j in [1, -1]:
+                    adj_x = x + j
                     if adj_x < 0 or adj_x >= self.camera_width: continue
-                    if obs[1][adj_y][adj_x] > dist: continue
-                    obs[1][adj_y][adj_x] = dist
-                    new_set.add((adj_y, adj_x))
+                    if obs[1][y][adj_x] > dist: continue
+                    if obs[0][y][adj_x] > 0: continue # ignore danger zone
+                    obs[1][y][adj_x] = dist
+                    new_set.add((y, adj_x))
             crosswalk_pos_set = new_set
+            if len(crosswalk_pos_set) == 0: break
         return obs
 
     def _get_info(self):
