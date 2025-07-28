@@ -112,6 +112,7 @@ def visualize_test(model_name, episode_count=20, seed=42):
     while episode_count < 10:
         action, _states = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
+        print(f"action={action}, reward={reward}, agent=({info[0]['agent_x']}, {info[0]['agent_y']})")
         if done:
             episode_count += 1
 
