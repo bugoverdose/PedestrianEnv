@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 
-from pedestrian_env.envs.action import Action, ACTION_TO_DELTA
+from pedestrian_env.envs.action import Action, ACTION_TO_DELTA, ACTION_DURATION
 from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_rectangle
 from pedestrian_env.envs.road import Road, CrossWalk
 from pedestrian_env.envs.car_details import CarDetail, CAR_CANDIDATES, CARS_PER_LANE_PAIR_COMPOSITION
@@ -80,7 +80,7 @@ class Agent(GameObject):
         direction = ACTION_TO_DELTA[action_value]
         if action_value != Action.NOTHING.value:
             self.last_direction = direction
-        delta = direction * (self.default_speed / self.steps_per_second)
+        delta = direction * (self.default_speed / self.steps_per_second) * ACTION_DURATION[action_value]
         self.target_location = np.clip(self.cur_location + delta,
                                        [self.MIN_X, self.TARGET_LANE],
                                        [self.MAX_X, self.map_grid_height - 1])

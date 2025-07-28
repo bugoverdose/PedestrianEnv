@@ -6,7 +6,7 @@ import numpy as np
 from pedestrian_env.envs.world import World
 from pedestrian_env.envs.game_object import Agent, Car
 from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_panalty
-from pedestrian_env.envs.action import ACTION_DURATION
+from pedestrian_env.envs.action import Action, ACTION_DURATION
 from pedestrian_env.envs.utils import is_overlapping
 
 class PedestrianEnv(gym.Env):
@@ -23,7 +23,20 @@ class PedestrianEnv(gym.Env):
     BONUS_SCORE_PER_SEC = 50
     TIME_OVER_ALERT_SEC = 10
 
-    def __init__(self, title="Pedestrian Task", width=25, height=20, camera_width=11, camera_height=7, gamescreen_width_fixed=True, render_mode=None, tick_on_render=False, steps_per_second=10, realtime=False, episode_duration_sec=30, gameover_screen_time=5000, debug=False, render_sprite=False):
+    def __init__(self,
+                 title="Pedestrian Task",
+                 width=25, height=20,
+                 camera_width=11, camera_height=7,
+                 extra_reward_using_crosswalk=False,
+                 gamescreen_width_fixed=True,
+                 render_mode=None,
+                 tick_on_render=False,
+                 steps_per_second=10,
+                 realtime=False,
+                 episode_duration_sec=30,
+                 gameover_screen_time=5000,
+                 debug=False,
+                 render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
@@ -44,6 +57,7 @@ class PedestrianEnv(gym.Env):
         self.camera_height_pixel = camera_height * self.pix_square_size
         self.map_width = self.map_grid_width * self.pix_square_size
         self.map_height = self.map_grid_height * self.pix_square_size
+        self.extra_reward_using_crosswalk = extra_reward_using_crosswalk
         self.gamescreen_width_fixed = gamescreen_width_fixed
         self.debug = debug
         self.render_sprite = render_sprite
@@ -121,29 +135,49 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
+        if self.extra_reward_using_crosswalk:
+            prev_agent_x, prev_agent_y = self.world.agent.get_cur_location_grid()
         cumulative_reward = -self.world.calculate_cum_crossing_rewards()
         terminated = False
         if not self.realtime:
-            # interacting with the environment using RL algorithm  
+            # interacting with the environment using RL algorithm
+            self.world.agent.update_target(action)
             for _ in range(ACTION_DURATION[action]):
-                reward, terminated = self._mini_step(action)
+                reward, terminated = self._check_gameover()
                 cumulative_reward += reward
                 self.apply_time_and_render(self.step_ms)
                 if terminated: break
         else:
             # behaviour task for humans
             cur_count = 0
+            self.world.agent.update_target(action)
             while True:
-                dt = self.clock_tick()
-                self.elapsed += dt
                 if self.elapsed >= self.step_ms:
                     self.elapsed -= self.step_ms
                     if cur_count >= ACTION_DURATION[action]: break
                     cur_count += 1
-                    reward, terminated = self._mini_step(action)
+                    reward, terminated = self._check_gameover()
                     cumulative_reward += reward
                     if terminated: break
+                dt = self.clock_tick()
+                self.elapsed += dt
                 self.apply_time_and_render(dt)
+
+        # reward shaping to motivate usage of crosswalk
+        if self.extra_reward_using_crosswalk:
+            is_crosswalk = self.world.crosswalk_map
+            agent_x, agent_y = self.world.agent.get_cur_location_grid()
+            if action == Action.UP.value:
+                if is_crosswalk[prev_agent_y][prev_agent_x]:
+                    cumulative_reward += 10 # used the crosswalk
+            elif action == Action.DOWN.value:
+                if not is_crosswalk[prev_agent_y][prev_agent_x] and is_crosswalk[agent_y][agent_x]:
+                    cumulative_reward -= 10 # went back to the crosswalk
+            elif action in [Action.RIGHT.value, Action.LEFT.value]:
+                if not is_crosswalk[prev_agent_y][prev_agent_x] and is_crosswalk[agent_y][agent_x]:
+                    cumulative_reward += 20 # entered crosswalk
+                if is_crosswalk[prev_agent_y][prev_agent_x] and not is_crosswalk[agent_y][agent_x]:
+                    cumulative_reward -= 20 # leaved crosswalk
 
         cumulative_reward += self.world.calculate_cum_crossing_rewards()
         self.cur_rewards += cumulative_reward
@@ -160,9 +194,7 @@ class PedestrianEnv(gym.Env):
             self._render_game_over()
         return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
     
-    # the discretized process of each action
-    def _mini_step(self, action):
-        self.world.agent.update_target(action)
+    def _check_gameover(self):
         reward, terminated = 0, False
         agent_dead, death_penalty = self.world.cars.has_hit_agent()
         if agent_dead:
@@ -171,6 +203,7 @@ class PedestrianEnv(gym.Env):
             reward -= death_penalty
             self.game_end_extra_score = -death_penalty
         elif self._get_time_left_sec() <= 0:
+            self.world.agent.stop()
             terminated = True
         return reward, terminated
 
@@ -364,7 +397,7 @@ class PedestrianEnv(gym.Env):
 
         Channel 2: Reachable tile
         - 0: unreachable
-        - 1: reachable
+        - 1: reachable or target area
 
         Channel 3: Car penalty
         - 0 : no car in the tile
@@ -414,6 +447,9 @@ class PedestrianEnv(gym.Env):
                     # Channel 6: Agent position
                     if agent_x == grid_x and agent_y == grid_y:
                         obs[6][y][x] = 1.0
+                elif grid_y < 0:
+                    # Channel 2: Reachable tile
+                    obs[2][y][x] = 1 # area after the target is actually not reachable because the game will be stopped, but make it look like safe zone
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
                 left_x, right_x = car.get_cur_x_pos()

@@ -64,6 +64,7 @@ def run_DQN_CnnPolicy(seed=42,
             gradient_steps=1, # default=1
             total_timesteps=150_000,
             n_eval_episodes=100,
+            extra_reward_using_crosswalk=False,
             saved_model_name=None,
             tb_log_name="dqn",
             verbose=True,
@@ -81,7 +82,7 @@ def run_DQN_CnnPolicy(seed=42,
     np.random.seed(seed)
     random.seed(seed)
     def make_env():
-        env = PedestrianEnv()
+        env = PedestrianEnv(extra_reward_using_crosswalk=extra_reward_using_crosswalk)
         env.reset(seed=seed)
         return env
     env = DummyVecEnv([make_env])
