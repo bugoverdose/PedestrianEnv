@@ -48,6 +48,9 @@ def play_episode(env, seed, verbose = False):
                 print("Channel 5: Risk level")
                 for y in range(env.camera_height):
                     print(obs[5][y])
+                print("Channel 6: Agent position")
+                for y in range(env.camera_height):
+                    print(obs[6][y])
             if terminated or truncated: return False
             last_action = Action.NOTHING
 

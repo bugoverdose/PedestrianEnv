@@ -57,7 +57,8 @@ class Agent(GameObject):
         fixed_speed = 2
         if debug:
             fixed_speed *= 5
-        cur_location = np.array([int(map_grid_width / 2), map_grid_height - 1], dtype=float)
+        self.init_pos = (int(map_grid_width / 2), map_grid_height - 1)
+        cur_location = np.array([self.init_pos[0], self.init_pos[1]], dtype=float)
         super().__init__(fixed_speed, cur_location, pix_square_size, steps_per_second)
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height

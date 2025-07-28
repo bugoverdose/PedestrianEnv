@@ -209,7 +209,7 @@ class PedestrianEnv(gym.Env):
 
         camera_rect = pygame.Rect(0, 0, self.camera_width_pixel, self.camera_height_pixel)
         if self.gamescreen_width_fixed:
-            camera_rect.center = (int(self.map_grid_width / 2) * self.pix_square_size, rendered_agent_position[1])
+            camera_rect.center = (self.world.agent.init_pos[0] * self.pix_square_size, rendered_agent_position[1])
         else:
             camera_rect.center = rendered_agent_position
         # camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
@@ -333,11 +333,16 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        lower_bounds = (0, 0, 0, 0, -1, 0)
-        upper_bounds = (1, 1, 1, 1,  1, 1)
+        if self.gamescreen_width_fixed:
+            self.channel_count = 7
+        else:
+            self.channel_count = 6
 
-        low_hwc = np.full((self.camera_height, self.camera_width, 6), lower_bounds)
-        high_hwc = np.full((self.camera_height, self.camera_width, 6), upper_bounds)
+        lower_bounds = (0, 0, 0, 0, -1, 0, 0)
+        upper_bounds = (1, 1, 1, 1,  1, 1, 1)
+
+        low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
+        high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
 
         low_chw = np.transpose(low_hwc, (2, 0, 1))
         high_chw = np.transpose(high_hwc, (2, 0, 1))
@@ -347,18 +352,6 @@ class PedestrianEnv(gym.Env):
         """
         Observation (normalized)
         - structure: (C, H, W) = (channels, y, x)
-
-        Relative position of each tiles from the agent: (y, x)
-        - agent: o
-        - tiles: x
-            x x x x x x x (y=0)
-            x x x x x x x
-            x x x x x x x
-            x x x o x x x
-            x x x x x x x
-            x x x x x x x
-            x x x x x x x (y=6)
-          (x=0)       (x=6) 
 
         Channel 0: Danger tile
         - 0: safe zone (or unreachable)
@@ -386,19 +379,26 @@ class PedestrianEnv(gym.Env):
         - 0.0: no car visible or moving away from the agent (safe)
         - 0 ~ 1: how close the agent is from the car
         - 1.0: in front of the agent or hit the agent (maximum danger)
+
+        [if gamescreen_width_fixed == True]
+        Channel 6: Agent position
+        - 0: agent
+        - 1: not agent
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
         max_x_dist_from_agent = self.camera_width/2 - Agent.RADIUS
         grid_y_start = agent_y - self.camera_height//2
-        grid_x_start = agent_x - self.camera_height//2
+        if self.gamescreen_width_fixed:
+            grid_x_start = self.world.agent.init_pos[0] - self.camera_width//2
+        else:
+            grid_x_start = agent_x - self.camera_width//2
         visible_x_start = grid_x_start - 0.5
         visible_x_end = visible_x_start + self.camera_width
-        obs = np.zeros((6, self.camera_height, self.camera_width), dtype=np.float32)
+        obs = np.zeros((self.channel_count, self.camera_height, self.camera_width), dtype=np.float32)
         crosswalk_pos_set = set()
         for y in range(self.camera_height):
             grid_y = grid_y_start + y
-
             for x in range(self.camera_width):
                 grid_x = grid_x_start + x
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
@@ -410,7 +410,10 @@ class PedestrianEnv(gym.Env):
                         obs[1][y][x] = 1.0
                     # Channel 2: Reachable tile
                     obs[2][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
-
+                if self.gamescreen_width_fixed:
+                    # Channel 6: Agent position
+                    if agent_x == grid_x and agent_y == grid_y:
+                        obs[6][y][x] = 1.0
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
                 left_x, right_x = car.get_cur_x_pos()
