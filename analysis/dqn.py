@@ -17,20 +17,28 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from pedestrian_env.envs import PedestrianEnv
 
 class SimpleCNN(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 512):
+    def __init__(self,
+                 observation_space: gym.spaces.Box,
+                 features_dim: int = 512,
+                 kernel_size = 3):
         super().__init__(observation_space, features_dim)
 
         n_input_channels = observation_space.shape[0] # number of channels
         # 5 filters per each channel => 5 feature map for each of the input channel
-        n_output_channels = n_input_channels * 5 
+        n_output_channels = n_input_channels * 5
+        # NOTE: appropriate kernel_size, padding combinations if stride=1
+        # kernel_size = 3, padding = 1
+        # kernel_size = 5, padding = 2
+        # kernel_size = 7, padding = 3
+        padding = (kernel_size - 1) // 2
         self.cnn = nn.Sequential(
             # Group Conv: convolution for each channel. 
-            nn.Conv2d(n_input_channels, n_output_channels, kernel_size=3, stride=1, padding=3, groups=n_input_channels),
+            nn.Conv2d(n_input_channels, n_output_channels, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
             nn.ReLU(),
             # use multiple feature map together
-            nn.Conv2d(n_output_channels, 64, kernel_size=3, stride=1, padding=3),
+            nn.Conv2d(n_output_channels, 64, kernel_size=kernel_size, stride=1, padding=padding),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(64, 64, kernel_size=kernel_size, stride=1, padding=padding),
             nn.ReLU(),
             # CNN to vector
             nn.Flatten()
@@ -50,6 +58,7 @@ class SimpleCNN(BaseFeaturesExtractor):
         return self.linear(self.cnn(observations))
 
 def run_DQN_CnnPolicy(seed=42,
+            features_dim=512, kernel_size=3,
             gamma=0.99, # default=0.99
             learning_rate=1e-4, # default=1e-4
             train_freq = 1, # default=4
@@ -90,7 +99,7 @@ def run_DQN_CnnPolicy(seed=42,
     model = DQN("CnnPolicy", env, seed=seed,
                 policy_kwargs=dict(
                     features_extractor_class=SimpleCNN,
-                    features_extractor_kwargs=dict(features_dim=256)
+                    features_extractor_kwargs=dict(features_dim=features_dim, kernel_size=kernel_size)
                 ),
                 gamma=gamma,
                 learning_rate=learning_rate,
