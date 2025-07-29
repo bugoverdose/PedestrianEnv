@@ -84,33 +84,43 @@ def play_episode(env, seed, verbose = False):
                     last_action = Action.NOTHING
                     break
 
-def play_game(save_dir, seed, max_episodes, debug, verbose):
+def play_game(save_dir, session_id, seed, max_episodes, max_seconds, debug, verbose):
     episode_duration_sec = 10 if debug else 30
     env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
-    for i in range(max_episodes):
-        quit_game, observations, actions, rewards = play_episode(env, seed + i, verbose)
+    start_timestamp = int(time.time())
+    episode_id = session_id * 1000 # assumes that each session is less than 1000 episodes
+    while True:
+        if max_episodes > 0 and episode_id >= max_episodes: break
+        if max_seconds > 0:
+            time_passed = int(time.time()) - start_timestamp
+            if time_passed >= max_seconds: break
+        episode_id += 1
+        quit_game, observations, actions, rewards = play_episode(env, seed + episode_id, verbose)
         if quit_game: break
-        os.makedirs(f"{save_dir}/{i+1}", exist_ok=True)
-        np.save(f"{save_dir}/{i+1}/observations.npy", np.array(observations))
-        np.save(f"{save_dir}/{i+1}/actions.npy", np.array(actions))
-        np.save(f"{save_dir}/{i+1}/rewards.npy", np.array(rewards))
+        os.makedirs(f"{save_dir}/{episode_id}", exist_ok=True)
+        np.save(f"{save_dir}/{episode_id}/observations.npy", np.array(observations))
+        np.save(f"{save_dir}/{episode_id}/actions.npy", np.array(actions))
+        np.save(f"{save_dir}/{episode_id}/rewards.npy", np.array(rewards))
     env.close()
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Run for test")
     arg_parser.add_argument('--subjId', type=int, default=1, help='subject ID')
+    arg_parser.add_argument('--sessionId', type=int, default=1, help='session ID')
     arg_parser.add_argument('--verbose', action='store_true', help='enable verbose log')
     arg_parser.add_argument('--debug', action='store_true', help='enable debugging mode')
     arg_parser.add_argument('--seed', type=int, default=1000, help='initial seed used for each episode')
-    arg_parser.add_argument('--max_episodes', type=int, default=10, help='total number of episodes')
+    arg_parser.add_argument('--max_episodes', type=int, default=-1, help='total number of episodes')
+    arg_parser.add_argument('--max_seconds', type=int, default=600, help='ends after reaching max seconds (default: 10 min)')
     args = arg_parser.parse_args()
 
     save_dir = f"data/{args.subjId}"
     os.makedirs(save_dir, exist_ok=True)
-    with open(os.path.join(save_dir, 'README.md'), 'w') as f:
+    with open(os.path.join(save_dir, f"README_{args.sessionId}.md"), 'w') as f:
         timestamp = time.time()
         dt = datetime.fromtimestamp(timestamp)
-        f.write(f"Subject ID: {args.subjId} \n"
-                + f"Play time: {dt.year}.{dt.month}.{dt.day} {dt.hour}:{dt.minute}:{dt.second}")
+        f.write(f"Subject ID: {args.subjId}\n"
+                + f"Session ID: {args.sessionId}\n"
+                + f"Play start time: {dt.year}.{dt.month}.{dt.day} {dt.hour}:{dt.minute}:{dt.second}")
 
-    play_game(save_dir=save_dir, seed=args.seed, max_episodes=args.max_episodes, debug=args.debug, verbose=args.verbose)
+    play_game(save_dir=save_dir, session_id=args.sessionId, seed=args.seed, max_episodes=args.max_episodes, max_seconds=args.max_seconds, debug=args.debug, verbose=args.verbose)
