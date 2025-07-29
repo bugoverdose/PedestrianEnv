@@ -49,9 +49,12 @@ def play_episode(env, seed, verbose = False):
                 for y in range(env.camera_height):
                     print(obs[5][y])
                 print("Channel 6: Play time left:", obs[6][0][0])
-                print("Channel 7: Agent position")
+                print("Channel 7: Reward tile")
                 for y in range(env.camera_height):
                     print(obs[7][y])
+                print("Channel 8: Agent position")
+                for y in range(env.camera_height):
+                    print(obs[8][y])
             if terminated or truncated: return False
             last_action = Action.NOTHING
 

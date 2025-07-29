@@ -366,13 +366,13 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        self.channel_count = 7
-        lower_bounds = (0, 0, 0, 0, -1, 0, 0)
-        upper_bounds = (1, 1, 1, 1,  1, 1, 1)
+        self.channel_count = 8
+        lower_bounds = (0, 0, 0, 0, -1, 0, 0, 0)
+        upper_bounds = (1, 1, 1, 1,  1, 1, 1, 1)
         if self.gamescreen_width_fixed:
             self.channel_count += 1
-            lower_bounds = (0, 0, 0, 0, -1, 0, 0, 0)
-            upper_bounds = (1, 1, 1, 1,  1, 1, 1, 1)
+            lower_bounds = (0, 0, 0, 0, -1, 0, 0, 0, 0)
+            upper_bounds = (1, 1, 1, 1,  1, 1, 1, 1, 1)
 
         low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
         high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
@@ -418,8 +418,12 @@ class PedestrianEnv(gym.Env):
         - 0 ~ 1: time left / maximum episode time
         - 1: episode initialized
 
+        Channel 7: Reward tile
+        - 0: no reward
+        - 1: give reward on reaching with UP action
+
         [if gamescreen_width_fixed == True]
-        Channel 7: Agent position
+        Channel 8: Agent position
         - 0: agent
         - 1: not agent
         """
@@ -448,13 +452,18 @@ class PedestrianEnv(gym.Env):
                         obs[1][y][x] = 1.0
                     # Channel 2: Reachable tile
                     obs[2][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
+                    # Channel 7: Reward tile
+                    obs[7][y][x] = 1 if self.world.reward_y[grid_y] else 0
                 if self.gamescreen_width_fixed:
-                    # Channel 7: Agent position
+                    # Channel 8: Agent position
                     if agent_x == grid_x and agent_y == grid_y:
-                        obs[7][y][x] = 1.0
-                elif grid_y < 0:
-                    # Channel 2: Reachable tile
-                    obs[2][y][x] = 1 # area after the target is actually not reachable because the game will be stopped, but make it look like safe zone
+                        obs[8][y][x] = 1.0
+            # NOTE: actually not reachable because the game will be stopped, but encourage reaching the end of the map
+            if grid_y < 0:
+                # Channel 2: Reachable tile
+                obs[2][y] = 1
+                # Channel 7: Reward tile
+                obs[7][y] = 1
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
                 left_x, right_x = car.get_cur_x_pos()

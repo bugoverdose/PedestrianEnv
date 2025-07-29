@@ -46,9 +46,12 @@ class World:
                 if agent_x_range[0] <= x <= agent_x_range[1]: continue
                 self.reachable_map[y][x] = False # unreachable
 
+        self.reward_y = [False for _ in range(map_grid_height)]
+        self.reward_y[Agent.TARGET_LANE] = True
         self.reward_per_y = [0 for _ in range(map_grid_height)]
         for road in self.roads.elements:
             road_crossed_y = road.start_y - 1
+            self.reward_y[road_crossed_y] = True
             cum_reward = int(self.steps_per_second * (self.initial_player_y - road_crossed_y)) * self.UP_REWARD_PER_UNIT
             self.reward_per_y[road_crossed_y] = cum_reward
         for y in range(map_grid_height-1, 0, -1):
