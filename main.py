@@ -21,42 +21,36 @@ def play_episode(env, seed, verbose = False):
     pygame.event.get() # clear previous key presses
     last_action = Action.NOTHING
     while True:
-        dt = env.clock_tick()
-        env.elapsed += dt
-        if env.elapsed < env.step_ms:
-            env.apply_time_and_render(dt)
-            continue
-        while env.elapsed >= env.step_ms:
-            obs, reward, terminated, truncated, info = env.step(last_action.value)
-            if verbose:
-                print(f"action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
-                print("Channel 0: Danger tile")
-                for y in range(env.camera_height):
-                    print(obs[0][y])
-                print("Channel 1: Closeness to crosswalk")
-                for y in range(env.camera_height):
-                    print(obs[1][y])
-                print("Channel 2: Reachable tile")
-                for y in range(env.camera_height):
-                    print(obs[2][y])
-                print("Channel 3: Car penalty")
-                for y in range(env.camera_height):
-                    print(obs[3][y])
-                print("Channel 4: Car speed")
-                for y in range(env.camera_height):
-                    print(obs[4][y])
-                print("Channel 5: Risk level")
-                for y in range(env.camera_height):
-                    print(obs[5][y])
-                print("Channel 6: Play time left:", obs[6][0][0])
-                print("Channel 7: Reward tile")
-                for y in range(env.camera_height):
-                    print(obs[7][y])
-                print("Channel 8: Agent position")
-                for y in range(env.camera_height):
-                    print(obs[8][y])
-            if terminated or truncated: return False
-            last_action = Action.NOTHING
+        obs, reward, terminated, truncated, info = env.step(last_action.value)
+        if verbose:
+            print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
+            print("Channel 0: Danger tile")
+            for y in range(env.camera_height):
+                print(obs[0][y])
+            print("Channel 1: Closeness to crosswalk")
+            for y in range(env.camera_height):
+                print(obs[1][y])
+            print("Channel 2: Reachable tile")
+            for y in range(env.camera_height):
+                print(obs[2][y])
+            print("Channel 3: Car penalty")
+            for y in range(env.camera_height):
+                print(obs[3][y])
+            print("Channel 4: Car speed")
+            for y in range(env.camera_height):
+                print(obs[4][y])
+            print("Channel 5: Risk level")
+            for y in range(env.camera_height):
+                print(obs[5][y])
+            print("Channel 6: Play time left:", obs[6][0][0])
+            print("Channel 7: Reward tile")
+            for y in range(env.camera_height):
+                print(obs[7][y])
+            print("Channel 8: Agent position")
+            for y in range(env.camera_height):
+                print(obs[8][y])
+        if terminated or truncated: return False
+        last_action = Action.NOTHING
 
         # check if a key was being pressed down (needed for continuous movement)
         keys = pygame.key.get_pressed()
