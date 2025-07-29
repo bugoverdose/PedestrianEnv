@@ -12,17 +12,14 @@ class CNNFeaturesExtractor(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
 
         n_input_channels = observation_space.shape[0]
-        n_output_channels = n_input_channels * 5 # 5 filters (feature maps) for each input channel
+        n_output_channels1 = 32
+        n_output_channels2 = 64
         padding = (kernel_size - 1) // 2  # appropriate padding for stride=1
         self.cnn = nn.Sequential(
-            # group convolution for each channel
-            nn.Conv2d(n_input_channels, n_output_channels, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
+            nn.Conv2d(n_input_channels, n_output_channels1, kernel_size=kernel_size, stride=1, padding=padding, groups=1),
             nn.ReLU(),
-            # use multiple feature map together
-            nn.Conv2d(n_output_channels, 64, kernel_size=kernel_size, stride=1, padding=padding),
+            nn.Conv2d(n_output_channels1, n_output_channels2, kernel_size=kernel_size, stride=1, padding=padding),
             nn.ReLU(),
-            # nn.Conv2d(64, 64, kernel_size=kernel_size, stride=1, padding=padding),
-            # nn.ReLU(),
             nn.Flatten() # CNN to vector
         )
 
