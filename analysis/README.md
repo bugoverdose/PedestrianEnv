@@ -10,6 +10,14 @@ conda env create -f pedestrian_analysis.yml
 conda activate pedestrian_analysis
 ```
 
+CCSL3 setup
+
+```bash
+conda env create -f pedestrian_analysis_gpu.yml
+conda activate pedestrian_analysis_gpu
+# conda remove -n pedestrian_analysis_gpu --all
+```
+
 Run [TensorBoard](http://localhost:6006)
 
 ```bash
