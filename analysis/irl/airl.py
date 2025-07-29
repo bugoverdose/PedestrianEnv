@@ -11,7 +11,6 @@ import torch.nn as nn
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-from imitation.algorithms.airl import AIRL
 from imitation.data.types import TrajectoryWithRew
 from imitation.data.rollout import make_sample_until, rollout
 from imitation.data.wrappers import RolloutInfoWrapper
@@ -21,12 +20,13 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from imitation.util.util import make_vec_env
 from imitation.util.logger import configure
 
-base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(base_path)
 import pedestrian_env
 from pedestrian_env.envs import PedestrianEnv
-
-from analysis.airl.reward_net import CustomCNNRewardNet
+from analysis.common import CNNFeaturesExtractor
+from analysis.irl.reward_net import CustomCNNRewardNet
 
 def run_AIRL(expert_trajs):
     rng = np.random.default_rng(seed=0)
@@ -45,19 +45,16 @@ def run_AIRL(expert_trajs):
         return env
     venv = DummyVecEnv([make_env])
 
-    # RL policy for CNN policy
-    policy_kwargs = dict(
-        features_extractor_class=SimpleCNN,
-        features_extractor_kwargs=dict(features_dim=128),
-    )
-
     gen_algo = PPO(
         policy="CnnPolicy",
         env=venv,
         learning_rate=3e-4,
         batch_size=64,
         n_steps=128,
-        policy_kwargs=policy_kwargs,
+        policy_kwargs=dict(
+            features_extractor_class=CNNFeaturesExtractor,
+            features_extractor_kwargs=dict(features_dim=128),
+        ),
         verbose=1,
     )
 
