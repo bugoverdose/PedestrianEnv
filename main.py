@@ -38,7 +38,7 @@ def play_episode(env, seed, verbose = False):
             print("Channel 0: Danger tile")
             for y in range(env.camera_height):
                 print(obs[0][y])
-            print("Channel 1: Closeness to crosswalk")
+            print("Channel 1: Crosswalk")
             for y in range(env.camera_height):
                 print(obs[1][y])
             print("Channel 2: Reachable tile")

@@ -390,9 +390,8 @@ class PedestrianEnv(gym.Env):
         - 0: safe zone (or unreachable)
         - 1: danger zone
 
-        Channel 1: Closeness to crosswalk
-        - 0.0: crosswalk not visible (or unreachable)
-        - 0.0 ~ 1.0: closeness to the crosswalk
+        Channel 1: Crosswalk
+        - 0.0: not crosswalk
         - 1.0: crosswalk
 
         Channel 2: Reachable tile
@@ -420,12 +419,12 @@ class PedestrianEnv(gym.Env):
 
         Channel 7: Reward tile
         - 0: no reward
-        - 1: give reward on reaching with UP action
+        - 1: give reward on reaching the tile with UP action (same amount as penalty on leaving the tile with DOWN action)
 
         [if gamescreen_width_fixed == True]
         Channel 8: Agent position
-        - 0: agent
-        - 1: not agent
+        - 0: not agent
+        - 1: agent
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
@@ -446,7 +445,7 @@ class PedestrianEnv(gym.Env):
                 if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
                     # Channel 0: Danger tile
                     obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
-                    # Channel 1: Closeness to crosswalk
+                    # Channel 1: Crosswalk
                     if self.world.crosswalk_map[grid_y][grid_x]:
                         crosswalk_pos_set.add((y, x))
                         obs[1][y][x] = 1.0
@@ -488,23 +487,6 @@ class PedestrianEnv(gym.Env):
                         if car.default_speed > 0: continue # going away
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_left
                         obs[5][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
-
-        # Channel 1: Closeness to crosswalk
-        for i in range(1, 10):
-            closeness = 1.0 - 0.1*i
-            new_set = set()
-            for (y, x) in crosswalk_pos_set:
-                for delta in [(0, 1), (0, -1), (1, 0)]:
-                    adj_y = y + delta[0]
-                    adj_x = x + delta[1]
-                    if adj_x < 0 or adj_x >= self.camera_width: continue
-                    if adj_y >= self.camera_height: continue
-                    if obs[1][adj_y][adj_x] > closeness: continue
-                    if obs[0][adj_y][adj_x] > 0: continue # ignore danger zone
-                    obs[1][adj_y][adj_x] = closeness
-                    new_set.add((adj_y, adj_x))
-            crosswalk_pos_set = new_set
-            if len(crosswalk_pos_set) == 0: break
 
         # Channel 6: Play time left
         if self.game_over or self.time_left - 1000 <= 0:
