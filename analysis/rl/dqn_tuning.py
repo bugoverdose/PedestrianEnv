@@ -1,8 +1,10 @@
 from dqn import run_DQN_CnnPolicy, visualize_test
 
 if __name__ == "__main__":
+    pass
     # BEST for now
-    model_name = "dqn_cnn_fd256_kernel3_3" # best learning graph. mean rewards reaching over 900
+    # sometimes uses 
+    # model_name = "dqn_cnn_fd256_kernel3_3" # best learning graph. mean rewards reaching over 900
     # run_DQN_CnnPolicy(total_timesteps=500_000, # better than 300_000, 1_000_000
     #         features_dim=256, kernel_size=3,
     #         learning_rate=1e-4,
@@ -19,7 +21,8 @@ if __name__ == "__main__":
     #         saved_model_name=model_name,
     #         tb_log_name="dqn_cnn_fd256_kernel3")
     # test score: 949.0000
-    visualize_test(model_name)
+    # visualize_test(model_name)
+
     # NOTE: No reward shaping, but bonus on reaching the end of the map
     # BEST for now: Evades cars, but didn't learn to use crosswalks
     # saved model: dqn_cnn_group_fd256_gs_auto_1.zip
