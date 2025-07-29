@@ -242,9 +242,9 @@ class PedestrianEnv(gym.Env):
 
         camera_rect = pygame.Rect(0, 0, self.camera_width_pixel, self.camera_height_pixel)
         if self.gamescreen_width_fixed:
-            camera_rect.center = (self.world.agent.init_pos[0] * self.pix_square_size, rendered_agent_position[1])
+            camera_rect.center = (self.world.agent.init_pos[0] * self.pix_square_size, rendered_agent_position[1] - (2 * self.pix_square_size))
         else:
-            camera_rect.center = rendered_agent_position
+            camera_rect.center = (rendered_agent_position[0], rendered_agent_position[1] - (2 * self.pix_square_size))
         # camera_rect.clamp_ip(canvas.get_rect()) # prevent camera from going out-of-bounds
 
         font_size_s = 32
@@ -430,7 +430,7 @@ class PedestrianEnv(gym.Env):
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
         max_x_dist_from_agent = self.camera_width/2 - Agent.RADIUS
-        grid_y_start = agent_y - self.camera_height//2
+        grid_y_start = agent_y - self.camera_height//2 - 2
         if self.gamescreen_width_fixed:
             grid_x_start = self.world.agent.init_pos[0] - self.camera_width//2
         else:
