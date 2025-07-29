@@ -138,7 +138,6 @@ class PedestrianEnv(gym.Env):
         if self.extra_reward_using_crosswalk:
             prev_agent_x, prev_agent_y = self.world.agent.get_cur_location_grid()
         cumulative_reward = -self.world.calculate_cum_crossing_rewards()
-        terminated = False
         if not self.realtime:
             # interacting with the environment using RL algorithm
             self.world.agent.update_target(action)
@@ -146,7 +145,8 @@ class PedestrianEnv(gym.Env):
                 reward, terminated = self._check_gameover()
                 cumulative_reward += reward
                 self.apply_time_and_render(self.step_ms)
-                if terminated: break
+                self.game_over = terminated
+                if self.game_over: break
         else:
             # behaviour task for humans
             cur_count = 0
@@ -158,7 +158,8 @@ class PedestrianEnv(gym.Env):
                     cur_count += 1
                     reward, terminated = self._check_gameover()
                     cumulative_reward += reward
-                    if terminated: break
+                    self.game_over = terminated
+                    if self.game_over: break
                 dt = self.clock_tick()
                 self.elapsed += dt
                 self.apply_time_and_render(dt)
@@ -181,18 +182,17 @@ class PedestrianEnv(gym.Env):
 
         # An episode is finished if the agent has reached the target lane
         if self.world.target_lane_reached():
-            terminated = True
+            self.game_over = True
             game_end_extra_score = self._get_time_left_sec()
             cumulative_reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
             self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
 
-        self.game_over = terminated
-        if terminated and self.realtime:
+        if self.game_over and self.realtime:
             self._render_game_over()
         
         cumulative_reward += self.world.calculate_cum_crossing_rewards()
         self.cur_rewards += cumulative_reward
-        return self._get_obs(), cumulative_reward, terminated, False, self._get_info()
+        return self._get_obs(), cumulative_reward, self.game_over, False, self._get_info()
     
     def _check_gameover(self):
         reward, terminated = 0, False
@@ -366,13 +366,13 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        if self.gamescreen_width_fixed:
-            self.channel_count = 7
-        else:
-            self.channel_count = 6
-
+        self.channel_count = 7
         lower_bounds = (0, 0, 0, 0, -1, 0, 0)
         upper_bounds = (1, 1, 1, 1,  1, 1, 1)
+        if self.gamescreen_width_fixed:
+            self.channel_count += 1
+            lower_bounds = (0, 0, 0, 0, -1, 0, 0, 0)
+            upper_bounds = (1, 1, 1, 1,  1, 1, 1, 1)
 
         low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
         high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
@@ -413,8 +413,13 @@ class PedestrianEnv(gym.Env):
         - 0 ~ 1: how close the agent is from the car
         - 1.0: in front of the agent or hit the agent (maximum danger)
 
+        Channel 6: Play time left
+        - 0: game over (time over, death, early finish)
+        - 0 ~ 1: time left / maximum episode time
+        - 1: episode initialized
+
         [if gamescreen_width_fixed == True]
-        Channel 6: Agent position
+        Channel 7: Agent position
         - 0: agent
         - 1: not agent
         """
@@ -444,9 +449,9 @@ class PedestrianEnv(gym.Env):
                     # Channel 2: Reachable tile
                     obs[2][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
                 if self.gamescreen_width_fixed:
-                    # Channel 6: Agent position
+                    # Channel 7: Agent position
                     if agent_x == grid_x and agent_y == grid_y:
-                        obs[6][y][x] = 1.0
+                        obs[7][y][x] = 1.0
                 elif grid_y < 0:
                     # Channel 2: Reachable tile
                     obs[2][y][x] = 1 # area after the target is actually not reachable because the game will be stopped, but make it look like safe zone
@@ -489,6 +494,15 @@ class PedestrianEnv(gym.Env):
                     new_set.add((y, adj_x))
             crosswalk_pos_set = new_set
             if len(crosswalk_pos_set) == 0: break
+
+        # Channel 6: Play time left
+        if self.game_over or self.time_left - 1000 <= 0:
+            obs[6] = 0 # game over
+        elif self.time_left >= self.GAME_TIME_MS:
+            obs[6] = 1 # episode initialized
+        else:
+            obs[6] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
+ 
         return obs
 
     def _get_info(self):
@@ -533,4 +547,3 @@ class PedestrianEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
-
