@@ -491,16 +491,18 @@ class PedestrianEnv(gym.Env):
 
         # Channel 1: Closeness to crosswalk
         for i in range(1, 10):
-            dist = 1.0 - 0.1*i
+            closeness = 1.0 - 0.1*i
             new_set = set()
             for (y, x) in crosswalk_pos_set:
-                for j in [1, -1]:
-                    adj_x = x + j
+                for delta in [(0, 1), (0, -1), (1, 0)]:
+                    adj_y = y + delta[0]
+                    adj_x = x + delta[1]
                     if adj_x < 0 or adj_x >= self.camera_width: continue
-                    if obs[1][y][adj_x] > dist: continue
-                    if obs[0][y][adj_x] > 0: continue # ignore danger zone
-                    obs[1][y][adj_x] = dist
-                    new_set.add((y, adj_x))
+                    if adj_y >= self.camera_height: continue
+                    if obs[1][adj_y][adj_x] > closeness: continue
+                    if obs[0][adj_y][adj_x] > 0: continue # ignore danger zone
+                    obs[1][adj_y][adj_x] = closeness
+                    new_set.add((adj_y, adj_x))
             crosswalk_pos_set = new_set
             if len(crosswalk_pos_set) == 0: break
 
