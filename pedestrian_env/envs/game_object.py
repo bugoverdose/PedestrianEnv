@@ -54,7 +54,7 @@ class Agent(GameObject):
     RADIUS = 0.25
 
     def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
-        fixed_speed = 2
+        fixed_speed = 2.5
         if debug:
             fixed_speed *= 5
         self.init_pos = (int(map_grid_width / 2), map_grid_height - 1)

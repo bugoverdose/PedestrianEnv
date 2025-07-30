@@ -28,8 +28,8 @@ ACTION_TO_DELTA = {
 
 ACTION_DURATION = {
     Action.NOTHING.value: 1,
-    Action.UP.value: 5,
-    Action.DOWN.value: 5,
-    Action.RIGHT.value: 5,
-    Action.LEFT.value: 5,
+    Action.UP.value: 4,
+    Action.DOWN.value: 4,
+    Action.RIGHT.value: 4,
+    Action.LEFT.value: 4,
 }
