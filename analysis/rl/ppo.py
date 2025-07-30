@@ -14,7 +14,10 @@ from pedestrian_env.envs import PedestrianEnv
 from analysis.common import CNNFeaturesExtractor
 
 def run_PPO_CnnPolicy(seed=42,
-                      features_dim=256, kernel_size=3,
+                      features_dim=256, 
+                      filters_per_group=3,
+                      n_output_channels=[32],
+                      kernel_size=3,
                       learning_rate=1e-4,
                       n_steps=2048, # default=2048
                       batch_size=64, # default=64
@@ -59,7 +62,12 @@ def run_PPO_CnnPolicy(seed=42,
                 tensorboard_log="./tb_logs/",
                 policy_kwargs=dict(
                     features_extractor_class=CNNFeaturesExtractor,
-                    features_extractor_kwargs=dict(features_dim=features_dim, kernel_size=kernel_size),
+                    features_extractor_kwargs=dict(
+                        features_dim=features_dim,
+                        filters_per_group=filters_per_group,
+                        n_output_channels=n_output_channels,
+                        kernel_size=kernel_size,
+                    ),
                 ),
                 verbose=1 if verbose else 0,
                 seed=seed,

@@ -5,11 +5,7 @@ import os
 import numpy as np
 import random
 
-# import gymnasium as gym
-# import torch
-# import torch.nn as nn
 from stable_baselines3 import DQN
-# from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
@@ -17,49 +13,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from pedestrian_env.envs import PedestrianEnv
 from analysis.common import CNNFeaturesExtractor
 
-# class SimpleCNN(BaseFeaturesExtractor):
-#     def __init__(self,
-#                  observation_space: gym.spaces.Box,
-#                  features_dim: int = 512,
-#                  kernel_size = 3):
-#         super().__init__(observation_space, features_dim)
-
-#         n_input_channels = observation_space.shape[0] # number of channels
-#         # 5 filters per each channel => 5 feature map for each of the input channel
-#         n_output_channels = n_input_channels * 5
-#         # NOTE: appropriate kernel_size, padding combinations if stride=1
-#         # kernel_size = 3, padding = 1
-#         # kernel_size = 5, padding = 2
-#         # kernel_size = 7, padding = 3
-#         padding = (kernel_size - 1) // 2
-#         self.cnn = nn.Sequential(
-#             # Group Conv: convolution for each channel. 
-#             nn.Conv2d(n_input_channels, n_output_channels, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
-#             nn.ReLU(),
-#             # use multiple feature map together
-#             nn.Conv2d(n_output_channels, 64, kernel_size=kernel_size, stride=1, padding=padding),
-#             nn.ReLU(),
-#             nn.Conv2d(64, 64, kernel_size=kernel_size, stride=1, padding=padding),
-#             nn.ReLU(),
-#             # CNN to vector
-#             nn.Flatten()
-#         )
-
-#         # Compute output shape
-#         with torch.no_grad():
-#             sample_input = torch.as_tensor(observation_space.sample()[None]).float()
-#             n_flatten = self.cnn(sample_input).shape[1]
-
-#         self.linear = nn.Sequential(
-#             nn.Linear(n_flatten, features_dim),
-#             nn.ReLU()
-#         )
-
-#     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-#         return self.linear(self.cnn(observations))
-
 def run_DQN_CnnPolicy(seed=42,
-            features_dim=256, kernel_size=3,
+            features_dim=256,
+            filters_per_group=3,
+            n_output_channels=[32],
+            kernel_size=3,
             gamma=0.99, # default=0.99
             learning_rate=1e-4, # default=1e-4
             train_freq = 1, # default=4
@@ -90,7 +48,12 @@ def run_DQN_CnnPolicy(seed=42,
     model = DQN("CnnPolicy", env, seed=seed,
                 policy_kwargs=dict(
                     features_extractor_class=CNNFeaturesExtractor,
-                    features_extractor_kwargs=dict(features_dim=features_dim, kernel_size=kernel_size)
+                    features_extractor_kwargs=dict(
+                        features_dim=features_dim,
+                        filters_per_group=filters_per_group,
+                        n_output_channels=n_output_channels,
+                        kernel_size=kernel_size
+                    )
                 ),
                 gamma=gamma,
                 learning_rate=learning_rate,
