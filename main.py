@@ -60,9 +60,10 @@ def play_episode(env, seed, verbose = False):
             print("Channel 8: Reward tile")
             for y in range(env.camera_height):
                 print(obs[8][y])
-            print("Channel 9: Agent position")
-            for y in range(env.camera_height):
-                print(obs[9][y])
+            if len(obs) >= 10:
+                print("Channel 9: Agent position")
+                for y in range(env.camera_height):
+                    print(obs[9][y])
         if terminated or truncated: return False, observations, actions, rewards
         last_action = Action.NOTHING
 
@@ -89,7 +90,8 @@ def play_episode(env, seed, verbose = False):
 
 def play_game(save_dir, session_id, seed, max_episodes, max_seconds, debug, verbose):
     episode_duration_sec = 10 if debug else 30
-    env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(render_mode="human", realtime=True, gamescreen_width_fixed=False, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    # env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     start_timestamp = int(time.time())
     episode_id = session_id * 1000 # assumes that each session is less than 1000 episodes
     while True:

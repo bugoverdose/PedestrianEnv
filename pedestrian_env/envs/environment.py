@@ -79,6 +79,10 @@ class PedestrianEnv(gym.Env):
 
         self.max_car_penalty = get_max_panalty()
         self.max_car_speed = max(Car.CAR_SPEEDS)
+        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
+        agent_min_x = (agent_x_buffer)
+        agent_max_x = self.map_grid_width - 1 - agent_x_buffer
+        self.agent_move_range = (agent_min_x, agent_max_x)
 
         # action
         self.action_space = gym.spaces.Discrete(5)
@@ -96,10 +100,7 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
-        agent_min_x = (agent_x_buffer)
-        agent_max_x = self.map_grid_width - 1 - agent_x_buffer
-        self.world = World((agent_min_x, agent_max_x), self.map_grid_width, self.map_grid_height, self.camera_width, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
+        self.world = World(self.agent_move_range, self.map_grid_width, self.map_grid_height, self.camera_width, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
 
         if self.render_mode == "human":
             self.render()
@@ -262,6 +263,7 @@ class PedestrianEnv(gym.Env):
         left_game_x = self.EXTRA_WIDTH/2
         right_game_x = total_window_width - (self.EXTRA_WIDTH/2)
         top_game_y = self.EXTRA_HEIGHT/2
+        dark_screen_alpha = 180 # 128 == 50% transparency
 
         # add game screen
         self.window.blit(canvas, (left_game_x, top_game_y), area=camera_rect)
@@ -270,8 +272,7 @@ class PedestrianEnv(gym.Env):
         if self.game_over:
             # add gameover screen
             dark_screen = pygame.Surface((self.map_width, self.map_height), pygame.SRCALPHA)
-            alpha = 180 # 128 == 50% transparency
-            dark_screen.fill((0, 0, 0, alpha))
+            dark_screen.fill((0, 0, 0, dark_screen_alpha))
             self.window.blit(dark_screen, (left_game_x, top_game_y), area=camera_rect)
 
             if self.game_end_extra_score < 0:
@@ -325,8 +326,25 @@ class PedestrianEnv(gym.Env):
             time_left_sec_color = self.UI_TEXT_WHITE_COLOR if time_left_sec > self.TIME_OVER_ALERT_SEC else self.AGENT_DEAD_TEXT_COLOR
             self._render_text(right_game_x - 30, top_y + 30, f"Time Left: {time_left_sec}", time_left_sec_color, font_size_m, order="right")
         else:
-            # add ingame UI
+            # unreachable area
+            if not self.gamescreen_width_fixed:
+                (agent_min_x, agent_max_x) = self.agent_move_range
+                [agent_cur_x, _] = self.world.agent.cur_location
+                game_screen_left_end = agent_cur_x - (self.camera_width // 2)
+                game_screen_right_end = agent_cur_x + (self.camera_width // 2)
+                buffer = 10
+                if game_screen_left_end < agent_min_x:
+                    unreachable_area_width = (agent_min_x - game_screen_left_end) * self.pix_square_size + buffer
+                    dark_screen = pygame.Surface((unreachable_area_width, self.map_height), pygame.SRCALPHA)
+                    dark_screen.fill((0, 0, 0, dark_screen_alpha))
+                    self.window.blit(dark_screen, (left_game_x - buffer, top_game_y))
+                elif agent_max_x < game_screen_right_end:
+                    unreachable_area_width = (game_screen_right_end - agent_max_x) * self.pix_square_size + buffer
+                    dark_screen = pygame.Surface((unreachable_area_width, self.map_height), pygame.SRCALPHA)
+                    dark_screen.fill((0, 0, 0, dark_screen_alpha))
+                    self.window.blit(dark_screen, (right_game_x - unreachable_area_width + buffer, top_game_y))
 
+            # add ingame UI
             # update current score (include game_end_extra_score)
             self._render_text(center_ui_x, bottom_y, f"Current Score: {self.cur_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
 
