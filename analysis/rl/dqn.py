@@ -6,7 +6,7 @@ import numpy as np
 import random
 
 from stable_baselines3 import DQN
-from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecFrameStack
 from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -18,6 +18,7 @@ def run_DQN_CnnPolicy(seed=42,
             filters_per_group=3,
             n_output_channels=[32],
             kernel_size=3,
+            frame_stack = 4,
             gamma=0.99, # default=0.99
             learning_rate=1e-4, # default=1e-4
             train_freq = 1, # default=4
@@ -45,6 +46,8 @@ def run_DQN_CnnPolicy(seed=42,
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
+    if frame_stack > 0:
+        env = VecFrameStack(env, n_stack=frame_stack)
     model = DQN("CnnPolicy", env, seed=seed,
                 policy_kwargs=dict(
                     features_extractor_class=CNNFeaturesExtractor,
@@ -108,7 +111,7 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_DQN_model(saved_model_name, render_mode_human=True, seed=42):
+def _load_DQN_model(saved_model_name, frame_stack=4, render_mode_human=True, seed=42):
     np.random.seed(seed)
     random.seed(seed)
 
@@ -122,6 +125,8 @@ def _load_DQN_model(saved_model_name, render_mode_human=True, seed=42):
 
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
+    if frame_stack > 0:
+        env = VecFrameStack(env, n_stack=frame_stack)
     model = DQN.load(f"saved/{saved_model_name}", env=env)
     return model, env
 

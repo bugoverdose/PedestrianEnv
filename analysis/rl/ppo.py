@@ -6,7 +6,7 @@ import numpy as np
 import random
 
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecFrameStack
 from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -18,6 +18,7 @@ def run_PPO_CnnPolicy(seed=42,
                       filters_per_group=3,
                       n_output_channels=[32],
                       kernel_size=3,
+                      frame_stack = 4,
                       learning_rate=1e-4,
                       n_steps=2048, # default=2048
                       batch_size=64, # default=64
@@ -45,7 +46,8 @@ def run_PPO_CnnPolicy(seed=42,
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
-
+    if frame_stack > 0:
+        env = VecFrameStack(env, n_stack=frame_stack)
     model = PPO("CnnPolicy", env,
                 learning_rate=learning_rate,
                 n_steps=n_steps, # The number of steps to run for each environment per update
@@ -106,7 +108,7 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_PPO_model(saved_model_name, seed=42):
+def _load_PPO_model(saved_model_name, frame_stack=4, seed=42):
     np.random.seed(seed)
     random.seed(seed)
 
@@ -117,5 +119,7 @@ def _load_PPO_model(saved_model_name, seed=42):
 
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
+    if frame_stack > 0:
+        env = VecFrameStack(env, n_stack=frame_stack)
     model = PPO.load(f"saved/{saved_model_name}", env=env)
     return model, env
