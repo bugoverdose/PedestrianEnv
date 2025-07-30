@@ -4,8 +4,9 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
+from pedestrian_env.envs.road import RowType
 from pedestrian_env.envs.game_object import Agent, Car
-from pedestrian_env.envs.car_details import get_max_car_grid_width, get_max_panalty
+from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width
 from pedestrian_env.envs.action import Action, ACTION_DURATION
 from pedestrian_env.envs.utils import is_overlapping
 
@@ -77,7 +78,7 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.max_car_penalty = get_max_panalty()
+        self.max_car_penalty = Penalty.HIGH
         self.max_car_speed = max(Car.CAR_SPEEDS)
         agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
         agent_min_x = (agent_x_buffer)
@@ -384,13 +385,13 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        self.channel_count = 9
-        lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0)
-        upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1)
+        self.channel_count = 12
+        lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0)
+        upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1)
         if self.gamescreen_width_fixed:
             self.channel_count += 1
-            lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0, 0)
-            upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1, 1)
+            lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0)
+            upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1)
 
         low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
         high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
@@ -404,53 +405,64 @@ class PedestrianEnv(gym.Env):
         Observation (normalized)
         - structure: (C, H, W) = (channels, y, x)
 
-        Channel 0: Danger tile
+        Channel 0: Danger zone
         - 0: safe zone (or unreachable)
         - 1: danger zone
 
         Channel 1: Crosswalk
-        - 0.0: not crosswalk
-        - 1.0: crosswalk
+        - 0: not crosswalk
+        - 1: crosswalk
 
         Channel 2: Crosswalk Activation (Crosswalk x Agent)
-        - 0.0: not activated crosswalk
-        - 1.0: activated crosswalk with agent
+        - 0: not activated crosswalk
+        - 1: activated crosswalk with agent
 
         Channel 3: Reachable tile
         - 0: unreachable
         - 1: reachable or target area
 
-        Channel 4: Car penalty
-        - 0 : no car in the tile
-        - 0.1, 0.5, 1.0 : penalty of the existing car (raw range: 100, 500, 1000)
-
-        Channel 5: Car speed
-        - 0: stopped car or no car in the tile
-        - -1.0 ~ 0: going left (raw range: -4.5 ~ -3.0)
-        - 0 ~ 1.0: going right (raw range: 3.0 ~ 4.5)
-
-        Channel 6: Risk level
-        - 0.0: no car visible or moving away from the agent (safe)
-        - 0 ~ 1: how close the agent is from the car
-        - 1.0: in front of the agent or hit the agent (maximum danger)
-
-        Channel 7: Play time left
-        - 0: game over (time over, death, early finish)
-        - 0 ~ 1: time left / maximum episode time
-        - 1: episode initialized
-
-        Channel 8: Reward tile
+        Channel 4: Reward tile
         - 0: no reward
         - 1: give reward on reaching the tile with UP action (same amount as penalty on leaving the tile with DOWN action)
+        - NOTE: should be removed in AIRL reward_net to prevent Reward leakage
+
+        Channel 5: Lane direction
+        - -1: cars going left
+        - 0 : safe zone
+        - 1 : cars going right
+
+        Channel 6: Car tile (binary)
+        - 0: no car on tile
+        - 1: car exists on tile
+
+        Channel 7: Car tile (soft mask)
+        - 0.0     : no car on tile
+        - 0.0~1.0 : fraction of tile area occupied by the car
+        - 1.0     : tile fully covered by one or more cars (e.g., by cars overhanging from adjacent tiles)
+
+        Channel 8: Car collision (Car x Agent)
+        - 0: agent not hit by car
+        - 1: agent hit by car
+        - NOTE: should be removed in AIRL reward_net to prevent Reward leakage
+
+        Channel 9: Car penalty (low)
+        - 0: no car in the tile
+        - 1: 100 penalty of the existing car
+
+        Channel 10: Car penalty (medium)
+        - 0: no car in the tile
+        - 1: 500 penalty of the existing car
+
+        Channel 11: Car penalty (high)
+        - 0: no car in the tile
+        - 1: 1000 penalty of the existing car
 
         [if gamescreen_width_fixed == True]
-        Channel 9: Agent position
+        Channel 12: Agent position
         - 0: not agent
         - 1: agent
         """
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
-        agent_left_x, agent_right_x = agent_x - Agent.RADIUS, agent_x + Agent.RADIUS
-        max_x_dist_from_agent = self.camera_width/2 - Agent.RADIUS
         grid_y_start = agent_y - self.camera_height//2 - 2
         if self.gamescreen_width_fixed:
             grid_x_start = self.world.agent.init_pos[0] - self.camera_width//2
@@ -462,65 +474,79 @@ class PedestrianEnv(gym.Env):
         crosswalk_pos_set = set()
         for y in range(self.camera_height):
             grid_y = grid_y_start + y
-            for x in range(self.camera_width):
-                grid_x = grid_x_start + x
-                if (0 <= grid_x < self.map_grid_width) and (0 <= grid_y < self.map_grid_height):
-                    # Channel 0: Danger tile
-                    obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
-                    # Channel 1: Crosswalk
-                    if self.world.crosswalk_map[grid_y][grid_x]:
-                        crosswalk_pos_set.add((y, x))
-                        obs[1][y][x] = 1.0
-                    # Channel 3: Reachable tile
-                    obs[3][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
-                    # Channel 8: Reward tile
-                    obs[8][y][x] = 1 if self.world.reward_y[grid_y] else 0
-                if self.gamescreen_width_fixed:
-                    # Channel 9: Agent position
+            if 0 <= grid_y < self.map_grid_height:
+                for x in range(self.camera_width):
+                    grid_x = grid_x_start + x
+                    if (0 <= grid_x < self.map_grid_width):
+                        # Channel 0: Danger tile
+                        obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
+                        # Channel 1: Crosswalk
+                        if self.world.crosswalk_map[grid_y][grid_x]:
+                            crosswalk_pos_set.add((y, x))
+                            obs[1][y][x] = 1
+                        # Channel 3: Reachable tile
+                        obs[3][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
+                        # Channel 4: Reward tile
+                        obs[4][y][x] = 1 if self.world.reward_y[grid_y] else 0
+
                     if agent_x == grid_x and agent_y == grid_y:
-                        obs[9][y][x] = 1.0
                         # Channel 2: Crosswalk Activation (Crosswalk x Agent)
                         if self.world.crosswalk_map[grid_y][grid_x]:
-                            obs[2][y][x] = 1.0
+                            obs[2][y][x] = 1
+                        # Channel 8: Car collision (Car x Agent)
+                        if self.world.agent.is_dead:
+                            obs[8][y][x] = 1
+                        # Channel 12: Agent position
+                        if self.gamescreen_width_fixed:
+                            obs[12][y][x] = 1
+            
+                # Channel 5: Lane direction
+                if self.world.roads.row_types[grid_y] == RowType.CAR_GOING_RIGHT:
+                    obs[5][y] = 1
+                elif self.world.roads.row_types[grid_y] == RowType.CAR_GOING_LEFT:
+                    obs[5][y] = -1
+
             # NOTE: actually not reachable because the game will be stopped, but encourage reaching the end of the map
             if grid_y < 0:
                 # Channel 3: Reachable tile
                 obs[3][y] = 1
-                # Channel 8: Reward tile
-                obs[8][y] = 1
+                # Channel 4: Reward tile
+                obs[4][y] = 1
+
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
-                left_x, right_x = car.get_cur_x_pos()
-                if right_x < visible_x_start: continue # out of sight
-                if visible_x_end < left_x: continue # out of sight
+                car_left_x, car_right_x = car.get_cur_x_pos()
+                if car_right_x < visible_x_start: continue # out of sight
+                if visible_x_end < car_left_x: continue # out of sight
                 for x in range(self.camera_width):
                     block_left = x + visible_x_start
                     block_right = x + visible_x_start + 1
-                    if not is_overlapping(left_x, right_x, block_left, block_right): continue
-                    # Channel 4: Car penalty
-                    obs[4][y][x] = car.car_detail.penalty / self.max_car_penalty
-                    # Channel 5: Car speed
-                    obs[5][y][x] = car.get_cur_speed() / self.max_car_speed
-                    # Channel 6: Risk level
-                    if x == self.camera_width//2: # same column as the agent
-                        obs[6][y][x] = 1
-                    elif x < self.camera_width//2: # left from the agent
-                        if car.default_speed < 0: continue # going away
-                        car_right_block_end = right_x if block_left <= right_x < block_right else block_right
-                        obs[6][y][x] = max(obs[5][y][x], 1 - ((agent_left_x - car_right_block_end) / max_x_dist_from_agent))
-                    else: # right from the agent
-                        if car.default_speed > 0: continue # going away
-                        car_left_block_end = left_x if block_left <= left_x < block_right else block_left
-                        obs[6][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
+                    if not is_overlapping(car_left_x, car_right_x, block_left, block_right): continue
 
-        # Channel 7: Play time left
-        if self.game_over or self.time_left - 1000 <= 0:
-            obs[7] = 0 # game over
-        elif self.time_left >= self.GAME_TIME_MS:
-            obs[7] = 1 # episode initialized
-        else:
-            obs[7] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
- 
+                    # Channel 6: Car tile (hard)
+                    obs[6][y][x] = 1
+                    # Channel 7: Car tile (soft mask)
+                    if obs[7][y][x] == 0:
+                        if car_left_x <= block_left and block_right <= car_right_x:
+                            obs[7][y][x] = 1 # tile fully covered by a single car
+                        elif block_left <= car_right_x <= block_right:
+                            obs[7][y][x] = car_right_x - block_left # left part of the tile partially covered
+                        elif block_left <= car_left_x <= block_right:
+                            obs[7][y][x] = block_right - car_left_x # right part of the tile partially covered
+                    else:
+                        # both ends of the tile covered by two cars
+                        obs[7][y][x] = 1
+                    
+                    # Penalty
+                    if car.car_detail.penalty == Penalty.LOW:
+                        # Channel 9: Car penalty (low)
+                        obs[9][y][x] = 1
+                    elif car.car_detail.penalty == Penalty.MEDIUM:
+                        # Channel 10: Car penalty (medium)
+                        obs[10][y][x] = 1
+                    elif car.car_detail.penalty == Penalty.HIGH:
+                        # Channel 11: Car penalty (high)
+                        obs[11][y][x] = 1
         return obs
 
     def _get_info(self):

@@ -110,6 +110,7 @@ class Roads:
 
         self.agent = agent
         self.elements = roads
+        self.row_types = row_types
 
     def activate_crosswalks(self):
         agent_x, agent_y = self.agent.get_cur_location_rounded()

@@ -35,7 +35,7 @@ def play_episode(env, seed, verbose = False):
         rewards.append(reward)
         if verbose:
             print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
-            print("Channel 0: Danger tile")
+            print("Channel 0: Danger zone")
             for y in range(env.camera_height):
                 print(obs[0][y])
             print("Channel 1: Crosswalk")
@@ -47,23 +47,34 @@ def play_episode(env, seed, verbose = False):
             print("Channel 3: Reachable tile")
             for y in range(env.camera_height):
                 print(obs[3][y])
-            print("Channel 4: Car penalty")
+            print("Channel 4: Reward tile")
             for y in range(env.camera_height):
                 print(obs[4][y])
-            print("Channel 5: Car speed")
+            print("Channel 5: Lane direction")
             for y in range(env.camera_height):
                 print(obs[5][y])
-            print("Channel 6: Risk level")
+            print("Channel 6: Car tile (binary)")
             for y in range(env.camera_height):
                 print(obs[6][y])
-            print("Channel 7: Play time left:", obs[7][0][0])
-            print("Channel 8: Reward tile")
+            print("Channel 7: Car tile (soft mask)")
+            for y in range(env.camera_height):
+                print(obs[7][y])
+            print("Channel 8: Car collision (Car x Agent)")
             for y in range(env.camera_height):
                 print(obs[8][y])
-            if len(obs) >= 10:
-                print("Channel 9: Agent position")
+            print("Channel 9: Car penalty (low)")
+            for y in range(env.camera_height):
+                print(obs[9][y])
+            print("Channel 10: Car penalty (medium)")
+            for y in range(env.camera_height):
+                print(obs[10][y])
+            print("Channel 11: Car penalty (high)")
+            for y in range(env.camera_height):
+                print(obs[11][y])
+            if len(obs) > 12:
+                print("Channel 12: Agent position")
                 for y in range(env.camera_height):
-                    print(obs[9][y])
+                    print(obs[12][y])
         if terminated or truncated: return False, observations, actions, rewards
         last_action = Action.NOTHING
 

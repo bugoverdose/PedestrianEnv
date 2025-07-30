@@ -1,6 +1,11 @@
 import os
 from enum import Enum
 
+class Penalty(Enum):
+    LOW = 100
+    MEDIUM = 500
+    HIGH = 1000
+
 class CarColorType(Enum):
     GREEN = 0
     YELLOW = 1
@@ -13,16 +18,10 @@ class RiskDetail:
         self.penalty = penalty
 
 _RiskDetails = {
-    CarColorType.RED: RiskDetail(color_name="Red", color=(255, 0, 0), penalty=1000),
-    CarColorType.YELLOW: RiskDetail(color_name="Yellow", color=(255, 255, 0), penalty=500),
-    CarColorType.GREEN: RiskDetail(color_name="Green", color=(0, 255, 0), penalty=100),
+    CarColorType.RED: RiskDetail(color_name="Red", color=(255, 0, 0), penalty=Penalty.HIGH),
+    CarColorType.YELLOW: RiskDetail(color_name="Yellow", color=(255, 255, 0), penalty=Penalty.MEDIUM),
+    CarColorType.GREEN: RiskDetail(color_name="Green", color=(0, 255, 0), penalty=Penalty.LOW),
 }
-
-def get_max_panalty():
-    max_penalty = 0
-    for key in _RiskDetails.keys():
-        max_penalty = max(max_penalty, _RiskDetails[key].penalty)
-    return max_penalty
 
 # key = start_row_idx, value = car_heights 
 CARS_PER_LANE_PAIR_COMPOSITION = [

@@ -299,7 +299,7 @@ class Cars:
     def has_hit_agent(self):
         for car in self.elements:
             if self._check_collision(car):
-                return True, car.car_detail.penalty
+                return True, car.car_detail.penalty.value
         return False, 0
 
     def _check_collision(self, car):
