@@ -28,7 +28,7 @@ class PedestrianEnv(gym.Env):
                  width=25, height=20,
                  camera_width=11, camera_height=7,
                  extra_reward_using_crosswalk=False,
-                 gamescreen_width_fixed=True,
+                 gamescreen_width_fixed=False,
                  render_mode=None,
                  tick_on_render=False,
                  steps_per_second=10,
