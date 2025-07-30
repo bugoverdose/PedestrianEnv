@@ -1,11 +1,11 @@
 from dqn import run_DQN_CnnPolicy, test_policy, visualize_test
 
-if __name__ == "__main__":
+def grid_search():
     features_dims = [8, 16, 32, 64, 128, 256, 512]
     n_output_channels_list = [(5, 64, 64), (3, 64, 64), (3, 32, 64)]
     for features_dim in features_dims:
         for n_output_channels in n_output_channels_list:
-            model_name = f"dqn_gpu_{n_output_channels[0]}_{n_output_channels[1]}_{n_output_channels[2]}_fd{features_dim}_kernel3_1"
+            model_name = f"dqn_obs_{n_output_channels[0]}_{n_output_channels[1]}_{n_output_channels[2]}_fd{features_dim}_kernel3_1"
             run_DQN_CnnPolicy(total_timesteps=500_000,
                     features_dim=features_dim, # 128, 256, 512
                     filters_per_group=n_output_channels[0],
@@ -24,3 +24,6 @@ if __name__ == "__main__":
                     learning_starts = 10_000,
                     saved_model_name=model_name,
                     tb_log_name=model_name[:-2])
+
+if __name__ == "__main__":
+    grid_search() # CCSL3에서 실행 중
