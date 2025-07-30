@@ -90,8 +90,9 @@ class Agent(GameObject):
         self.stop()
 
     def render(self, background):
+        adjustment = 0.5 * self.pix_square_size
         agent_center_x = self.cur_location[0] * self.pix_square_size
-        agent_center_y = self.cur_location[1] * self.pix_square_size
+        agent_center_y = self.cur_location[1] * self.pix_square_size + adjustment
         agent_position = (agent_center_x, agent_center_y)
         if self.is_dead:
             radius_x = int(self.pix_square_size * self.RADIUS * 1.4)
@@ -247,12 +248,13 @@ class Car(GameObject):
         top_y, bottom_y = self.get_cur_y_pos()
         left_x_pix = left_x * self.pix_square_size
         top_y_pix = top_y * self.pix_square_size
+        adjustment = 0.5 * self.pix_square_size
         # render image or rectangle
         if self.image is not None:
-            background.blit(self.image, (left_x_pix, top_y_pix))
+            background.blit(self.image, (left_x_pix, top_y_pix + adjustment))
         else:
             center_x_pix = self.cur_location[0] * self.pix_square_size
-            center_y_pix = self.cur_location[1] * self.pix_square_size
+            center_y_pix = self.cur_location[1] * self.pix_square_size + adjustment
             right_x_pix = right_x * self.pix_square_size
 
             # draw car

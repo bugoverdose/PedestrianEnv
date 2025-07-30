@@ -125,19 +125,17 @@ class Roads:
 
     def render(self, background, map_grid_width, pix_square_size):
         map_width = map_grid_width * pix_square_size
-        adjustment = 0.5 * pix_square_size
-
         background.fill(self.ROAD_GRAY_COLOR)
         for safe_row_idx in self.safe_row_idx_list:
-            pygame.draw.rect(background, self.SAFE_WHITE_COLOR, (0, safe_row_idx * pix_square_size - adjustment, map_width, pix_square_size + 1))
+            pygame.draw.rect(background, self.SAFE_WHITE_COLOR, (0, safe_row_idx * pix_square_size, map_width, pix_square_size + 1))
 
         for other_direction_idx in self.other_direction_boundary_idx_list:
             start_x = 0
             pygame.draw.line(
                 background,
                 self.ROAD_WHITE_COLOR,
-                (start_x, pix_square_size * other_direction_idx + adjustment),
-                (map_width, pix_square_size * other_direction_idx + adjustment),
+                (start_x, pix_square_size * (other_direction_idx + 1)),
+                (map_width, pix_square_size * (other_direction_idx + 1)),
                 width=3,
             )
 
@@ -147,8 +145,8 @@ class Roads:
                 pygame.draw.line(
                     background,
                     self.ROAD_WHITE_COLOR,
-                    (start_x, pix_square_size * boundary_idx + adjustment),
-                    (start_x + 2 * pix_square_size, pix_square_size * boundary_idx + adjustment),
+                    (start_x, pix_square_size * (boundary_idx + 1)),
+                    (start_x + 2 * pix_square_size, pix_square_size * (boundary_idx + 1)),
                     width=6,
                 )
 
@@ -159,8 +157,8 @@ class Roads:
             start_x, end_x = crosswalk.get_activation_left_right()
             cw_width = (end_x - start_x) * pix_square_size
             start_x = start_x * pix_square_size
-            start_y = road.start_y * pix_square_size - adjustment
-            end_y = road.end_y * pix_square_size + adjustment
+            start_y = road.start_y * pix_square_size
+            end_y = (road.end_y + 1) * pix_square_size
             cw_height = end_y - start_y
             # NOTE: cover up background (-1 pixel at top and bottom, +pix_square_size at left and right)
             pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, start_y + 1, cw_width + pix_square_size * 2, cw_height - 1))
