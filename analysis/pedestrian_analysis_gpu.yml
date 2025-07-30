@@ -1,4 +1,4 @@
-name: pedestrian_analysis_gpu
+name: pedestrian_analysis_gpu # ccsl3
 channels:
   - conda-forge
   - nvidia

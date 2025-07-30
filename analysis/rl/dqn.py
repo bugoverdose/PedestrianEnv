@@ -125,6 +125,11 @@ def run_DQN_CnnPolicy(seed=42,
     if saved_model_name is not None:
         model.save(f"saved/{saved_model_name}")
 
+def test_policy(model_name, n_eval_episodes=100, seed=42):
+    model, env = _load_DQN_model(model_name, render_mode_human=False, seed=seed)
+    mean_reward, _ = evaluate_policy(model, env, n_eval_episodes=n_eval_episodes, deterministic=True)
+    print(f"{model_name}: test score: {mean_reward:.4f}")
+
 def visualize_test(model_name, episode_count=20, seed=42):
     model, env = _load_DQN_model(model_name, seed)
     obs = env.reset()
@@ -136,12 +141,15 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_DQN_model(saved_model_name, seed=42):
+def _load_DQN_model(saved_model_name, render_mode_human=True, seed=42):
     np.random.seed(seed)
     random.seed(seed)
 
     def make_env():
-        env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+        if render_mode_human:
+            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+        else:
+            env = PedestrianEnv()
         env.reset(seed=seed)
         return env
 
