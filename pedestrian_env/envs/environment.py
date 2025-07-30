@@ -366,13 +366,13 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        self.channel_count = 8
-        lower_bounds = (0, 0, 0, 0, -1, 0, 0, 0)
-        upper_bounds = (1, 1, 1, 1,  1, 1, 1, 1)
+        self.channel_count = 9
+        lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0)
+        upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1)
         if self.gamescreen_width_fixed:
             self.channel_count += 1
-            lower_bounds = (0, 0, 0, 0, -1, 0, 0, 0, 0)
-            upper_bounds = (1, 1, 1, 1,  1, 1, 1, 1, 1)
+            lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0, 0)
+            upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1, 1)
 
         low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
         high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
@@ -394,35 +394,39 @@ class PedestrianEnv(gym.Env):
         - 0.0: not crosswalk
         - 1.0: crosswalk
 
-        Channel 2: Reachable tile
+        Channel 2: Crosswalk Activation (Crosswalk x Agent)
+        - 0.0: not activated crosswalk
+        - 1.0: activated crosswalk with agent
+
+        Channel 3: Reachable tile
         - 0: unreachable
         - 1: reachable or target area
 
-        Channel 3: Car penalty
+        Channel 4: Car penalty
         - 0 : no car in the tile
         - 0.1, 0.5, 1.0 : penalty of the existing car (raw range: 100, 500, 1000)
 
-        Channel 4: Car speed
+        Channel 5: Car speed
         - 0: stopped car or no car in the tile
         - -1.0 ~ 0: going left (raw range: -4.5 ~ -3.0)
         - 0 ~ 1.0: going right (raw range: 3.0 ~ 4.5)
 
-        Channel 5: Risk level
+        Channel 6: Risk level
         - 0.0: no car visible or moving away from the agent (safe)
         - 0 ~ 1: how close the agent is from the car
         - 1.0: in front of the agent or hit the agent (maximum danger)
 
-        Channel 6: Play time left
+        Channel 7: Play time left
         - 0: game over (time over, death, early finish)
         - 0 ~ 1: time left / maximum episode time
         - 1: episode initialized
 
-        Channel 7: Reward tile
+        Channel 8: Reward tile
         - 0: no reward
         - 1: give reward on reaching the tile with UP action (same amount as penalty on leaving the tile with DOWN action)
 
         [if gamescreen_width_fixed == True]
-        Channel 8: Agent position
+        Channel 9: Agent position
         - 0: not agent
         - 1: agent
         """
@@ -449,20 +453,23 @@ class PedestrianEnv(gym.Env):
                     if self.world.crosswalk_map[grid_y][grid_x]:
                         crosswalk_pos_set.add((y, x))
                         obs[1][y][x] = 1.0
-                    # Channel 2: Reachable tile
-                    obs[2][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
-                    # Channel 7: Reward tile
-                    obs[7][y][x] = 1 if self.world.reward_y[grid_y] else 0
+                    # Channel 3: Reachable tile
+                    obs[3][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
+                    # Channel 8: Reward tile
+                    obs[8][y][x] = 1 if self.world.reward_y[grid_y] else 0
                 if self.gamescreen_width_fixed:
-                    # Channel 8: Agent position
+                    # Channel 9: Agent position
                     if agent_x == grid_x and agent_y == grid_y:
-                        obs[8][y][x] = 1.0
+                        obs[9][y][x] = 1.0
+                        # Channel 2: Crosswalk Activation (Crosswalk x Agent)
+                        if self.world.crosswalk_map[grid_y][grid_x]:
+                            obs[2][y][x] = 1.0
             # NOTE: actually not reachable because the game will be stopped, but encourage reaching the end of the map
             if grid_y < 0:
-                # Channel 2: Reachable tile
-                obs[2][y] = 1
-                # Channel 7: Reward tile
-                obs[7][y] = 1
+                # Channel 3: Reachable tile
+                obs[3][y] = 1
+                # Channel 8: Reward tile
+                obs[8][y] = 1
             if grid_y not in self.world.row_to_cars_dict: continue # no car
             for car in self.world.row_to_cars_dict[grid_y]:
                 left_x, right_x = car.get_cur_x_pos()
@@ -472,29 +479,29 @@ class PedestrianEnv(gym.Env):
                     block_left = x + visible_x_start
                     block_right = x + visible_x_start + 1
                     if not is_overlapping(left_x, right_x, block_left, block_right): continue
-                    # Channel 3: Car penalty
-                    obs[3][y][x] = car.car_detail.penalty / self.max_car_penalty
-                    # Channel 4: Car speed
-                    obs[4][y][x] = car.get_cur_speed() / self.max_car_speed
-                    # Channel 5: Risk level
+                    # Channel 4: Car penalty
+                    obs[4][y][x] = car.car_detail.penalty / self.max_car_penalty
+                    # Channel 5: Car speed
+                    obs[5][y][x] = car.get_cur_speed() / self.max_car_speed
+                    # Channel 6: Risk level
                     if x == self.camera_width//2: # same column as the agent
-                        obs[5][y][x] = 1
+                        obs[6][y][x] = 1
                     elif x < self.camera_width//2: # left from the agent
                         if car.default_speed < 0: continue # going away
                         car_right_block_end = right_x if block_left <= right_x < block_right else block_right
-                        obs[5][y][x] = max(obs[5][y][x], 1 - ((agent_left_x - car_right_block_end) / max_x_dist_from_agent))
+                        obs[6][y][x] = max(obs[5][y][x], 1 - ((agent_left_x - car_right_block_end) / max_x_dist_from_agent))
                     else: # right from the agent
                         if car.default_speed > 0: continue # going away
                         car_left_block_end = left_x if block_left <= left_x < block_right else block_left
-                        obs[5][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
+                        obs[6][y][x] = max(obs[5][y][x], 1 - ((car_left_block_end - agent_right_x) / max_x_dist_from_agent))
 
-        # Channel 6: Play time left
+        # Channel 7: Play time left
         if self.game_over or self.time_left - 1000 <= 0:
-            obs[6] = 0 # game over
+            obs[7] = 0 # game over
         elif self.time_left >= self.GAME_TIME_MS:
-            obs[6] = 1 # episode initialized
+            obs[7] = 1 # episode initialized
         else:
-            obs[6] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
+            obs[7] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
  
         return obs
 

@@ -41,25 +41,28 @@ def play_episode(env, seed, verbose = False):
             print("Channel 1: Crosswalk")
             for y in range(env.camera_height):
                 print(obs[1][y])
-            print("Channel 2: Reachable tile")
+            print("Channel 2: Crosswalk Activation (Crosswalk x Agent)")
             for y in range(env.camera_height):
                 print(obs[2][y])
-            print("Channel 3: Car penalty")
+            print("Channel 3: Reachable tile")
             for y in range(env.camera_height):
                 print(obs[3][y])
-            print("Channel 4: Car speed")
+            print("Channel 4: Car penalty")
             for y in range(env.camera_height):
                 print(obs[4][y])
-            print("Channel 5: Risk level")
+            print("Channel 5: Car speed")
             for y in range(env.camera_height):
                 print(obs[5][y])
-            print("Channel 6: Play time left:", obs[6][0][0])
-            print("Channel 7: Reward tile")
+            print("Channel 6: Risk level")
             for y in range(env.camera_height):
-                print(obs[7][y])
-            print("Channel 8: Agent position")
+                print(obs[6][y])
+            print("Channel 7: Play time left:", obs[7][0][0])
+            print("Channel 8: Reward tile")
             for y in range(env.camera_height):
                 print(obs[8][y])
+            print("Channel 9: Agent position")
+            for y in range(env.camera_height):
+                print(obs[9][y])
         if terminated or truncated: return False, observations, actions, rewards
         last_action = Action.NOTHING
 
