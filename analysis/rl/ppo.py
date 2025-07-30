@@ -76,6 +76,8 @@ def run_PPO_CnnPolicy(seed=42,
     model.learn(total_timesteps=total_timesteps, tb_log_name=tb_log_name)
 
     print("features_dim", features_dim)
+    print("filters_per_group", filters_per_group)
+    print("n_output_channels", n_output_channels)
     print("kernel_size", kernel_size)
     print("gamma", gamma)
     print("learning_rate", learning_rate)
