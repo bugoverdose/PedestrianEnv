@@ -77,6 +77,8 @@ class PedestrianEnv(gym.Env):
         self.elapsed = 0
         self.game_over = False
         self.game_end_extra_score = 0
+        self.obs = None
+        self.info = None
 
         self.max_car_penalty = Penalty.HIGH
         self.max_car_speed = max(Car.CAR_SPEEDS)
@@ -109,7 +111,8 @@ class PedestrianEnv(gym.Env):
         if self.debug:
             print(self.world.cars)
 
-        return self._get_obs(), self._get_info()
+        self._update_state_snapshot()
+        return self.obs, self.info
 
     def step(self, action):
         """Run one timestep of the environment's dynamics using the agent actions.
@@ -194,7 +197,8 @@ class PedestrianEnv(gym.Env):
         
         cumulative_reward += self.world.calculate_cum_crossing_rewards()
         self.cur_rewards += cumulative_reward
-        return self._get_obs(), cumulative_reward, self.game_over, False, self._get_info()
+        self._update_state_snapshot()
+        return self.obs, cumulative_reward, self.game_over, False, self.info
     
     def _check_gameover(self):
         reward, terminated = 0, False
@@ -400,7 +404,11 @@ class PedestrianEnv(gym.Env):
         high_chw = np.transpose(high_hwc, (2, 0, 1))
         self.observation_space = gym.spaces.Box(low=low_chw, high=high_chw, dtype=np.float32)
 
-    def _get_obs(self):
+    def _update_state_snapshot(self):
+        self._update_obs()
+        self._update_info()
+
+    def _update_obs(self):
         """
         Observation (normalized)
         - structure: (C, H, W) = (channels, y, x)
@@ -547,9 +555,9 @@ class PedestrianEnv(gym.Env):
                     elif car.car_detail.penalty == Penalty.HIGH:
                         # Channel 11: Car penalty (high)
                         obs[11][y][x] = 1
-        return obs
+        self.obs = obs
 
-    def _get_info(self):
+    def _update_info(self):
         """
         Returns:
             info (dict): Contains auxiliary diagnostic information (helpful for debugging, learning, and logging).
@@ -559,7 +567,7 @@ class PedestrianEnv(gym.Env):
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
         agent_x, agent_y = self.world.agent.get_cur_location_rounded()
-        return {
+        self.info = {
             "agent_x": agent_x,
             "agent_y": agent_y,
             "is_dead": self.world.agent.is_dead,
