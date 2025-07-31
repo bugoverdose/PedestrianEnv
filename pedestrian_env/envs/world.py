@@ -37,7 +37,6 @@ class World:
             if crosswalk is None: continue
             for y in range(crosswalk.top_row, crosswalk.end_row+2):
                 for x in range(crosswalk.left_end, crosswalk.right_end+1):
-                    self.danger_map[y][x] = False # safe
                     self.crosswalk_map[y][x] = True # crosswalk
 
         self.reachable_map = [[True for _ in range(map_grid_width)] for _ in range(map_grid_height)]

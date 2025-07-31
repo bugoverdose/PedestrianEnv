@@ -79,8 +79,9 @@ class PedestrianEnv(gym.Env):
         self.game_end_extra_score = 0
         self.obs = None
         self.info = None
+        self.prev_step_state = None
 
-        self.max_car_penalty = Penalty.HIGH
+        self.max_car_penalty = Penalty.HIGH.value
         self.max_car_speed = max(Car.CAR_SPEEDS)
         agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
         agent_min_x = (agent_x_buffer)
@@ -111,6 +112,9 @@ class PedestrianEnv(gym.Env):
         if self.debug:
             print(self.world.cars)
 
+        self.obs = None
+        self.info = None
+        self.prev_step_state = dict()
         self._update_state_snapshot()
         return self.obs, self.info
 
@@ -415,7 +419,7 @@ class PedestrianEnv(gym.Env):
 
         Channel 0: Danger zone
         - 0: safe zone (or unreachable)
-        - 1: danger zone
+        - 1: danger zone (includes crosswalks because cars on crosswalks can still kill the agent)
 
         Channel 1: Crosswalk
         - 0: not crosswalk
@@ -434,39 +438,34 @@ class PedestrianEnv(gym.Env):
         - 1: give reward on reaching the tile with UP action (same amount as penalty on leaving the tile with DOWN action)
         - NOTE: should be removed in AIRL reward_net to prevent Reward leakage
 
-        Channel 5: Lane direction
-        - -1: cars going left
-        - 0 : safe zone
-        - 1 : cars going right
+        Channel 5: Car tile (soft mask)
+        - 0    : no car on tile
+        - 0 ~ 1: proportion of tile covered by car
 
-        Channel 6: Car tile (binary)
-        - 0: no car on tile
-        - 1: car exists on tile
+        Channel 6: Car ingress delta
+        - 0 ~ 1: how much a car moved into the tile (compared to previous observation)
+        - 0    : no incoming movement
+        - NOTE: movement_delta = cur_car_soft_mask - previous_car_soft_mask
 
-        Channel 7: Car tile (soft mask)
-        - 0.0     : no car on tile
-        - 0.0~1.0 : fraction of tile area occupied by the car
-        - 1.0     : tile fully covered by one or more cars (e.g., by cars overhanging from adjacent tiles)
+        Channel 7: Car egress delta
+        - 0 ~ 1: how much a car moved out of the tile (compared to previous observation)
+        - 0    : no outgoing movement
+        - NOTE: movement_delta = cur_car_soft_mask - previous_car_soft_mask
 
-        Channel 8: Car collision (Car x Agent)
-        - 0: agent not hit by car
-        - 1: agent hit by car
-        - NOTE: should be removed in AIRL reward_net to prevent Reward leakage
+        Channel 8: Car speed
+        - 0     : no car or stopped
+        - -1 ~ 0: car going left
+        - 0 ~ +1: car going right
 
-        Channel 9: Car penalty (low)
-        - 0: no car in the tile
-        - 1: 100 penalty of the existing car
+        Channel 9: Car penalty
+        - 0    : no car in the tile
+        - 0 ~ 1: penalty of the existing car (normalized)
 
-        Channel 10: Car penalty (medium)
-        - 0: no car in the tile
-        - 1: 500 penalty of the existing car
+        Channel 10: Play time left
+        - 0 ~ 1: time remaining (normalized)
+        - 0    : game over (time over, death, early finish)
 
-        Channel 11: Car penalty (high)
-        - 0: no car in the tile
-        - 1: 1000 penalty of the existing car
-
-        [if gamescreen_width_fixed == True]
-        Channel 12: Agent position
+        Extra Channel: Agent position (gamescreen_width_fixed == True)
         - 0: not agent
         - 1: agent
         """
@@ -478,11 +477,55 @@ class PedestrianEnv(gym.Env):
             grid_x_start = agent_x - self.camera_width//2
         visible_x_start = grid_x_start - 0.5
         visible_x_end = visible_x_start + self.camera_width
+
+        # calculate car info (include cars out of sight with buffer of grid size 1)
+        prev_left_covered_dict = self.prev_step_state["left_covered"] if "left_covered" in self.prev_step_state else dict()
+        prev_right_covered_dict = self.prev_step_state["right_covered"]  if "right_covered" in self.prev_step_state else dict()
+
+        cur_left_covered_dict = dict()
+        cur_fully_covered_set = set()
+        cur_right_covered_dict = dict()
+        cur_car_info_dict = dict()
+        for y in range(self.camera_height + 2):
+            grid_y = grid_y_start + y - 1
+            if grid_y not in self.world.row_to_cars_dict: continue # no car
+            for car in self.world.row_to_cars_dict[grid_y]:
+                car_left_x, car_right_x = car.get_cur_x_pos()
+                if car_right_x < visible_x_start - 1: continue
+                if visible_x_end + 1 < car_left_x: continue
+
+                car_left_x_adjusted = car_left_x + 0.5
+                car_right_x_adjusted = car_right_x + 0.5
+
+                grix_left_end_x = int(car_left_x_adjusted)
+                cur_right_covered_dict[(grid_y, grix_left_end_x)] = grix_left_end_x + 1 - car_left_x_adjusted # right part of the tile partially covered
+    
+                grix_right_end_x = int(car_right_x_adjusted)
+                cur_left_covered_dict[(grid_y, grix_right_end_x)] = car_right_x_adjusted - grix_right_end_x # left part of the tile partially covered
+    
+                for grid_x in range(grix_left_end_x + 1, grix_right_end_x):
+                    cur_fully_covered_set.add((grid_y, grid_x)) # tile fully covered by a single car
+                for grid_x in range(int(max(visible_x_start - 0.5, grix_left_end_x)), int(min(visible_x_end + 0.5, grix_right_end_x)+1)):
+                    cur_speed = car.get_cur_speed()
+                    penalty = car.car_detail.penalty.value
+                    if (grid_y, grid_x) not in cur_car_info_dict:
+                        cur_car_info_dict[(grid_y, grid_x)] = [car.default_speed > 0, cur_speed, penalty]
+                    else:
+                        cur_car_info_dict[(grid_y, grid_x)][1] = max(cur_speed, cur_car_info_dict[(grid_y, grid_x)][1])
+                        cur_car_info_dict[(grid_y, grid_x)][2] = max(penalty, cur_car_info_dict[(grid_y, grid_x)][2])
+
+        # fill up obs
         obs = np.zeros((self.channel_count, self.camera_height, self.camera_width), dtype=np.float32)
-        crosswalk_pos_set = set()
         for y in range(self.camera_height):
             grid_y = grid_y_start + y
-            if 0 <= grid_y < self.map_grid_height:
+            # fill up visible, but not reachable area to encourage reaching the end of the map
+            if grid_y < 0:
+                # Channel 3: Reachable tile
+                obs[3][y] = 1
+                # Channel 4: Reward tile
+                obs[4][y] = 1
+            # fill up reachable and visible grids
+            elif 0 <= grid_y < self.map_grid_height:
                 for x in range(self.camera_width):
                     grid_x = grid_x_start + x
                     if (0 <= grid_x < self.map_grid_width):
@@ -490,71 +533,67 @@ class PedestrianEnv(gym.Env):
                         obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
                         # Channel 1: Crosswalk
                         if self.world.crosswalk_map[grid_y][grid_x]:
-                            crosswalk_pos_set.add((y, x))
                             obs[1][y][x] = 1
                         # Channel 3: Reachable tile
                         obs[3][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
                         # Channel 4: Reward tile
                         obs[4][y][x] = 1 if self.world.reward_y[grid_y] else 0
-
                     if agent_x == grid_x and agent_y == grid_y:
                         # Channel 2: Crosswalk Activation (Crosswalk x Agent)
                         if self.world.crosswalk_map[grid_y][grid_x]:
                             obs[2][y][x] = 1
-                        # Channel 8: Car collision (Car x Agent)
-                        if self.world.agent.is_dead:
-                            obs[8][y][x] = 1
-                        # Channel 12: Agent position
+                        # Channel 11: Agent position
                         if self.gamescreen_width_fixed:
-                            obs[12][y][x] = 1
-            
-                # Channel 5: Lane direction
-                if self.world.roads.row_types[grid_y] == RowType.CAR_GOING_RIGHT:
-                    obs[5][y] = 1
-                elif self.world.roads.row_types[grid_y] == RowType.CAR_GOING_LEFT:
-                    obs[5][y] = -1
-
-            # NOTE: actually not reachable because the game will be stopped, but encourage reaching the end of the map
-            if grid_y < 0:
-                # Channel 3: Reachable tile
-                obs[3][y] = 1
-                # Channel 4: Reward tile
-                obs[4][y] = 1
-
-            if grid_y not in self.world.row_to_cars_dict: continue # no car
-            for car in self.world.row_to_cars_dict[grid_y]:
-                car_left_x, car_right_x = car.get_cur_x_pos()
-                if car_right_x < visible_x_start: continue # out of sight
-                if visible_x_end < car_left_x: continue # out of sight
-                for x in range(self.camera_width):
-                    block_left = x + visible_x_start
-                    block_right = x + visible_x_start + 1
-                    if not is_overlapping(car_left_x, car_right_x, block_left, block_right): continue
-
-                    # Channel 6: Car tile (hard)
-                    obs[6][y][x] = 1
-                    # Channel 7: Car tile (soft mask)
-                    if obs[7][y][x] == 0:
-                        if car_left_x <= block_left and block_right <= car_right_x:
-                            obs[7][y][x] = 1 # tile fully covered by a single car
-                        elif block_left <= car_right_x <= block_right:
-                            obs[7][y][x] = car_right_x - block_left # left part of the tile partially covered
-                        elif block_left <= car_left_x <= block_right:
-                            obs[7][y][x] = block_right - car_left_x # right part of the tile partially covered
-                    else:
-                        # both ends of the tile covered by two cars
-                        obs[7][y][x] = 1
+                            obs[11][y][x] = 1
                     
-                    # Penalty
-                    if car.car_detail.penalty == Penalty.LOW:
-                        # Channel 9: Car penalty (low)
-                        obs[9][y][x] = 1
-                    elif car.car_detail.penalty == Penalty.MEDIUM:
-                        # Channel 10: Car penalty (medium)
-                        obs[10][y][x] = 1
-                    elif car.car_detail.penalty == Penalty.HIGH:
-                        # Channel 11: Car penalty (high)
-                        obs[11][y][x] = 1
+                    key = (grid_y, grid_x)
+                    if key in cur_car_info_dict:
+                        [going_right, cur_speed, penalty] = cur_car_info_dict[key]
+                        # Channel 5: Car tile (soft mask)
+                        if key in cur_fully_covered_set:
+                            obs[5][y][x] = 1 # tile fully covered by a single car
+                        elif (key in cur_left_covered_dict and key in cur_right_covered_dict):
+                            obs[5][y][x] = 1 # both ends of the tile covered by two cars
+                        elif key in cur_left_covered_dict:
+                            obs[5][y][x] = cur_left_covered_dict[key] # left part of the tile partially covered
+                        elif key in cur_right_covered_dict:
+                            obs[5][y][x] = cur_right_covered_dict[key] # right part of the tile partially covered
+                    
+                        cur_covered, prev_covered = 0, 0
+                        ingress, egress = 0, 0
+                        if key in cur_left_covered_dict:
+                            cur_covered = cur_left_covered_dict[key]
+                            if key in prev_left_covered_dict:
+                                prev_covered = prev_left_covered_dict[key]
+                            if going_right:
+                                ingress = cur_covered - prev_covered
+                            else:
+                                egress = prev_covered - cur_covered
+                        if key in cur_right_covered_dict:
+                            cur_covered = cur_right_covered_dict[key]
+                            if key in prev_right_covered_dict:
+                                prev_covered = prev_right_covered_dict[key]
+                            if not going_right:
+                                ingress = cur_covered - prev_covered
+                            else:
+                                egress = prev_covered - cur_covered
+                        # Channel 6: Car ingress delta
+                        obs[6][y][x] = max(0, ingress)
+                        # Channel 7: Car egress delta
+                        obs[7][y][x] = max(0, egress)
+                        # Channel 8: Car speed
+                        obs[8][y][x] = cur_speed / self.max_car_speed
+                        # Channel 9: Car penalty
+                        obs[9][y][x] = penalty / self.max_car_penalty
+
+        self.prev_step_state["left_covered"] = cur_left_covered_dict
+        # self.prev_step_state["fully_covered"] = cur_fully_covered_set
+        self.prev_step_state["right_covered"] = cur_right_covered_dict
+        # Channel 10: Play time left
+        if self.game_over or self.time_left - 1000 <= 0:
+            obs[10] = 0
+        else:
+            obs[10] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
         self.obs = obs
 
     def _update_info(self):
