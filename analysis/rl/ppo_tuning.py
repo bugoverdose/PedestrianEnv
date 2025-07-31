@@ -1,41 +1,30 @@
-from ppo import run_PPO_CnnPolicy, visualize_test
+from ppo import run_PPO_CnnPolicy, test_policy, visualize_test
+
+def run_default(total_timesteps, ent_coef_init, ent_coef_final, ent_coef_fraction, kernel_size=3, features_dim=128, n_output_channels=[5, 64, 64], run=True):
+    model_name = f"ppo_ent_coef_lin{ent_coef_init}_{ent_coef_final}_{ent_coef_fraction}_ch{n_output_channels[0]}_{n_output_channels[1]}_{n_output_channels[2]}_fd{features_dim}_kernel{kernel_size}_1"
+    if run:
+        run_PPO_CnnPolicy(features_dim=features_dim,
+                        filters_per_group=n_output_channels[0],
+                        n_output_channels=n_output_channels[1:],
+                        kernel_size=kernel_size,
+                        learning_rate=1e-4,
+                        n_steps=2048, # 100 too small
+                        batch_size=64,
+                        n_epochs=10,
+                        gamma=0.99,
+                        gae_lambda=0.95,
+                        clip_range=0.2,
+                        ent_coef_init=ent_coef_init,
+                        ent_coef_final=ent_coef_final,
+                        ent_coef_fraction=ent_coef_fraction,
+                        vf_coef=0.5,
+                        max_grad_norm=0.5,
+                        total_timesteps=total_timesteps,
+                        saved_model_name=model_name,
+                        tb_log_name=model_name[:-2])
+    test_policy(model_name)
+    visualize_test(model_name)
 
 if __name__ == "__main__":
-    # model_name = "ppo_3_64_64_fd256_kernel3_1" # n_steps=200 # do nothing
-    # model_name = "ppo_3_64_64_fd256_kernel3_2" # n_steps=100 # ?
-    # run_PPO_CnnPolicy(features_dim=256, 
-    #                   filters_per_group=3,
-    #                   n_output_channels=[64, 64],
-    #                   kernel_size=3,
-    #                   learning_rate=1e-4,
-    #                   n_steps=100,
-    #                   batch_size=64,
-    #                   n_epochs=10,
-    #                   gamma=0.99,
-    #                   gae_lambda=0.95,
-    #                   clip_range=0.2,
-    #                   ent_coef=0.1,
-    #                   vf_coef=0.5,
-    #                   max_grad_norm=0.5,
-    #                   total_timesteps=300_000,
-    #                   saved_model_name=model_name,
-    #                   tb_log_name=model_name[:-2])
-
-    model_name = "ppo_5_64_64_fd256_kernel3_2"
-    run_PPO_CnnPolicy(features_dim=256, 
-                      filters_per_group=5,
-                      n_output_channels=[64, 64],
-                      kernel_size=3,
-                      learning_rate=1e-4,
-                      n_steps=100,
-                      batch_size=64,
-                      n_epochs=10,
-                      gamma=0.99,
-                      gae_lambda=0.95,
-                      clip_range=0.2,
-                      ent_coef=0.1,
-                      vf_coef=0.5,
-                      max_grad_norm=0.5,
-                      total_timesteps=300_000,
-                      saved_model_name=model_name,
-                      tb_log_name=model_name[:-2])
+    # run_default(total_timesteps=500_000, ent_coef_init=1.0, ent_coef_final=0.01, ent_coef_fraction=0.9, kernel_size=3, features_dim=128, n_output_channels=[5, 64, 64], run=True)
+    run_default(total_timesteps=500_000, ent_coef_init=1.0, ent_coef_final=0.01, ent_coef_fraction=0.9, kernel_size=3, features_dim=256, n_output_channels=[5, 64, 64], run=True)

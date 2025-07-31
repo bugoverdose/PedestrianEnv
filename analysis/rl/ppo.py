@@ -5,20 +5,20 @@ import os
 import numpy as np
 import random
 
-from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecFrameStack
 from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from pedestrian_env.envs import PedestrianEnv
 from analysis.common import CNNFeaturesExtractor
+from analysis.rl.custom_ppo import CustomPPO
 
 def run_PPO_CnnPolicy(seed=42,
                       features_dim=256, 
                       filters_per_group=3,
                       n_output_channels=[32],
                       kernel_size=3,
-                      frame_stack = 4,
+                      frame_stack = 0,
                       learning_rate=1e-4,
                       n_steps=2048, # default=2048
                       batch_size=64, # default=64
@@ -27,7 +27,9 @@ def run_PPO_CnnPolicy(seed=42,
                       gae_lambda=0.95,
                       clip_range=0.2, # lambda progress: clip_range * progress
                       clip_range_vf=None, # lambda progress: clip_range_vf * progress
-                      ent_coef=0.01,
+                      ent_coef_init=1.0,
+                      ent_coef_final=0.01,
+                      ent_coef_fraction=0.9,
                       vf_coef=0.5,
                       max_grad_norm=0.5,
                       total_timesteps=500_000,
@@ -48,7 +50,7 @@ def run_PPO_CnnPolicy(seed=42,
     env = VecMonitor(env)
     if frame_stack > 0:
         env = VecFrameStack(env, n_stack=frame_stack)
-    model = PPO("CnnPolicy", env,
+    model = CustomPPO("CnnPolicy", env,
                 learning_rate=learning_rate,
                 n_steps=n_steps, # The number of steps to run for each environment per update
                 batch_size=batch_size,
@@ -57,7 +59,10 @@ def run_PPO_CnnPolicy(seed=42,
                 gae_lambda=gae_lambda, # bias vs variance trade-off for Generalized Advantage Estimator (0 = high bias, low variance; 1 = low bias, high variance)
                 clip_range=clip_range, # how much policy can change
                 clip_range_vf=clip_range_vf,
-                ent_coef=ent_coef, # exploit vs explore trade-off (0 = exploit only; 1 = explore only)
+                # NOTE: ent_coef = exploit vs explore trade-off (0 = exploit only; 1 = explore only)
+                ent_coef_init=ent_coef_init,
+                ent_coef_final=ent_coef_final,
+                ent_coef_fraction=ent_coef_fraction,
                 vf_coef=vf_coef, # policy vs value loss (0=focus on policy , 1=more weight on value loss)
                 max_grad_norm=max_grad_norm, # gradient clipping range to prevent gradient from becoming too big during back propagation (0.1 = slow update, 1.0 = more update)
                 target_kl=None,
@@ -86,7 +91,9 @@ def run_PPO_CnnPolicy(seed=42,
     print("n_steps", n_steps)
     print("batch_size", batch_size)
     print("n_epochs", n_epochs)
-    print("ent_coef", ent_coef)
+    print("ent_coef_init", ent_coef_init)
+    print("ent_coef_final", ent_coef_final)
+    print("ent_coef_fraction", ent_coef_fraction)
     print("gae_lambda", gae_lambda)
     print("clip_range", clip_range)
     print("total_timesteps", total_timesteps)
@@ -96,6 +103,11 @@ def run_PPO_CnnPolicy(seed=42,
 
     if saved_model_name is not None:
         model.save(f"saved/{saved_model_name}")
+
+def test_policy(model_name, n_eval_episodes=100, seed=42):
+    model, env = _load_PPO_model(model_name, render_mode_human=False, seed=seed)
+    mean_reward, _ = evaluate_policy(model, env, n_eval_episodes=n_eval_episodes, deterministic=True)
+    print(f"{model_name}: test score: {mean_reward:.4f}")
 
 def visualize_test(model_name, episode_count=20, seed=42):
     model, env = _load_PPO_model(model_name, seed)
@@ -108,12 +120,15 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_PPO_model(saved_model_name, frame_stack=4, seed=42):
+def _load_PPO_model(saved_model_name, render_mode_human=True, frame_stack=0, seed=42):
     np.random.seed(seed)
     random.seed(seed)
 
     def make_env():
-        env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+        if render_mode_human:
+            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+        else:
+            env = PedestrianEnv()
         env.reset(seed=seed)
         return env
 
@@ -121,5 +136,5 @@ def _load_PPO_model(saved_model_name, frame_stack=4, seed=42):
     env = VecMonitor(env)
     if frame_stack > 0:
         env = VecFrameStack(env, n_stack=frame_stack)
-    model = PPO.load(f"saved/{saved_model_name}", env=env)
+    model = CustomPPO.load(f"saved/{saved_model_name}", env=env)
     return model, env
