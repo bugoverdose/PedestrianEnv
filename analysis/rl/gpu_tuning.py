@@ -54,5 +54,6 @@ def grid_search2(frame_stack=4):
                     tb_log_name=model_name[:-2])
 
 if __name__ == "__main__":
-    # grid_search() # CCSL3에서 실행 중
-    grid_search2() # CCSL3에서 실행 중
+    # grid_search()
+    # grid_search2()
+    pass
