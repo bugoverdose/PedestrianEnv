@@ -18,7 +18,7 @@ def run_DQN_CnnPolicy(seed=42,
             filters_per_group=3,
             n_output_channels=[32],
             kernel_size=3,
-            frame_stack = 4,
+            frame_stack = 0,
             gamma=0.99, # default=0.99
             learning_rate=1e-4, # default=1e-4
             train_freq = 1, # default=4
@@ -101,7 +101,7 @@ def test_policy(model_name, n_eval_episodes=100, seed=42):
     print(f"{model_name}: test score: {mean_reward:.4f}")
 
 def visualize_test(model_name, episode_count=20, seed=42):
-    model, env = _load_DQN_model(model_name, seed)
+    model, env = _load_DQN_model(model_name, seed=seed)
     obs = env.reset()
     episode_count = 0
     while episode_count < 10:
@@ -111,7 +111,7 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_DQN_model(saved_model_name, frame_stack=4, render_mode_human=True, seed=42):
+def _load_DQN_model(saved_model_name, seed=42, frame_stack=0, render_mode_human=True):
     np.random.seed(seed)
     random.seed(seed)
 
@@ -127,6 +127,7 @@ def _load_DQN_model(saved_model_name, frame_stack=4, render_mode_human=True, see
     env = VecMonitor(env)
     if frame_stack > 0:
         env = VecFrameStack(env, n_stack=frame_stack)
+        print("!!!!")
     model = DQN.load(f"saved/{saved_model_name}", env=env)
     return model, env
 

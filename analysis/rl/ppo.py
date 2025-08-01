@@ -21,8 +21,8 @@ def run_PPO_CnnPolicy(seed=42,
                       frame_stack = 0,
                       learning_rate=1e-4,
                       n_steps=2048, # default=2048
-                      batch_size=64, # default=64
-                      n_epochs=10,
+                      batch_size=32, # default=64, 
+                      n_epochs=2,
                       gamma=0.99,
                       gae_lambda=0.95,
                       clip_range=0.2, # lambda progress: clip_range * progress
@@ -110,7 +110,7 @@ def test_policy(model_name, n_eval_episodes=100, seed=42):
     print(f"{model_name}: test score: {mean_reward:.4f}")
 
 def visualize_test(model_name, episode_count=20, seed=42):
-    model, env = _load_PPO_model(model_name, seed)
+    model, env = _load_PPO_model(model_name, seed=seed)
     obs = env.reset()
     episode_count = 0
     while episode_count < 10:
