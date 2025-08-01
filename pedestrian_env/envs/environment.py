@@ -393,13 +393,15 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        self.channel_count = 12
-        lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0)
-        upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1)
+        self.channel_count = 11
+        lower_bounds = [0, 0, 0, 0, 0, 
+                        0, 0, 0, -1, 0,0]
+        upper_bounds = [1, 1, 1, 1, 1,
+                        1, 1, 1, 1, 1, 1]
         if self.gamescreen_width_fixed:
             self.channel_count += 1
-            lower_bounds = (0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0)
-            upper_bounds = (1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1)
+            lower_bounds.append(0)
+            upper_bounds.append(1)
 
         low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
         high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
@@ -445,17 +447,15 @@ class PedestrianEnv(gym.Env):
         Channel 6: Car ingress delta
         - 0 ~ 1: how much a car moved into the tile (compared to previous observation)
         - 0    : no incoming movement
-        - NOTE: movement_delta = cur_car_soft_mask - previous_car_soft_mask
 
         Channel 7: Car egress delta
         - 0 ~ 1: how much a car moved out of the tile (compared to previous observation)
         - 0    : no outgoing movement
-        - NOTE: movement_delta = cur_car_soft_mask - previous_car_soft_mask
 
         Channel 8: Car speed
         - 0     : no car or stopped
-        - -1 ~ 0: car going left
-        - 0 ~ +1: car going right
+        - -1 ~ 0: car going left speed
+        - 0 ~ +1: car going right speed
 
         Channel 9: Car penalty
         - 0    : no car in the tile
@@ -511,7 +511,8 @@ class PedestrianEnv(gym.Env):
                     if (grid_y, grid_x) not in cur_car_info_dict:
                         cur_car_info_dict[(grid_y, grid_x)] = [car.default_speed > 0, cur_speed, penalty]
                     else:
-                        cur_car_info_dict[(grid_y, grid_x)][1] = max(cur_speed, cur_car_info_dict[(grid_y, grid_x)][1])
+                        if abs(cur_speed) > abs(cur_car_info_dict[(grid_y, grid_x)][1]):
+                            cur_car_info_dict[(grid_y, grid_x)][1] = cur_speed
                         cur_car_info_dict[(grid_y, grid_x)][2] = max(penalty, cur_car_info_dict[(grid_y, grid_x)][2])
 
         # fill up obs
