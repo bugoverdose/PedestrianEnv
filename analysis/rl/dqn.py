@@ -14,24 +14,24 @@ from pedestrian_env.envs import PedestrianEnv
 from analysis.common import CNNFeaturesExtractor
 
 def run_DQN_CnnPolicy(seed=42,
-            features_dim=256,
-            filters_per_group=3,
-            n_output_channels=[32],
+            features_dim=128,
+            filters_per_group=5,
+            n_output_channels=[64, 64],
             kernel_size=3,
-            frame_stack = 0,
+            frame_stack=0,
             gamma=0.99, # default=0.99
             learning_rate=1e-4, # default=1e-4
-            train_freq = 1, # default=4
+            train_freq=(4, "episode"), # default=(4, "step")
             exploration_initial_eps=1.0,
-            exploration_fraction = 0.6,
-            exploration_final_eps = 0.05,
-            learning_starts = 2_000, # default=50000
+            exploration_fraction= 0.9,
+            exploration_final_eps=0.01,
+            learning_starts=10_000, # default=50000
             tau=1.0, # default=1 (Hard update only)
-            target_update_interval = 500, # target network: hard update every `target_update_interval` steps (default=10000)
-            buffer_size = 10_000, # Experience Replay: (default=1_000_000)
+            target_update_interval=50, # target network: hard update every 50 steps (default=10000)
+            buffer_size=10_000, # Experience Replay: (default=1_000_000)
             batch_size=32, # default=32
-            gradient_steps=1, # default=1
-            total_timesteps=150_000,
+            gradient_steps=-1, # auto=-1, default=1
+            total_timesteps=500_000,
             n_eval_episodes=100,
             extra_reward_using_crosswalk=False,
             saved_model_name=None,
@@ -127,9 +127,13 @@ def _load_DQN_model(saved_model_name, seed=42, frame_stack=0, render_mode_human=
     env = VecMonitor(env)
     if frame_stack > 0:
         env = VecFrameStack(env, n_stack=frame_stack)
-        print("!!!!")
     model = DQN.load(f"saved/{saved_model_name}", env=env)
     return model, env
 
 if __name__ == "__main__":
-    pass
+    model_name = "dqn_5_64_64_fd128_kernel3_1"
+    run_DQN_CnnPolicy(saved_model_name=model_name, tb_log_name=model_name[:-2])
+    test_policy(model_name)
+    # test score: 1652.5000
+    visualize_test(model_name)
+    # check 6_best_dqn.mov
