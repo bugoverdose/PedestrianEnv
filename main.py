@@ -21,8 +21,8 @@ KEY_ACTION = {
     pygame.K_a: Action.LEFT,
 }
 
-def play_episode(env, seed, verbose = False):
-    obs, _ = env.reset(seed=seed)
+def play_episode(env, episode_seed, verbose = False):
+    obs, _ = env.reset(seed=episode_seed)
     pygame.event.get() # clear previous key presses
     last_action = Action.NOTHING
     observations = [obs]
@@ -62,7 +62,7 @@ def play_episode(env, seed, verbose = False):
                     last_action = Action.NOTHING
                     break
 
-def play_game(save_dir, session_id, seed, max_episodes, max_seconds, debug, verbose):
+def play_game(save_dir, session_id, base_seed, max_episodes, max_seconds, debug, verbose):
     episode_duration_sec = 10 if debug else 30
     # env = PedestrianEnv(render_mode="human", realtime=True, gamescreen_width_fixed=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
@@ -74,12 +74,13 @@ def play_game(save_dir, session_id, seed, max_episodes, max_seconds, debug, verb
             time_passed = int(time.time()) - start_timestamp
             if time_passed >= max_seconds: break
         episode_id += 1
-        quit_game, observations, actions, rewards = play_episode(env, seed + episode_id, verbose)
+        episode_seed = base_seed + episode_id
+        quit_game, observations, actions, rewards = play_episode(env, episode_seed, verbose)
         if quit_game: break
-        os.makedirs(f"{save_dir}/{episode_id}", exist_ok=True)
-        np.save(f"{save_dir}/{episode_id}/observations.npy", np.array(observations))
-        np.save(f"{save_dir}/{episode_id}/actions.npy", np.array(actions))
-        np.save(f"{save_dir}/{episode_id}/rewards.npy", np.array(rewards))
+        os.makedirs(f"{save_dir}/{episode_seed}", exist_ok=True)
+        np.save(f"{save_dir}/{episode_seed}/observations.npy", np.array(observations))
+        np.save(f"{save_dir}/{episode_seed}/actions.npy", np.array(actions))
+        np.save(f"{save_dir}/{episode_seed}/rewards.npy", np.array(rewards))
     env.close()
 
 if __name__ == "__main__":
@@ -102,4 +103,4 @@ if __name__ == "__main__":
                 + f"Session ID: {args.sessionId}\n"
                 + f"Play start time: {dt.year}.{dt.month}.{dt.day} {dt.hour}:{dt.minute}:{dt.second}")
 
-    play_game(save_dir=save_dir, session_id=args.sessionId, seed=args.seed, max_episodes=args.max_episodes, max_seconds=args.max_seconds, debug=args.debug, verbose=args.verbose)
+    play_game(save_dir=save_dir, session_id=args.sessionId, base_seed=args.seed, max_episodes=args.max_episodes, max_seconds=args.max_seconds, debug=args.debug, verbose=args.verbose)

@@ -4,11 +4,9 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.road import RowType
-from pedestrian_env.envs.game_object import Agent, Car
+from pedestrian_env.envs.game_object import Car
 from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width
 from pedestrian_env.envs.action import Action, ACTION_DURATION
-from pedestrian_env.envs.utils import is_overlapping
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -26,16 +24,18 @@ class PedestrianEnv(gym.Env):
 
     def __init__(self,
                  title="Pedestrian Task",
-                 width=25, height=20,
-                 camera_width=11, camera_height=7,
-                 extra_reward_using_crosswalk=False,
-                 gamescreen_width_fixed=False,
-                 render_mode=None,
-                 tick_on_render=False,
+                 width=25,
+                 height=20,
+                 camera_width=11,
+                 camera_height=7,
                  steps_per_second=10,
-                 realtime=False,
+                 gamescreen_width_fixed=False,
                  episode_duration_sec=30,
                  gameover_screen_time=5000,
+                 fixed_episode_seed_range=None,
+                 render_mode=None,
+                 realtime=False,
+                 extra_reward_using_crosswalk=False,
                  debug=False,
                  render_sprite=False):
         if width < 12: raise Exception("minimum width is 13")
@@ -44,7 +44,6 @@ class PedestrianEnv(gym.Env):
         self.title = title
         self.map_grid_width = width
         self.map_grid_height = height + 1 # add starting lane
-        self.tick_on_render = tick_on_render
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
         self.realtime = realtime
@@ -60,6 +59,10 @@ class PedestrianEnv(gym.Env):
         self.map_height = self.map_grid_height * self.pix_square_size
         self.extra_reward_using_crosswalk = extra_reward_using_crosswalk
         self.gamescreen_width_fixed = gamescreen_width_fixed
+        assert fixed_episode_seed_range is None or (len(fixed_episode_seed_range) == 2 and fixed_episode_seed_range[0] <= fixed_episode_seed_range[1])
+        self.fixed_episode_seed_range = fixed_episode_seed_range
+        if fixed_episode_seed_range is not None:
+            self.fixed_episode_seed = fixed_episode_seed_range[0]
         self.debug = debug
         self.render_sprite = render_sprite
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -94,7 +97,16 @@ class PedestrianEnv(gym.Env):
         self._define_observation_space()
 
     def reset(self, seed=None, options=None):
-        super().reset(seed=seed) # set seed at `self.np_random`
+        # set seed at `self.np_random`
+        if seed is None and self.fixed_episode_seed is not None:
+            super().reset(seed=self.fixed_episode_seed)
+            if self.fixed_episode_seed >= self.fixed_episode_seed_range[1]:
+                self.fixed_episode_seed = self.fixed_episode_seed_range[0]
+            else:
+                self.fixed_episode_seed += 1
+            self.fixed_episode_seed = 1 + self.fixed_episode_seed_range[0]
+        else:
+            super().reset(seed=seed)
         self.elapsed = 0
 
         self.best_rewards = max(self.best_rewards, self.cur_rewards)
@@ -371,10 +383,6 @@ class PedestrianEnv(gym.Env):
         if self.render_mode == "human":
             pygame.event.pump()
             pygame.display.update()
-            # needed to ensure that human-rendering occurs at the predefined framerate.
-            # The following line will automatically add a delay to keep the framerate stable.
-            if self.tick_on_render:
-                self.clock_tick()
         elif self.render_mode == "rgb_array":
             return np.transpose(np.array(pygame.surfarray.pixels3d(self.window)), axes=(1, 0, 2))
 
