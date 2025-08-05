@@ -98,7 +98,7 @@ class PedestrianEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         # set seed at `self.np_random`
-        if seed is None and self.fixed_episode_seed is not None:
+        if seed is None and self.fixed_episode_seed_range is not None:
             super().reset(seed=self.fixed_episode_seed)
             if self.fixed_episode_seed >= self.fixed_episode_seed_range[1]:
                 self.fixed_episode_seed = self.fixed_episode_seed_range[0]
@@ -647,3 +647,36 @@ class PedestrianEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
+# self.pix_square_size = 50
+# self.camera_width_pixel = width * self.pix_square_size
+# self.camera_height_pixel = height * self.pix_square_size
+# visualizing tile example
+# for pos in [(12, 20), (13, 20), (14, 20), (15, 20), (15, 19), (15, 18), (15, 17), (14, 17), (13, 17), (12, 17), (11, 17), (10, 17), (9, 17), (8, 17), (8, 16), (8, 15), (8, 14), (9, 14), (10, 14), (11, 14), (12, 14),
+#              (13, 14), (14, 14), (15, 14), (15, 13), (15, 12), (14, 12), (14, 11), (13, 11), (12, 11), (12, 10), (11, 10), (10, 10), (9, 10), (8, 10), (8, 9), (8, 8)]:
+#     start_x = pos[0]
+#     start_y = pos[1]
+#     pygame.draw.rect(canvas, 
+#                     (150, 150, 200), 
+#                     ((start_x - 0.5) * self.pix_square_size, start_y * self.pix_square_size, self.pix_square_size, self.pix_square_size))
+
+# for x in range(25):
+#     start_y = 0
+#     pygame.draw.line(
+#         canvas,
+#         (0, 0, 0),
+#         (self.pix_square_size * (x + 0.5), start_y),
+#         (self.pix_square_size * (0.5 + x), self.pix_square_size * self.map_grid_height),
+#         width=3,
+#     )
+# for y in range(21):
+#     start_x = 0
+#     pygame.draw.line(
+#         canvas,
+#         (0, 0, 0),
+#         (start_x, self.pix_square_size * y),
+#         (self.map_width, self.pix_square_size * y),
+#         width=3,
+#     )
+
+
+

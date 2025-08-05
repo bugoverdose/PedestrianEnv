@@ -14,13 +14,13 @@ from analysis.common import CNNFeaturesExtractor
 from analysis.rl.custom_ppo import CustomPPO
 
 def run_PPO_CnnPolicy(seed=42,
-                      features_dim=256, 
-                      filters_per_group=3,
-                      n_output_channels=[32],
+                      features_dim=128,
+                      filters_per_group=5,
+                      n_output_channels=[64, 64],
                       kernel_size=3,
                       frame_stack = 0,
                       learning_rate=1e-4,
-                      n_steps=2048, # default=2048
+                      n_steps=128, # default=2048
                       batch_size=32, # default=64, 
                       n_epochs=2,
                       gamma=0.99,
@@ -34,6 +34,7 @@ def run_PPO_CnnPolicy(seed=42,
                       max_grad_norm=0.5,
                       total_timesteps=500_000,
                       n_eval_episodes=100,
+                      fixed_episode_seed_range=None,
                       extra_reward_using_crosswalk=False,
                       saved_model_name=None,
                       tb_log_name="ppo",
@@ -43,8 +44,8 @@ def run_PPO_CnnPolicy(seed=42,
     random.seed(seed)
 
     def make_env():
-        env = PedestrianEnv(extra_reward_using_crosswalk=extra_reward_using_crosswalk)
-        env.reset(seed=seed)
+        env = PedestrianEnv(fixed_episode_seed_range=fixed_episode_seed_range, extra_reward_using_crosswalk=extra_reward_using_crosswalk)
+        env.reset(seed = seed if fixed_episode_seed_range is None else None)
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
@@ -120,16 +121,16 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_PPO_model(saved_model_name, render_mode_human=True, frame_stack=0, seed=42):
+def _load_PPO_model(saved_model_name, fixed_episode_seed_range=(1001, 1001), render_mode_human=True, frame_stack=0, seed=42):
     np.random.seed(seed)
     random.seed(seed)
 
     def make_env():
         if render_mode_human:
-            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+            env = PedestrianEnv(fixed_episode_seed_range=fixed_episode_seed_range, render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
         else:
-            env = PedestrianEnv()
-        env.reset(seed=seed)
+            env = PedestrianEnv(fixed_episode_seed_range=fixed_episode_seed_range)
+        env.reset(seed = seed if fixed_episode_seed_range is None else None)
         return env
 
     env = DummyVecEnv([make_env])
