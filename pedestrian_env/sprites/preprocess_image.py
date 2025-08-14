@@ -109,7 +109,8 @@ if __name__ == "__main__":
     # record_aspect_ratios("cars", "car_ratios.txt")
     # remove_uncropped_pngs("cars")
     pass
-    separate_player_svg("retro_character", "player", blank_bg = True)
-    process_all_images("player")
-    remove_uncropped_pngs("player", ext = ".png")
-    remove_uncropped_pngs("player", ext = ".svg")
+    # separate_player_svg("retro_character", "player", blank_bg = True)
+    # process_all_images("player")
+    # remove_uncropped_pngs("player", ext = ".png")
+    # remove_uncropped_pngs("player", ext = ".svg")
+    record_aspect_ratios("player", "player_ratios.txt")
