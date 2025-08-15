@@ -138,6 +138,8 @@ class PedestrianEnv(gym.Env):
         self.info = None
         self.prev_step_state = dict()
         self._update_state_snapshot()
+        self.apply_time_and_render(self.step_ms) # assume that the player waits and does nothing for 1 step for car movement observations
+        self._update_state_snapshot()
         return self.obs, self.info
 
     def step(self, action):
@@ -213,17 +215,18 @@ class PedestrianEnv(gym.Env):
                     cumulative_reward -= 20 # leaved crosswalk
 
         # An episode is finished if the agent has reached the target lane
-        if self.world.target_lane_reached():
+        if not self.world.agent.is_dead and self.world.target_lane_reached():
             self.game_over = True
             game_end_extra_score = self._get_time_left_sec()
             cumulative_reward += game_end_extra_score * self.BONUS_SCORE_PER_SEC
             self.game_end_extra_score = game_end_extra_score * self.BONUS_SCORE_PER_SEC
 
+        cumulative_reward += self.world.calculate_cum_crossing_rewards()
+        self.cur_rewards += cumulative_reward
+
         if self.game_over and self.realtime:
             self._render_game_over()
         
-        cumulative_reward += self.world.calculate_cum_crossing_rewards()
-        self.cur_rewards += cumulative_reward
         self._update_state_snapshot()
         return self.obs, cumulative_reward, self.game_over, False, self.info
     
