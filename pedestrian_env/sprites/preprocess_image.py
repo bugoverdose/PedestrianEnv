@@ -49,11 +49,8 @@ def remove_uncropped_pngs(root_dir, ext = ".png"):
                 os.remove(file_path)
                 print(f"Deleted: {file_path}")
 
-def separate_player_svg(input_path, output_path, blank_bg):
-    if blank_bg:
-        SRC = Path(f"{input_path}/raw_fill_none")
-    else:
-        SRC = Path(f"{input_path}/raw")
+def separate_player_svg(input_path, output_path):
+    SRC = Path(input_path)
 
     OUT = Path(output_path)
     OUT.mkdir(exist_ok=True)
@@ -108,9 +105,14 @@ if __name__ == "__main__":
     # process_all_images("cars")
     # record_aspect_ratios("cars", "car_ratios.txt")
     # remove_uncropped_pngs("cars")
-    pass
-    # separate_player_svg("retro_character", "player", blank_bg = True)
-    # process_all_images("player")
-    # remove_uncropped_pngs("player", ext = ".png")
-    # remove_uncropped_pngs("player", ext = ".svg")
-    record_aspect_ratios("player", "player_ratios.txt")
+
+    separate_player_svg("retro_character/raw_fill_none", "player_color")
+    process_all_images("player_color")
+    remove_uncropped_pngs("player_color", ext = ".png")
+    remove_uncropped_pngs("player_color", ext = ".svg")
+    record_aspect_ratios("player_color", "player_ratios.txt")
+
+    separate_player_svg("retro_character/raw_black_only", "player_dead")
+    process_all_images("player_dead")
+    remove_uncropped_pngs("player_dead", ext = ".png")
+    remove_uncropped_pngs("player_dead", ext = ".svg")
