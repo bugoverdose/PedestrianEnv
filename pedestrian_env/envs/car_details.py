@@ -1,5 +1,8 @@
 import os
+
 from enum import Enum
+
+import pygame
 
 class Penalty(Enum):
     LOW = 100
@@ -78,14 +81,37 @@ def get_max_car_grid_height():
         max_height = max(max_height, height)
     return max_height
 
-class CarDetail:
-    def __init__(self, car_name, color_type, go_right):
-        risk_detail = _RiskDetails[color_type]
+class CarDetails:
+    def __init__(self, car_name, risk_detail, go_right, pix_square_size, car_grid_height, ratio, render_sprite, height_buffer = 0.1):
         self.color = risk_detail.color
         self.penalty = risk_detail.penalty
-
         self.go_right = go_right
-        direction = "EAST" if go_right else "WEST"
-        file_name = f"{risk_detail.color_name}_{car_name}_CLEAN_{direction}_000_cropped.png"
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.image_path = os.path.join(current_dir, "..", "sprites/cars/", file_name)
+
+        self.car_grid_height = car_grid_height - height_buffer # NOTE: needed to handle the overlap between the lanes
+        self.car_grid_width = self.car_grid_height * float(ratio)
+        self.car_width = self.car_grid_width * pix_square_size
+        self.car_height = self.car_grid_height * pix_square_size
+        
+        self.car_width = self.car_width
+        self.car_height = self.car_height
+        self.image = None
+        if render_sprite:
+            direction = "EAST" if go_right else "WEST"
+            file_name = f"{risk_detail.color_name}_{car_name}_CLEAN_{direction}_000_cropped.png"
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            image_path = os.path.join(current_dir, "..", "sprites/cars/", file_name)
+            object_image = pygame.image.load(image_path)
+            self.image = pygame.transform.scale(object_image, (self.car_width, self.car_height))
+
+def load_car_details_dict(pix_square_size, render_sprite):
+    car_details_dict = {}
+    for height in [1, 2]:
+        for i in range(len(CAR_CANDIDATES[height])):
+            (car_name, ratio) = CAR_CANDIDATES[height][i]
+            car_details_dict[car_name] = {}
+            for color_type in _RiskDetails.keys():
+                risk_detail = _RiskDetails[color_type]
+                car_details_dict[car_name][color_type] = {}
+                for go_right in [False, True]:
+                    car_details_dict[car_name][color_type][go_right] = CarDetails(car_name, risk_detail, go_right, pix_square_size, height, ratio, render_sprite)
+    return car_details_dict

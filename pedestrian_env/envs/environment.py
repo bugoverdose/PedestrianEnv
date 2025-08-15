@@ -5,7 +5,7 @@ import numpy as np
 
 from pedestrian_env.envs.world import World
 from pedestrian_env.envs.game_object import Car, load_player_images
-from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width
+from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width, load_car_details_dict
 from pedestrian_env.envs.action import Action, ACTION_DURATION
 
 class PedestrianEnv(gym.Env):
@@ -63,9 +63,9 @@ class PedestrianEnv(gym.Env):
         self.fixed_episode_seed_range = fixed_episode_seed_range
         if fixed_episode_seed_range is not None:
             self.fixed_episode_seed = fixed_episode_seed_range[0]
-        self.debug = debug
-        self.render_sprite = render_sprite
         self.player_images = load_player_images(self.pix_square_size) if render_sprite else None
+        self.car_details_dict = load_car_details_dict(self.pix_square_size, render_sprite)
+        self.debug = debug
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         self.window = None
@@ -117,7 +117,16 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.world = World(self.agent_move_range, self.map_grid_width, self.map_grid_height, self.camera_width, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite, self.player_images)
+        self.world = World(self.agent_move_range,
+                           self.map_grid_width,
+                           self.map_grid_height,
+                           self.camera_width,
+                           self.pix_square_size,
+                           self.steps_per_second,
+                           self.np_random,
+                           self.debug,
+                           self.player_images,
+                           self.car_details_dict)
 
         if self.render_mode == "human":
             self.render()
@@ -517,7 +526,7 @@ class PedestrianEnv(gym.Env):
                     cur_fully_covered_set.add((grid_y, grid_x)) # tile fully covered by a single car
                 for grid_x in range(int(max(visible_x_start - 0.5, grix_left_end_x)), int(min(visible_x_end + 0.5, grix_right_end_x)+1)):
                     cur_speed = car.get_cur_speed()
-                    penalty = car.car_detail.penalty.value
+                    penalty = car.car_details.penalty.value
                     if (grid_y, grid_x) not in cur_car_info_dict:
                         cur_car_info_dict[(grid_y, grid_x)] = [car.default_speed > 0, cur_speed, penalty]
                     else:
@@ -649,36 +658,3 @@ class PedestrianEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
-# self.pix_square_size = 50
-# self.camera_width_pixel = width * self.pix_square_size
-# self.camera_height_pixel = height * self.pix_square_size
-# visualizing tile example
-# for pos in [(12, 20), (13, 20), (14, 20), (15, 20), (15, 19), (15, 18), (15, 17), (14, 17), (13, 17), (12, 17), (11, 17), (10, 17), (9, 17), (8, 17), (8, 16), (8, 15), (8, 14), (9, 14), (10, 14), (11, 14), (12, 14),
-#              (13, 14), (14, 14), (15, 14), (15, 13), (15, 12), (14, 12), (14, 11), (13, 11), (12, 11), (12, 10), (11, 10), (10, 10), (9, 10), (8, 10), (8, 9), (8, 8)]:
-#     start_x = pos[0]
-#     start_y = pos[1]
-#     pygame.draw.rect(canvas, 
-#                     (150, 150, 200), 
-#                     ((start_x - 0.5) * self.pix_square_size, start_y * self.pix_square_size, self.pix_square_size, self.pix_square_size))
-
-# for x in range(25):
-#     start_y = 0
-#     pygame.draw.line(
-#         canvas,
-#         (0, 0, 0),
-#         (self.pix_square_size * (x + 0.5), start_y),
-#         (self.pix_square_size * (0.5 + x), self.pix_square_size * self.map_grid_height),
-#         width=3,
-#     )
-# for y in range(21):
-#     start_x = 0
-#     pygame.draw.line(
-#         canvas,
-#         (0, 0, 0),
-#         (start_x, self.pix_square_size * y),
-#         (self.map_width, self.pix_square_size * y),
-#         width=3,
-#     )
-
-
-
