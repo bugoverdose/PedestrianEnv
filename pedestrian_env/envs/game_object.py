@@ -1,3 +1,5 @@
+import os
+
 import pygame
 import numpy as np
 
@@ -52,8 +54,9 @@ class Agent(GameObject):
     BODY_COLOR = (0, 50, 255) # (0, 0, 255)
     EYE_COLOR = (0, 0, 0)
     RADIUS = 0.25
+    WIDTH = 0.5
 
-    def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, debug):
+    def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, player_images, debug):
         fixed_speed = 2.5
         if debug:
             fixed_speed *= 5
@@ -65,7 +68,9 @@ class Agent(GameObject):
         self.is_dead = False
         self.MIN_X = agent_x_range[0]
         self.MAX_X = agent_x_range[1]
-        self.last_direction = ACTION_TO_DELTA[Action.UP.value]
+        self.last_direction = Action.DOWN.value
+        self.images = player_images
+        self.mini_step_count = 0
 
     def get_cur_location_grid(self):
         return int(round(self.cur_location[0])), int(round(self.cur_location[1]))
@@ -77,10 +82,9 @@ class Agent(GameObject):
         return round(self.target_location[1], 2)
 
     def update_target(self, action_value):
-        direction = ACTION_TO_DELTA[action_value]
         if action_value != Action.NOTHING.value:
-            self.last_direction = direction
-        delta = direction * (self.default_speed / self.steps_per_second) * ACTION_DURATION[action_value]
+            self.last_direction = action_value
+        delta = ACTION_TO_DELTA[action_value] * (self.default_speed / self.steps_per_second) * ACTION_DURATION[action_value]
         self.target_location = np.clip(self.cur_location + delta,
                                        [self.MIN_X, self.TARGET_LANE],
                                        [self.MAX_X, self.map_grid_height - 1])
@@ -94,50 +98,58 @@ class Agent(GameObject):
         agent_center_x = self.cur_location[0] * self.pix_square_size
         agent_center_y = self.cur_location[1] * self.pix_square_size + adjustment
         agent_position = (agent_center_x, agent_center_y)
-        if self.is_dead:
-            radius_x = int(self.pix_square_size * self.RADIUS * 1.4)
-            radius_y = int(self.pix_square_size * self.RADIUS * 0.4)
-            flattened_rect = pygame.Rect(
-                agent_center_x - radius_x,
-                agent_center_y - radius_y,
-                radius_x * 2,
-                radius_y * 2
-            )
-            pygame.draw.ellipse(background, self.BODY_COLOR, flattened_rect)
+        if self.images is not None:
+            if self.is_dead:
+                pass # TODO
+            else:
+                [image, player_width, player_height] = self.images[self.last_direction][self.mini_step_count % ACTION_DURATION[self.last_direction]]
+                left_x_pix = agent_center_x - player_width/2
+                top_y_pix = agent_center_y - player_height/2
+                background.blit(image, (left_x_pix, top_y_pix))
         else:
-            # draw body
-            radius_pix = self.pix_square_size * self.RADIUS
-            pygame.draw.circle(
-                background,
-                self.BODY_COLOR,
-                agent_position,
-                radius_pix,
-            )
+            if self.is_dead:
+                radius_x = int(self.pix_square_size * self.RADIUS * 1.4)
+                radius_y = int(self.pix_square_size * self.RADIUS * 0.4)
+                flattened_rect = pygame.Rect(
+                    agent_center_x - radius_x,
+                    agent_center_y - radius_y,
+                    radius_x * 2,
+                    radius_y * 2
+                )
+                pygame.draw.ellipse(background, self.BODY_COLOR, flattened_rect)
+            else:
+                # draw body
+                radius_pix = self.pix_square_size * self.RADIUS
+                pygame.draw.circle(
+                    background,
+                    self.BODY_COLOR,
+                    agent_position,
+                    radius_pix,
+                )
 
-            # draw eys
-            [dx, dy] = self.last_direction
-            px, py = -dy, dx # for rotation
-            eyes_apart = radius_pix * 0.3
-            eyes_from_head = radius_pix * 0.6
+                # draw eys
+                [dx, dy] = ACTION_TO_DELTA[self.last_direction]
+                px, py = -dy, dx # for rotation
+                eyes_apart = radius_pix * 0.3
+                eyes_from_head = radius_pix * 0.6
 
-            eye_width, eye_height = radius_pix * 0.15, radius_pix * 0.4
-            if dx != 0: # left or right
-                eye_width, eye_height = eye_height, eye_width
-            left_eye_rect = pygame.Rect(
-                (agent_center_x + dx * eyes_from_head + px * eyes_apart) - (eye_width // 2),
-                (agent_center_y + dy * eyes_from_head + py * eyes_apart) - (eye_height // 2),
-                eye_width,
-                eye_height,
-            )
-            right_eye_rect = pygame.Rect(
-                (agent_center_x + dx * eyes_from_head - px * eyes_apart) - (eye_width // 2),
-                (agent_center_y + dy * eyes_from_head - py * eyes_apart)- (eye_height // 2),
-                eye_width,
-                eye_height,
-            )
-            pygame.draw.ellipse(background, self.EYE_COLOR, left_eye_rect)
-            pygame.draw.ellipse(background, self.EYE_COLOR, right_eye_rect)
-
+                eye_width, eye_height = radius_pix * 0.15, radius_pix * 0.4
+                if dx != 0: # left or right
+                    eye_width, eye_height = eye_height, eye_width
+                left_eye_rect = pygame.Rect(
+                    (agent_center_x + dx * eyes_from_head + px * eyes_apart) - (eye_width // 2),
+                    (agent_center_y + dy * eyes_from_head + py * eyes_apart) - (eye_height // 2),
+                    eye_width,
+                    eye_height,
+                )
+                right_eye_rect = pygame.Rect(
+                    (agent_center_x + dx * eyes_from_head - px * eyes_apart) - (eye_width // 2),
+                    (agent_center_y + dy * eyes_from_head - py * eyes_apart)- (eye_height // 2),
+                    eye_width,
+                    eye_height,
+                )
+                pygame.draw.ellipse(background, self.EYE_COLOR, left_eye_rect)
+                pygame.draw.ellipse(background, self.EYE_COLOR, right_eye_rect)
         return agent_position
 
 class Car(GameObject):
@@ -366,3 +378,37 @@ class Cars:
         for car in self.elements:
             string += f"{car}\n"
         return string[:-1]
+
+def load_player_images(pix_square_size):
+    player_images = {}
+    directions = [Action.UP, Action.DOWN, Action.RIGHT, Action.LEFT]
+    size_ratio = {
+        "player_UP_1_cropped.png": 0.7681,
+        "player_DOWN_0_cropped.png": 0.7808,
+        "player_RIGHT_0_cropped.png": 0.7101,
+        "player_LEFT_0_cropped.png": 0.7101,
+        "player_LEFT_3_cropped.png": 0.7538,
+        "player_RIGHT_3_cropped.png": 0.7538,
+        "player_DOWN_3_cropped.png": 0.7681,
+        "player_UP_2_cropped.png": 0.7808,
+        "player_LEFT_1_cropped.png": 0.7538,
+        "player_RIGHT_1_cropped.png": 0.7538,
+        "player_DOWN_1_cropped.png": 0.7681,
+        "player_UP_0_cropped.png": 0.7808,
+        "player_UP_3_cropped.png": 0.7681,
+        "player_DOWN_2_cropped.png": 0.7808,
+        "player_RIGHT_2_cropped.png": 0.7101,
+        "player_LEFT_2_cropped.png": 0.7101,
+    }
+    for d in directions:
+        player_images[d.value] = []
+        for i in range(4):
+            file_name = f"player_{str(d)}_{i}_cropped.png"
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            image_path = os.path.join(current_dir, "..", "sprites/player/", file_name)
+            object_image = pygame.image.load(image_path)
+            player_height = Agent.WIDTH * pix_square_size
+            player_width = player_height * size_ratio[file_name]
+            image = pygame.transform.scale(object_image, (player_width, player_height))
+            player_images[d.value].append([image, player_width, player_height])
+    return player_images

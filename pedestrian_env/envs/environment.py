@@ -4,7 +4,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.game_object import Car
+from pedestrian_env.envs.game_object import Car, load_player_images
 from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width
 from pedestrian_env.envs.action import Action, ACTION_DURATION
 
@@ -65,6 +65,7 @@ class PedestrianEnv(gym.Env):
             self.fixed_episode_seed = fixed_episode_seed_range[0]
         self.debug = debug
         self.render_sprite = render_sprite
+        self.player_images = load_player_images(self.pix_square_size) if render_sprite else None
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         self.window = None
@@ -116,7 +117,7 @@ class PedestrianEnv(gym.Env):
         self.game_over = False
         self.game_end_extra_score = 0
 
-        self.world = World(self.agent_move_range, self.map_grid_width, self.map_grid_height, self.camera_width, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite)
+        self.world = World(self.agent_move_range, self.map_grid_width, self.map_grid_height, self.camera_width, self.pix_square_size, self.steps_per_second, self.np_random, self.debug, self.render_sprite, self.player_images)
 
         if self.render_mode == "human":
             self.render()
@@ -181,6 +182,7 @@ class PedestrianEnv(gym.Env):
                     cumulative_reward += reward
                     self.game_over = terminated
                     if self.game_over: break
+                self.world.agent.mini_step_count = 0 if action == Action.NOTHING.value else cur_count
                 dt = self.clock_tick()
                 self.elapsed += dt
                 self.apply_time_and_render(dt)
