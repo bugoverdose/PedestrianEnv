@@ -1,17 +1,17 @@
 # Example Sprites
 
 ## Player
-- [craftpix.net](https://craftpix.net/freebies/free-base-4-direction-male-character-pixel-art/?srsltid=AfmBOorwPPnirqs2b8h9LuDxCSEL5Leme2qC4LlDi98wOb6nqdDJxI5e&utm_source=chatgpt.com)
+- Retro Character Sprite Sheet: [link](https://openclipart.org/detail/248259/retro-character-sprite-sheet)
+  - [raw](./retro_character)
+  - [preprocessed alive images](./player_color)
+  - [preprocessed dead images](./player_dead)
 
 ## Car
-- [TopDown Vehicles v1.17](./top_down_vehicles)
-    - [minzinn.itch.io](https://minzinn.itch.io/pixelvehicles)
-
-- Other sites
-    - [freepik.com](https://www.freepik.com/free-photos-vectors/car-sprite)
-    - [shutterstock.com](https://www.shutterstock.com/ko/image-vector/set-24-mesh-cars-different-angles-2251409587)
-    - [itch.io](https://digital-realms.itch.io/pixel-realistic-cars)
+- TopDown Vehicles v1.17: [link](https://minzinn.itch.io/pixelvehicles)
+  - [raw](./top_down_vehicles)
+  - [preprocessed](./cars)
 
 ## Utils
-- Sprites made with [sprite-cutter](https://ezgif.com/sprite-cutter)
-- Background removed with [remove.bf](https://www.remove.bg/ko)
+- Background for svg wer removed and sprite sheets were separated using [preprocess_image.py](./preprocess_image.py)
+- Site to cut sprite sheets: [sprite-cutter](https://ezgif.com/sprite-cutter)
+- Site to remove background: [remove.bf](https://www.remove.bg/ko)
