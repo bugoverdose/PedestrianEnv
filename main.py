@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from datetime import datetime
 
 import pygame
@@ -23,14 +24,24 @@ KEY_ACTION = {
 
 def play_episode(env, episode_seed, verbose = False):
     obs, info = env.reset(seed=episode_seed)
-    pygame.event.get() # clear previous key presses
-    last_action = Action.NOTHING
     observations = [obs]
+    episode_metadata = { "road_metadata": info["road_metadata"], "car_metadata": info["car_metadata"] }
+    play_infos = [[info["agent_x"], info["agent_y"], info["is_dead"],
+                   info["activated_crosswalk_uid"], info["time_left"], info["real_time_step_passed"],
+                   info["game_end_extra_score"], info["cur_episode_score"], info["total_score"]]]
+    car_infos = [info["cars"]]
     actions = []
     rewards = []
+
+    pygame.event.get() # clear previous key presses
+    last_action = Action.NOTHING
     while True:
         obs, reward, terminated, truncated, info = env.step(last_action.value)
         observations.append(obs)
+        play_infos.append([info["agent_x"], info["agent_y"], info["is_dead"],
+                           info["activated_crosswalk_uid"], info["time_left"], info["real_time_step_passed"],
+                           info["game_end_extra_score"], info["cur_episode_score"], info["total_score"]])
+        car_infos.append(info["cars"])
         actions.append(last_action.value)
         rewards.append(reward)
         if verbose:
@@ -41,7 +52,7 @@ def play_episode(env, episode_seed, verbose = False):
             #     print(obs[5][y])
             # print(obs[5][4])
             # print(f"Channel 10: Play time left: {obs[10][0][0]}")
-        if terminated or truncated: return False, observations, actions, rewards
+        if terminated or truncated: return False, episode_metadata, observations, actions, rewards, play_infos, car_infos
         last_action = Action.NOTHING
 
         # check if a key was being pressed down (needed for continuous movement)
@@ -52,7 +63,7 @@ def play_episode(env, episode_seed, verbose = False):
                 break
         for event in pygame.event.get():
             # close window to finish early
-            if event.type == pygame.QUIT: return True, observations, actions, rewards
+            if event.type == pygame.QUIT: return True, episode_metadata, observations, actions, rewards, play_infos, car_infos
 
             if last_action == Action.NOTHING:
                 # check if started to press a key (needed for instant start)
@@ -65,7 +76,7 @@ def play_episode(env, episode_seed, verbose = False):
                     last_action = Action.NOTHING
                     break
 
-def play_game(save_dir, session_id, base_seed, max_episodes, max_seconds, debug, verbose):
+def play_game(base_dir, session_id, base_seed, max_episodes, max_seconds, debug, verbose):
     episode_duration_sec = 10 if debug else 30
     # env = PedestrianEnv(render_mode="human", realtime=True, gamescreen_width_fixed=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
     env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
@@ -78,13 +89,17 @@ def play_game(save_dir, session_id, base_seed, max_episodes, max_seconds, debug,
             if time_passed >= max_seconds: break
         episode_id += 1
         episode_seed = base_seed + episode_id
-        quit_game, observations, actions, rewards = play_episode(env, episode_seed, verbose)
+        quit_game, episode_metadata, observations, actions, rewards, play_infos, car_infos = play_episode(env, episode_seed, verbose)
         if quit_game: break
         # NOTE: .npy is more lightweight than CSV because it stores data in pure binary format
-        os.makedirs(f"{save_dir}/{episode_seed}", exist_ok=True)
-        np.save(f"{save_dir}/{episode_seed}/observations.npy", np.array(observations))
-        np.save(f"{save_dir}/{episode_seed}/actions.npy", np.array(actions))
-        np.save(f"{save_dir}/{episode_seed}/rewards.npy", np.array(rewards))
+        os.makedirs(f"{base_dir}/{episode_seed}", exist_ok=True)
+        with open(f"{base_dir}/{episode_seed}/episode_metadata.json", "w") as f:
+            json.dump(episode_metadata, f)
+        np.save(f"{base_dir}/{episode_seed}/observations.npy", np.array(observations))
+        np.save(f"{base_dir}/{episode_seed}/actions.npy", np.array(actions))
+        np.save(f"{base_dir}/{episode_seed}/rewards.npy", np.array(rewards))
+        np.save(f"{base_dir}/{episode_seed}/play_infos.npy", np.array(play_infos, dtype=object), allow_pickle=True)
+        np.save(f"{base_dir}/{episode_seed}/car_infos.npy", np.array(car_infos, dtype=object), allow_pickle=True)
     env.close()
 
 if __name__ == "__main__":
@@ -93,18 +108,18 @@ if __name__ == "__main__":
     arg_parser.add_argument('--sessionId', type=int, default=1, help='session ID')
     arg_parser.add_argument('--verbose', action='store_true', help='enable verbose log')
     arg_parser.add_argument('--debug', action='store_true', help='enable debugging mode')
-    arg_parser.add_argument('--seed', type=int, default=1000, help='initial seed used for each episode')
+    arg_parser.add_argument('--seed', type=int, default=0, help='seed value added')
     arg_parser.add_argument('--max_episodes', type=int, default=-1, help='total number of episodes')
     arg_parser.add_argument('--max_seconds', type=int, default=600, help='ends after reaching max seconds (default: 10 min)')
     args = arg_parser.parse_args()
 
-    save_dir = f"data/{args.subjId}"
-    os.makedirs(save_dir, exist_ok=True)
-    with open(os.path.join(save_dir, f"README_{args.sessionId}.md"), 'w') as f:
+    base_dir = f"data/{args.subjId}"
+    os.makedirs(base_dir, exist_ok=True)
+    with open(os.path.join(base_dir, f"README_{args.sessionId}.md"), 'w') as f:
         timestamp = time.time()
         dt = datetime.fromtimestamp(timestamp)
         f.write(f"Subject ID: {args.subjId}\n"
                 + f"Session ID: {args.sessionId}\n"
                 + f"Play start time: {dt.year}.{dt.month}.{dt.day} {dt.hour}:{dt.minute}:{dt.second}")
 
-    play_game(save_dir=save_dir, session_id=args.sessionId, base_seed=args.seed, max_episodes=args.max_episodes, max_seconds=args.max_seconds, debug=args.debug, verbose=args.verbose)
+    play_game(base_dir=base_dir, session_id=args.sessionId, base_seed=args.seed, max_episodes=args.max_episodes, max_seconds=args.max_seconds, debug=args.debug, verbose=args.verbose)
