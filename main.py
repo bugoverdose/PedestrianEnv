@@ -22,7 +22,7 @@ KEY_ACTION = {
 }
 
 def play_episode(env, episode_seed, verbose = False):
-    obs, _ = env.reset(seed=episode_seed)
+    obs, info = env.reset(seed=episode_seed)
     pygame.event.get() # clear previous key presses
     last_action = Action.NOTHING
     observations = [obs]
@@ -35,8 +35,11 @@ def play_episode(env, episode_seed, verbose = False):
         rewards.append(reward)
         if verbose:
             print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
+            for car in info["cars"]:
+                print(car)
             # for y in range(env.camera_height):
             #     print(obs[5][y])
+            # print(obs[5][4])
             # print(f"Channel 10: Play time left: {obs[10][0][0]}")
         if terminated or truncated: return False, observations, actions, rewards
         last_action = Action.NOTHING
@@ -77,6 +80,7 @@ def play_game(save_dir, session_id, base_seed, max_episodes, max_seconds, debug,
         episode_seed = base_seed + episode_id
         quit_game, observations, actions, rewards = play_episode(env, episode_seed, verbose)
         if quit_game: break
+        # NOTE: .npy is more lightweight than CSV because it stores data in pure binary format
         os.makedirs(f"{save_dir}/{episode_seed}", exist_ok=True)
         np.save(f"{save_dir}/{episode_seed}/observations.npy", np.array(observations))
         np.save(f"{save_dir}/{episode_seed}/actions.npy", np.array(actions))

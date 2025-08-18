@@ -81,6 +81,7 @@ class PedestrianEnv(gym.Env):
         self.elapsed = 0
         self.game_over = False
         self.game_end_extra_score = 0
+        self.real_time_step_passed = 0
         self.obs = None
         self.info = None
         self.prev_step_state = None
@@ -116,6 +117,7 @@ class PedestrianEnv(gym.Env):
         self.time_left = self.GAME_TIME_MS
         self.game_over = False
         self.game_end_extra_score = 0
+        self.real_time_step_passed = 0
 
         self.world = World(self.agent_move_range,
                            self.map_grid_width,
@@ -137,9 +139,9 @@ class PedestrianEnv(gym.Env):
         self.obs = None
         self.info = None
         self.prev_step_state = dict()
-        self._update_state_snapshot()
+        self._update_step_state()
         self.apply_time_and_render(self.step_ms) # assume that the player waits and does nothing for 1 step for car movement observations
-        self._update_state_snapshot()
+        self._update_step_state()
         return self.obs, self.info
 
     def step(self, action):
@@ -171,10 +173,12 @@ class PedestrianEnv(gym.Env):
         if self.extra_reward_using_crosswalk:
             prev_agent_x, prev_agent_y = self.world.agent.get_cur_location_grid()
         cumulative_reward = -self.world.calculate_cum_crossing_rewards()
+        action_duration = ACTION_DURATION[action]
+        self.real_time_step_passed += action_duration
         if not self.realtime:
             # interacting with the environment using RL algorithm
             self.world.agent.update_target(action)
-            for _ in range(ACTION_DURATION[action]):
+            for _ in range(action_duration):
                 reward, terminated = self._check_gameover()
                 cumulative_reward += reward
                 self.apply_time_and_render(self.step_ms)
@@ -187,7 +191,7 @@ class PedestrianEnv(gym.Env):
             while True:
                 if self.elapsed >= self.step_ms:
                     self.elapsed -= self.step_ms
-                    if cur_count >= ACTION_DURATION[action]: break
+                    if cur_count >= action_duration: break
                     cur_count += 1
                     reward, terminated = self._check_gameover()
                     cumulative_reward += reward
@@ -227,7 +231,7 @@ class PedestrianEnv(gym.Env):
         if self.game_over and self.realtime:
             self._render_game_over()
         
-        self._update_state_snapshot()
+        self._update_step_state()
         return self.obs, cumulative_reward, self.game_over, False, self.info
     
     def _check_gameover(self):
@@ -409,6 +413,7 @@ class PedestrianEnv(gym.Env):
             total_elapsed += dt
             while elapsed >= self.step_ms:
                 elapsed -= self.step_ms
+                # NOTE: handle death during time over
                 agent_dead, _ = self.world.cars.has_hit_agent()
                 if agent_dead:
                     self.world.agent.set_dead()
@@ -432,11 +437,33 @@ class PedestrianEnv(gym.Env):
         high_chw = np.transpose(high_hwc, (2, 0, 1))
         self.observation_space = gym.spaces.Box(low=low_chw, high=high_chw, dtype=np.float32)
 
-    def _update_state_snapshot(self):
-        self._update_obs()
-        self._update_info()
+    def _update_step_state(self):
+        agent_x, agent_y = self.world.agent.get_cur_location_grid()
+        grid_y_start = agent_y - self.camera_height//2 - 2
+        if self.gamescreen_width_fixed:
+            grid_x_start = self.world.agent.init_pos[0] - self.camera_width//2
+        else:
+            grid_x_start = agent_x - self.camera_width//2
+        visible_x_start = grid_x_start - 0.5
+        visible_x_end = visible_x_start + self.camera_width
 
-    def _update_obs(self):
+        # calculate nearby car info (include cars out of sight with buffer of grid size 1)
+        nearby_cars = set()
+        for y in range(self.camera_height + 2):
+            grid_y = grid_y_start + y - 1
+            if grid_y not in self.world.row_to_cars_dict: continue # no car
+            for car in self.world.row_to_cars_dict[grid_y]:
+                if car in nearby_cars: continue
+                car_left_x, car_right_x = car.get_cur_x_pos()
+                # out of sight with buffer
+                if car_right_x < visible_x_start - 1: continue
+                if visible_x_end + 1 < car_left_x: continue
+                nearby_cars.add(car)
+
+        self._update_obs(agent_x, agent_y, grid_x_start, grid_y_start, visible_x_start, visible_x_end, nearby_cars)
+        self._update_info(agent_x, agent_y, nearby_cars)
+
+    def _update_obs(self, agent_x, agent_y, grid_x_start, grid_y_start, visible_x_start, visible_x_end, nearby_cars):
         """
         Observation (normalized)
         - structure: (C, H, W) = (channels, y, x)
@@ -491,16 +518,6 @@ class PedestrianEnv(gym.Env):
         - 0: not agent
         - 1: agent
         """
-        agent_x, agent_y = self.world.agent.get_cur_location_grid()
-        grid_y_start = agent_y - self.camera_height//2 - 2
-        if self.gamescreen_width_fixed:
-            grid_x_start = self.world.agent.init_pos[0] - self.camera_width//2
-        else:
-            grid_x_start = agent_x - self.camera_width//2
-        visible_x_start = grid_x_start - 0.5
-        visible_x_end = visible_x_start + self.camera_width
-
-        # calculate car info (include cars out of sight with buffer of grid size 1)
         prev_left_covered_dict = self.prev_step_state["left_covered"] if "left_covered" in self.prev_step_state else dict()
         prev_right_covered_dict = self.prev_step_state["right_covered"]  if "right_covered" in self.prev_step_state else dict()
 
@@ -508,23 +525,17 @@ class PedestrianEnv(gym.Env):
         cur_fully_covered_set = set()
         cur_right_covered_dict = dict()
         cur_car_info_dict = dict()
-        for y in range(self.camera_height + 2):
-            grid_y = grid_y_start + y - 1
-            if grid_y not in self.world.row_to_cars_dict: continue # no car
-            for car in self.world.row_to_cars_dict[grid_y]:
+        for car in nearby_cars:
+            for grid_y in car.rows:
+                # NOTE: start of the tile is half of a tile width left from grid_x
                 car_left_x, car_right_x = car.get_cur_x_pos()
-                if car_right_x < visible_x_start - 1: continue
-                if visible_x_end + 1 < car_left_x: continue
-
                 car_left_x_adjusted = car_left_x + 0.5
                 car_right_x_adjusted = car_right_x + 0.5
 
                 grix_left_end_x = int(car_left_x_adjusted)
                 cur_right_covered_dict[(grid_y, grix_left_end_x)] = grix_left_end_x + 1 - car_left_x_adjusted # right part of the tile partially covered
-    
                 grix_right_end_x = int(car_right_x_adjusted)
                 cur_left_covered_dict[(grid_y, grix_right_end_x)] = car_right_x_adjusted - grix_right_end_x # left part of the tile partially covered
-    
                 for grid_x in range(grix_left_end_x + 1, grix_right_end_x):
                     cur_fully_covered_set.add((grid_y, grid_x)) # tile fully covered by a single car
                 for grid_x in range(int(max(visible_x_start - 0.5, grix_left_end_x)), int(min(visible_x_end + 0.5, grix_right_end_x)+1)):
@@ -610,7 +621,6 @@ class PedestrianEnv(gym.Env):
                         obs[9][y][x] = penalty / self.max_car_penalty
 
         self.prev_step_state["left_covered"] = cur_left_covered_dict
-        # self.prev_step_state["fully_covered"] = cur_fully_covered_set
         self.prev_step_state["right_covered"] = cur_right_covered_dict
         # Channel 10: Play time left
         if self.game_over or self.time_left - 1000 <= 0:
@@ -619,7 +629,7 @@ class PedestrianEnv(gym.Env):
             obs[10] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
         self.obs = obs
 
-    def _update_info(self):
+    def _update_info(self, agent_x, agent_y, nearby_cars):
         """
         Returns:
             info (dict): Contains auxiliary diagnostic information (helpful for debugging, learning, and logging).
@@ -628,15 +638,54 @@ class PedestrianEnv(gym.Env):
                 In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
                 however this is deprecated in favour of returning terminated and truncated variables.
         """
-        agent_x, agent_y = self.world.agent.get_cur_location_rounded()
-        self.info = {
-            "agent_x": agent_x,
-            "agent_y": agent_y,
-            "is_dead": self.world.agent.is_dead,
-            "game_end_extra_score": self.game_end_extra_score,
-            "cur_episode_score": self.cur_rewards,
-            "total_score": self._total_rewards(),
-        }
+        if self.info is None:
+            road_infos = []
+            for road in self.world.roads.elements:
+                road_info = {
+                    "uid": road.uid,
+                    "start_y": road.start_y,
+                    "end_y": road.end_y,
+                    "going_right": road.going_right,
+                    "car_color": str(road.car_color_type),
+                    "penalty": road.risk_detail.penalty.value,
+                    "crosswalk_col": int(road.crosswalk.col) if road.crosswalk is not None else -1,
+                    "going_right": road.going_right,
+                }
+                road_infos.append(road_info)
+            car_infos = []
+            for car in self.world.cars.elements:
+                start_row, end_row = car.rows[0], car.rows[-1]
+                car_info = {
+                    "uid": car.uid,
+                    "start_row": start_row,
+                    "end_row": end_row,
+                    "go_right": car.car_details.go_right,
+                    "car_grid_width": car.car_details.car_grid_width,
+                    "car_grid_height": car.car_details.car_grid_height,
+                    "car_type": car.car_details.car_type,
+                    "color": str(car.car_details.color),
+                    "penalty": car.car_details.penalty.value,
+                }
+                car_infos.append(car_info)
+            self.info = { "road_metadata": road_infos, "car_metadata": car_infos }
+        self.info["agent_x"] = agent_x
+        self.info["agent_y"] = agent_y
+        self.info["is_dead"] = self.world.agent.is_dead
+        self.info["activated_crosswalk_uid"] = self.world.roads.activated_crosswalk_uid
+        self.info["time_left"] = self.time_left
+        self.info["real_time_step_passed"] = self.real_time_step_passed
+        self.info["game_end_extra_score"] = self.game_end_extra_score
+        self.info["cur_episode_score"] = self.cur_rewards
+        self.info["total_score"] = self._total_rewards()
+
+        cars = []
+        for car in nearby_cars:
+            left_x, right_x = car.get_cur_x_pos()
+            top_row, bottom_row = car.rows[0], car.rows[-1]
+            cars.append([car.uid, car.cur_location[0], car.cur_location[1],
+                         left_x, right_x, top_row, bottom_row,
+                         car.default_speed, 1 if car.is_moving else 0])
+        self.info["cars"] = cars
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards

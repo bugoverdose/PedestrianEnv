@@ -2,7 +2,7 @@ from enum import Enum
 
 import pygame
 
-from pedestrian_env.envs.car_details import CarColorType, get_max_car_grid_height
+from pedestrian_env.envs.car_details import CarColorType, RiskDetails, get_max_car_grid_height
 
 class RowType(Enum):
     SAFE = 0
@@ -98,21 +98,25 @@ class Roads:
                 danger_start_idx = None
 
         # add crosswalks on road
+        crosswalk_uid = 0
         [agent_initial_col, _] = agent.cur_location
         buffer = int(camera_width * 0.3)
         left = random.random() >= 0.5
         for road in roads:
             if random.random() >= CrossWalk.RATIO: continue
+            crosswalk_uid += 1
             crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X-1, agent_initial_col + buffer), agent.MAX_X)
             left = not left
             col = random.integers(crosswalk_range[0], crosswalk_range[1])
-            road.crosswalk = CrossWalk(col, road.start_y, road.end_y)
+            road.crosswalk = CrossWalk(crosswalk_uid, col, road.start_y, road.end_y)
 
         self.agent = agent
         self.elements = roads
         self.row_types = row_types
+        self.activated_crosswalk_uid = 0 # NOTE: maximum of only 1 crosswalk can be activated
 
     def activate_crosswalks(self):
+        self.activated_crosswalk_uid = 0
         agent_x, agent_y = self.agent.get_cur_location_rounded()
         for road in self.elements:
             crosswalk = road.crosswalk
@@ -123,6 +127,9 @@ class Roads:
             end_y = crosswalk.end_row + 1 
             left_x, right_x = crosswalk.left_end, crosswalk.right_end
             crosswalk.is_active = (start_y < agent_y <= end_y) and (left_x <= agent_x <= right_x)
+            if crosswalk.is_active:
+                self.activated_crosswalk_uid = crosswalk.uid
+                break
 
     def render(self, background, map_grid_width, pix_square_size):
         map_width = map_grid_width * pix_square_size
@@ -181,13 +188,16 @@ class Road:
         self.end_y = end_y
         self.going_right = [row_type == RowType.CAR_GOING_RIGHT for row_type in row_types]
         self.car_color_type = random.choice([CarColorType.RED, CarColorType.YELLOW, CarColorType.GREEN])
+        self.risk_detail = RiskDetails[self.car_color_type]
         self.crosswalk = None
 
 class CrossWalk:
     RATIO = 0.6
     THRESHOLD_DISTANCE = 0.3
 
-    def __init__(self, col, top_row, end_row):
+    def __init__(self, uid, col, top_row, end_row):
+        self.uid = uid
+        self.col = col
         self.left_end = col - 1
         self.right_end = col + 1
         self.top_row = top_row
