@@ -18,3 +18,7 @@ if __name__ == "__main__":
         print(play_log["car_infos"][0])
         print(play_log["actions"][0])
         print(play_log["rewards"][0])
+
+# TODO: 분석 함수 구현 필요
+# - 바로 앞줄에서 플레이어를 향해 달려오는 자동차가 있음에도 앞으로 이동한 비율
+# - 바로 앞칸에 아직 자동차가 남아있음에도 충분히 기다리지 못하고 앞으로 이동한 비율
