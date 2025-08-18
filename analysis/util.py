@@ -35,7 +35,7 @@ def load_episode_play_log(subj_data_dir, episode):
         "play_infos": np.load(episode_dir / PLAY_INFOS, allow_pickle=True),
         "car_infos": np.load(episode_dir / CAR_INFOS, allow_pickle=True),
         "actions": np.load(episode_dir / ACTIONS),
-        "rewards": np.load(episode_dir / REWARDS),
+        "rewards": np.load(episode_dir / REWARDS).astype(np.float32),
     }
 
 def save_plot(plot_func, filepath, title, xlabel, ylabel, xticks=None, legend=True):

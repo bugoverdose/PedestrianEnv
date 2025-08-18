@@ -26,9 +26,7 @@ def play_episode(env, episode_seed, verbose = False):
     obs, info = env.reset(seed=episode_seed)
     observations = [obs]
     episode_metadata = { "road_metadata": info["road_metadata"], "car_metadata": info["car_metadata"] }
-    play_infos = [[info["agent_x"], info["agent_y"], info["is_dead"],
-                   info["activated_crosswalk_uid"], info["time_left"], info["real_time_step_passed"],
-                   info["game_end_extra_score"], info["cur_episode_score"], info["total_score"]]]
+    play_infos = [info["play_infos"]]
     car_infos = [info["cars"]]
     actions = []
     rewards = []
@@ -38,16 +36,17 @@ def play_episode(env, episode_seed, verbose = False):
     while True:
         obs, reward, terminated, truncated, info = env.step(last_action.value)
         observations.append(obs)
-        play_infos.append([info["agent_x"], info["agent_y"], info["is_dead"],
-                           info["activated_crosswalk_uid"], info["time_left"], info["real_time_step_passed"],
-                           info["game_end_extra_score"], info["cur_episode_score"], info["total_score"]])
+        play_infos.append(info["play_infos"])
         car_infos.append(info["cars"])
         actions.append(last_action.value)
         rewards.append(reward)
         if verbose:
-            print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({info['agent_x']}, {info['agent_y']})")
-            for car in info["cars"]:
-                print(car)
+            agent_x = info["play_infos"][0]
+            agent_y = info["play_infos"][1]
+            print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({agent_x}, {agent_y})")
+            # print(info["play_infos"])
+            # for car in info["cars"]:
+            #     print(car)
             # for y in range(env.camera_height):
             #     print(obs[5][y])
             # print(obs[5][4])

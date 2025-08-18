@@ -73,6 +73,7 @@ class PedestrianEnv(gym.Env):
 
         # game info
         self.world = None
+        self.cur_seed = None
         self.prev_rewards = 0 # sum of all the rewards from all the previous episodes
         self.cur_rewards = 0 # reward from the current ongoing episode
         self.best_rewards = 0
@@ -101,14 +102,15 @@ class PedestrianEnv(gym.Env):
     def reset(self, seed=None, options=None):
         # set seed at `self.np_random`
         if seed is None and self.fixed_episode_seed_range is not None:
-            super().reset(seed=self.fixed_episode_seed)
+            self.cur_seed = self.fixed_episode_seed
             if self.fixed_episode_seed >= self.fixed_episode_seed_range[1]:
                 self.fixed_episode_seed = self.fixed_episode_seed_range[0]
             else:
                 self.fixed_episode_seed += 1
             self.fixed_episode_seed = 1 + self.fixed_episode_seed_range[0]
         else:
-            super().reset(seed=seed)
+            self.cur_seed = seed
+        super().reset(seed=seed)
         self.elapsed = 0
 
         self.best_rewards = max(self.best_rewards, self.cur_rewards)
@@ -668,16 +670,20 @@ class PedestrianEnv(gym.Env):
                 }
                 car_infos.append(car_info)
             self.info = { "road_metadata": road_infos, "car_metadata": car_infos }
-        self.info["agent_x"] = agent_x
-        self.info["agent_y"] = agent_y
-        self.info["is_dead"] = self.world.agent.is_dead
-        self.info["activated_crosswalk_uid"] = self.world.roads.activated_crosswalk_uid
-        self.info["time_left"] = self.time_left
-        self.info["real_time_step_passed"] = self.real_time_step_passed
-        self.info["game_end_extra_score"] = self.game_end_extra_score
-        self.info["cur_episode_score"] = self.cur_rewards
-        self.info["total_score"] = self._total_rewards()
 
+        # play_infos
+        is_dead = self.world.agent.is_dead
+        terminated = self.game_over
+        activated_crosswalk_uid = self.world.roads.activated_crosswalk_uid
+        time_left = self.time_left
+        real_time_step_passed = self.real_time_step_passed
+        game_end_extra_score = self.game_end_extra_score
+        cur_episode_score = self.cur_rewards
+        total_score = self._total_rewards()
+        self.info["play_infos"] = [agent_x, agent_y, is_dead, terminated,
+                                   activated_crosswalk_uid, time_left, real_time_step_passed,
+                                   game_end_extra_score, cur_episode_score, total_score, self.cur_seed]
+        # car_infos
         cars = []
         for car in nearby_cars:
             left_x, right_x = car.get_cur_x_pos()
