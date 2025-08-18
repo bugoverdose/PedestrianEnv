@@ -10,7 +10,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from pedestrian_env.envs import PedestrianEnv
-from analysis.common import CNNFeaturesExtractor
+from analysis.cnn import CNNFeaturesExtractor
 from analysis.rl.custom_ppo import CustomPPO
 
 def run_PPO_CnnPolicy(seed=42,

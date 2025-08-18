@@ -11,7 +11,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from pedestrian_env.envs import PedestrianEnv
-from analysis.common import CNNFeaturesExtractor
+from analysis.cnn import CNNFeaturesExtractor
 
 def run_DQN_CnnPolicy(seed=42,
             features_dim=128,
