@@ -8,6 +8,7 @@ Install and activate conda environment with following commands
 cd analysis
 conda env create -f pedestrian_analysis.yml
 conda activate pedestrian_analysis
+# conda env update -f pedestrian_analysis.yml
 ```
 
 CCSL3 setup

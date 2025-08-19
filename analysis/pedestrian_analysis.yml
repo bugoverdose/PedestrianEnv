@@ -13,6 +13,8 @@ dependencies:
   - yellowbrick==1.5
   - kneed==0.8.5
   - ipykernel
+  - requests
+  - charset-normalizer>=2,<4
   - pip
   - pip:
       - gymnasium==0.29.1

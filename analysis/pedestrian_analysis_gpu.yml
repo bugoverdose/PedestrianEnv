@@ -16,6 +16,8 @@ dependencies:
   - kneed==0.8.5
   - ipykernel
   - pyarrow==19.0.0
+  - requests
+  - charset-normalizer>=2,<4
   # GPU support
   - pytorch=1.11.0
   - torchvision=0.12.0
