@@ -6,11 +6,21 @@ import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from imitation.rewards.reward_nets import RewardNet
 
-def define_cnn_module(n_input_channels, filters_per_group, n_output_channels, kernel_size):
+def define_cnn_module(n_input_channels, filters_per_group, n_output_channels, kernel_size, conv_dropout = -1):
     padding = (kernel_size - 1) // 2  # appropriate padding for stride=1
     n_output_channels1 = n_input_channels * filters_per_group
     if len(n_output_channels) == 1:
         n_output_channels2 = n_output_channels[0]
+        if conv_dropout > 0:
+            return nn.Sequential(
+                nn.Conv2d(n_input_channels, n_output_channels1, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
+                nn.ReLU(),
+                nn.Dropout2d(p=conv_dropout),
+                nn.Conv2d(n_output_channels1, n_output_channels2, kernel_size=kernel_size, stride=1, padding=padding, groups=1),
+                nn.ReLU(),
+                nn.Dropout2d(p=conv_dropout),
+                nn.Flatten() # CNN to vector
+            )
         return nn.Sequential(
             nn.Conv2d(n_input_channels, n_output_channels1, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
             nn.ReLU(),
@@ -21,6 +31,19 @@ def define_cnn_module(n_input_channels, filters_per_group, n_output_channels, ke
     elif len(n_output_channels) == 2:
         n_output_channels2 = n_output_channels[0]
         n_output_channels3 = n_output_channels[1]
+        if conv_dropout > 0:
+            return nn.Sequential(
+                nn.Conv2d(n_input_channels, n_output_channels1, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
+                nn.ReLU(),
+                nn.Dropout2d(p=conv_dropout),
+                nn.Conv2d(n_output_channels1, n_output_channels2, kernel_size=kernel_size, stride=1, padding=padding, groups=1),
+                nn.ReLU(),
+                nn.Dropout2d(p=conv_dropout),
+                nn.Conv2d(n_output_channels2, n_output_channels3, kernel_size=kernel_size, stride=1, padding=padding, groups=1),
+                nn.ReLU(),
+                nn.Dropout2d(p=conv_dropout),
+                nn.Flatten() # CNN to vector
+            )
         return nn.Sequential(
             nn.Conv2d(n_input_channels, n_output_channels1, kernel_size=kernel_size, stride=1, padding=padding, groups=n_input_channels),
             nn.ReLU(),
@@ -74,6 +97,8 @@ class CustomCNNRewardNet(RewardNet):
         kernel_size=3,
         mlp_hidden_size=128,
         mask_channels = [4],
+        mlp_dropout=0.1,
+        conv_dropout=0.1
     ):
         super().__init__(observation_space, action_space, normalize_images=False)
 
@@ -84,7 +109,7 @@ class CustomCNNRewardNet(RewardNet):
 
         assert isinstance(observation_space, gym.spaces.Box)
         assert len(observation_space.shape) == 3  # (C, H, W)
-        assert observation_space.dtype == np.float32 or observation_space.dtype == torch.float32
+        assert observation_space.dtype == np.float32
 
         self.obs_shape = observation_space.shape
         self.act_dim = action_space.n
@@ -104,7 +129,7 @@ class CustomCNNRewardNet(RewardNet):
         if self.use_next_state:
             in_channels += self.obs_shape[0]
 
-        self.cnn = define_cnn_module(in_channels, filters_per_group, n_output_channels, kernel_size)
+        self.cnn = define_cnn_module(in_channels, filters_per_group, n_output_channels, kernel_size, conv_dropout=conv_dropout)
 
         # Compute CNN output size dynamically
         with torch.no_grad():
@@ -118,11 +143,19 @@ class CustomCNNRewardNet(RewardNet):
         if self.use_done:
             mlp_input_dim += 1
 
-        self.mlp = nn.Sequential(
-            nn.Linear(mlp_input_dim, mlp_hidden_size),
-            nn.ReLU(),
-            nn.Linear(mlp_hidden_size, 1)
-        )
+        if mlp_dropout > 0:
+            self.mlp = nn.Sequential(
+                nn.Linear(mlp_input_dim, mlp_hidden_size),
+                nn.ReLU(),
+                nn.Dropout(p=mlp_dropout),
+                nn.Linear(mlp_hidden_size, 1)
+            )
+        else:
+            self.mlp = nn.Sequential(
+                nn.Linear(mlp_input_dim, mlp_hidden_size),
+                nn.ReLU(),
+                nn.Linear(mlp_hidden_size, 1)
+            )
 
     def _apply_mask(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B,C,H,W)
@@ -151,12 +184,10 @@ class CustomCNNRewardNet(RewardNet):
         inputs = [cnn_out]
 
         if self.use_action:
-            if action.dim() == 1:
-                action = action.view(-1, 1)
-            elif action.dim() > 2:
-                action = action.view(action.shape[0], -1)
-            assert action.shape[0] == cnn_out.shape[0], f"batch mismatch: cnn {cnn_out.shape[0]} vs action {action.shape[0]}"
-            inputs.append(action.float())
+            action_oh = self._to_one_hot(action, self.act_dim)
+            assert action_oh.shape[0] == cnn_out.shape[0], \
+                f"batch mismatch: cnn {cnn_out.shape[0]} vs action {action_oh.shape[0]}"
+            inputs.append(action_oh)
 
         if self.use_done:
             done = done.view(-1, 1).float()
@@ -165,3 +196,15 @@ class CustomCNNRewardNet(RewardNet):
         mlp_input = torch.cat(inputs, dim=1)
         reward = self.mlp(mlp_input)
         return reward.view(-1)
+
+    def _to_one_hot(self, a: torch.Tensor, n: int) -> torch.Tensor:
+        if a.dim() == 1:
+            a = a.view(-1, 1)
+        if a.shape[1] == 1: 
+            # integer to one-hot
+            out = torch.zeros(a.shape[0], n, device=a.device, dtype=torch.float32)
+            out.scatter_(1, a.long(), 1.0)
+            return out
+        if a.shape[1] == n: # already one-hot encoded
+            return a.float()
+        raise ValueError(f"Unexpected action shape: {tuple(a.shape)} (expected (B,1) or (B,{n}))")

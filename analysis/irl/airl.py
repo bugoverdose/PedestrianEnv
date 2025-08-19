@@ -7,6 +7,7 @@ import gymnasium as gym
 import pedestrian_env
 from pedestrian_env.envs import PedestrianEnv
 
+import random
 import numpy as np
 
 import torch
@@ -19,17 +20,17 @@ from analysis.cnn import CNNFeaturesExtractor, CustomCNNRewardNet
 from analysis.util import data_dir, get_sorted_episodes, load_episode_play_log
 from analysis.irl.fixed_horizon import FixedHorizonAbsorbIndicator, create_fixed_horizon_TrajectoryWithRew
 
-def linear_schedule(start, end):
-    def f(progress):
-        return end + (start - end) * progress # progress: 1->0
-    return f
-
 def run_AIRL(subjId, seed = 42, debugging = False):
+    random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
     traj, max_step = load_traj(subjId = subjId)
 
-    ppo_n_steps=4_096
-    gen_train_timesteps = ppo_n_steps * 8 # 32_768
-    total_timesteps = 1_000_000 # about 30 * gen_train_timesteps
+    ppo_n_steps=4096
+    gen_train_timesteps = ppo_n_steps * 20 # about 80_000
+    gen_replay_buffer_capacity = 50_000
+    total_timesteps = 3_000_000 # > 30 * gen_train_timesteps
     if debugging:
         total_timesteps //= 10
 
@@ -52,18 +53,18 @@ def run_AIRL(subjId, seed = 42, debugging = False):
     gen_algo = PPO(
         policy="CnnPolicy",
         env=venv,
-        learning_rate=linear_schedule(1e-4, 3e-5),
+        learning_rate=linear_schedule(2e-4, 1e-4),
         n_steps=ppo_n_steps, # The number of steps to run for each environment per update
-        batch_size=1024, # Minibatch size
-        n_epochs=10, # Number of epoch when optimizing the surrogate loss
+        batch_size=512, # Minibatch size
+        n_epochs=5, # Number of epoch when optimizing the surrogate loss
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.1,
         clip_range_vf=None,
-        ent_coef=0.03,
+        ent_coef=0.01,
         vf_coef=0.25,
         max_grad_norm=0.5,
-        target_kl=0.02,
+        target_kl=None,
         policy_kwargs=dict(
             features_extractor_class=CNNFeaturesExtractor,
             features_extractor_kwargs=dict(
@@ -78,6 +79,7 @@ def run_AIRL(subjId, seed = 42, debugging = False):
         verbose=1,
         seed=seed,
     )
+    gen_algo.policy.optimizer = adamw_with_decay(gen_algo.policy, lr=gen_algo.learning_rate(1), wd=1e-4)
 
     C, _, _ = venv.observation_space.shape
     reward_net = CustomCNNRewardNet(
@@ -86,7 +88,7 @@ def run_AIRL(subjId, seed = 42, debugging = False):
         filters_per_group=5,
         n_output_channels=[64, 64],
         kernel_size=3,
-        mlp_hidden_size=128,
+        mlp_hidden_size=256,
         # Channel 4: Reward tile
         # Last Channel: Absorbing Indicator
         mask_channels = [4, C-1], 
@@ -103,10 +105,13 @@ def run_AIRL(subjId, seed = 42, debugging = False):
         venv=venv,
         gen_algo=gen_algo,
         reward_net=reward_net,
-        demo_batch_size=512,
-        demo_minibatch_size=128, 
-        n_disc_updates_per_round=3, # The number of discriminator updates after each round of generator updates in AdversarialTrainer.learn().
+        demo_batch_size=1024,
+        demo_minibatch_size=256, 
+        n_disc_updates_per_round=5, # The number of discriminator updates after each round of generator updates in AdversarialTrainer.learn().
         gen_train_timesteps=gen_train_timesteps, # The number of steps to train the generator policy for each iteration.
+        gen_replay_buffer_capacity=gen_replay_buffer_capacity,
+        disc_opt_cls=torch.optim.AdamW,
+        disc_opt_kwargs={"lr": 1e-4, "weight_decay": 1e-4},
         log_dir=log_dir,
         custom_logger=custom_logger,
         init_tensorboard=True,
@@ -121,6 +126,28 @@ def run_AIRL(subjId, seed = 42, debugging = False):
         'action_space': reward_net.action_space
     }, f"{save_dir}reward_net.pt")
     gen_algo.save(f"{save_dir}generator_ppo.zip")
+
+def linear_schedule(start, end):
+    def f(progress):
+        return end + (start - end) * progress # progress: 1->0
+    return f
+
+# no decay for bias/Norm
+def adamw_with_decay(model, lr, wd):
+    decay, no_decay = [], []
+    for n, p in model.named_parameters():
+        if not p.requires_grad: 
+            continue
+        if n.endswith("bias") or "norm" in n.lower() or "bn" in n.lower():
+            no_decay.append(p)
+        else:
+            decay.append(p)
+    return torch.optim.AdamW(
+        [{"params": decay, "weight_decay": wd}, {"params": no_decay, "weight_decay": 0.0}],
+        lr=lr,
+        betas=(0.9, 0.999),
+        eps=1e-8
+    )
 
 def load_traj(subjId):
     subj_data_dir = data_dir(subjId)
