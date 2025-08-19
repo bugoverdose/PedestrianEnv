@@ -484,7 +484,7 @@ class PedestrianEnv(gym.Env):
         Channel 4: Reward tile
         - 0: no reward
         - 1: give reward on reaching the tile with UP action (same amount as penalty on leaving the tile with DOWN action)
-        - NOTE: should be removed in AIRL reward_net to prevent Reward leakage
+        - NOTE: should be masked out in AIRL Reward Net to prevent reward leakage
 
         Channel 5: Car tile (soft mask)
         - 0    : no car on tile
@@ -510,6 +510,7 @@ class PedestrianEnv(gym.Env):
         Channel 10: Play time left
         - 0 ~ 1: time remaining (normalized)
         - 0    : game over (time over, death, early finish)
+        - NOTE: included in AIRL Reward Net because it effects the amount of bonus reward
 
         Extra Channel: Agent position (gamescreen_width_fixed == True)
         - 0: not agent

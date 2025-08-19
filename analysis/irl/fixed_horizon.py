@@ -24,19 +24,19 @@ class FixedHorizonAbsorbIndicator(gym.Wrapper):
         self.is_absorbing = False
 
         assert isinstance(env.observation_space, gym.spaces.Box)
-        C, Hh, Ww = env.observation_space.shape
+        C, H, W = env.observation_space.shape
 
         # Box(C,H,W) -> Box(C+1,H,W)
         low  = env.observation_space.low
         high = env.observation_space.high
-        ind_low  = np.zeros((1, Hh, Ww), dtype=low.dtype)
-        ind_high = np.ones((1, Hh, Ww), dtype=high.dtype)
+        ind_low  = np.zeros((1, H, W), dtype=low.dtype)
+        ind_high = np.ones((1, H, W), dtype=high.dtype)
         self.observation_space = gym.spaces.Box(
             low=np.concatenate([low, ind_low], axis=0),
             high=np.concatenate([high, ind_high], axis=0),
             dtype=env.observation_space.dtype
         )
-        self._absorbing_obs = np.zeros((C+1, Hh, Ww), dtype=self.observation_space.dtype)
+        self._absorbing_obs = np.zeros((C+1, H, W), dtype=self.observation_space.dtype)
         self._absorbing_obs[-1, :, :] = 1.0
 
     def update_last_ongoing_info(self, info):
@@ -76,15 +76,18 @@ def create_fixed_horizon_TrajectoryWithRew(
         max_step
     ):
     T = len(actions)
+    assert len(observations) == T+1
+    assert len(rewards) == T
+    assert len(infos) == T
     # add Absorbing Indicator Channel 
-    obs = np.stack([_append_absorb_indicator(obs, 0.0) for obs in observations], axis=0)
+    observations = np.stack([_append_absorb_indicator(obs, 0.0) for obs in observations], axis=0)
     pad_T = max_step - T
     if pad_T > 0:
-        C,H,W = obs.shape[1:]
+        C,H,W = observations.shape[1:]
         absorb = np.zeros((C,H,W), dtype=np.float32)
         absorb[-1] = 1.0
-        obs_pad = np.stack([absorb]*pad_T, axis=0)   # (pad_T+1, C+1,H,W)
-        obs = np.concatenate([obs, obs_pad], axis=0) # (H+1, C+1,H,W)
+        obs_pad = np.stack([absorb]*pad_T, axis=0)                     # (pad_T, C+1,H,W)
+        observations = np.concatenate([observations, obs_pad], axis=0) # (T+1 + pad_T) == max_step+1
 
         # Do nothing and get no reward
         actions_pad = np.full((pad_T,), NO_OP_ACTION, dtype=np.int64)
@@ -94,7 +97,7 @@ def create_fixed_horizon_TrajectoryWithRew(
 
         infos = list(infos) + [{} for _ in range(pad_T)]
     return TrajectoryWithRew(
-        obs=obs,
+        obs=observations,
         acts=actions,
         rews=rewards,
         infos=infos,
