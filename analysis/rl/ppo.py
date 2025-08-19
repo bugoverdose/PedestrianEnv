@@ -121,7 +121,7 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def _load_PPO_model(saved_model_name, fixed_episode_seed_range=(1001, 1001), render_mode_human=True, frame_stack=0, seed=42):
+def _load_PPO_model(saved_model_name, fixed_episode_seed_range=[1001], render_mode_human=True, frame_stack=0, seed=42):
     np.random.seed(seed)
     random.seed(seed)
 

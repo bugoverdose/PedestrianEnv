@@ -59,10 +59,9 @@ class PedestrianEnv(gym.Env):
         self.map_height = self.map_grid_height * self.pix_square_size
         self.extra_reward_using_crosswalk = extra_reward_using_crosswalk
         self.gamescreen_width_fixed = gamescreen_width_fixed
-        assert fixed_episode_seed_range is None or (len(fixed_episode_seed_range) == 2 and fixed_episode_seed_range[0] <= fixed_episode_seed_range[1])
+        assert fixed_episode_seed_range is None or len(fixed_episode_seed_range) > 0
         self.fixed_episode_seed_range = fixed_episode_seed_range
-        if fixed_episode_seed_range is not None:
-            self.fixed_episode_seed = fixed_episode_seed_range[0]
+        self.fixed_episode_seed_idx = 0
         self.player_images = load_player_images(self.pix_square_size) if render_sprite else None
         self.car_details_dict = load_car_details_dict(self.pix_square_size, render_sprite)
         self.debug = debug
@@ -102,12 +101,8 @@ class PedestrianEnv(gym.Env):
     def reset(self, seed=None, options=None):
         # set seed at `self.np_random`
         if seed is None and self.fixed_episode_seed_range is not None:
-            self.cur_seed = self.fixed_episode_seed
-            if self.fixed_episode_seed >= self.fixed_episode_seed_range[1]:
-                self.fixed_episode_seed = self.fixed_episode_seed_range[0]
-            else:
-                self.fixed_episode_seed += 1
-            self.fixed_episode_seed = 1 + self.fixed_episode_seed_range[0]
+            self.fixed_episode_seed = self.fixed_episode_seed_range[self.fixed_episode_seed_idx]
+            self.fixed_episode_seed_idx = (self.fixed_episode_seed_idx + 1) % len(self.fixed_episode_seed_range)
         else:
             self.cur_seed = seed
         super().reset(seed=seed)
