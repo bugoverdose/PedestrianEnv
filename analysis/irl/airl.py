@@ -12,8 +12,7 @@ import numpy as np
 
 import torch
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
 from imitation.algorithms.adversarial import airl
 from imitation.util import logger
@@ -30,7 +29,7 @@ def run_AIRL(subjId, seed = 42, debugging = False):
     traj, max_step = load_traj(subjId = subjId)
 
     ppo_n_steps=512
-    gen_train_timesteps = ppo_n_steps * 20 # 20,480
+    gen_train_timesteps = ppo_n_steps * 32
     gen_replay_buffer_capacity = gen_train_timesteps * 2
     total_timesteps = gen_train_timesteps * 50
     if debugging:
@@ -68,12 +67,12 @@ def run_AIRL(subjId, seed = 42, debugging = False):
         n_epochs=5, # Number of epoch when optimizing the surrogate loss
         gamma=0.99,
         gae_lambda=0.95,
-        clip_range=0.1,
+        clip_range=0.2,
         clip_range_vf=None,
         ent_coef=0.01,
         vf_coef=0.25,
         max_grad_norm=0.5,
-        target_kl=0.02,
+        target_kl=None, # 0.02,
         tensorboard_log=f"{log_dir}tb_logs/",
         device="auto",
         verbose=1,
@@ -152,23 +151,6 @@ def linear_schedule(start, end):
         return end + (start - end) * progress # progress: 1->0
     return f
 
-# no decay for bias/Norm
-def adamw_with_decay(model, lr, wd):
-    decay, no_decay = [], []
-    for n, p in model.named_parameters():
-        if not p.requires_grad: 
-            continue
-        if n.endswith("bias") or "norm" in n.lower() or "bn" in n.lower():
-            no_decay.append(p)
-        else:
-            decay.append(p)
-    return torch.optim.AdamW(
-        [{"params": decay, "weight_decay": wd}, {"params": no_decay, "weight_decay": 0.0}],
-        lr=lr,
-        betas=(0.9, 0.999),
-        eps=1e-8
-    )
-
 def load_traj(subjId):
     subj_data_dir = data_dir(subjId)
     episodes = get_sorted_episodes(subj_data_dir)
@@ -217,6 +199,23 @@ def _validate_fixed_horizon(episode_seed_range, max_step):
         assert truncated and not terminated
     finally:
         env.close()
+
+# no decay for bias/Norm
+def adamw_with_decay(model, lr, wd):
+    decay, no_decay = [], []
+    for n, p in model.named_parameters():
+        if not p.requires_grad: 
+            continue
+        if n.endswith("bias") or "norm" in n.lower() or "bn" in n.lower():
+            no_decay.append(p)
+        else:
+            decay.append(p)
+    return torch.optim.AdamW(
+        [{"params": decay, "weight_decay": wd}, {"params": no_decay, "weight_decay": 0.0}],
+        lr=lr,
+        betas=(0.9, 0.999),
+        eps=1e-8
+    )
 
 if __name__ == "__main__":
     run_AIRL(subjId = 100)
