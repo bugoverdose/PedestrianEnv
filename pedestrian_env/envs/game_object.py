@@ -392,13 +392,13 @@ def load_player_images(pix_square_size):
         player_images[d.value]["color"] = []
         player_images[d.value]["dead"] = []
         for i in range(4):
-            for sub_dir in ["color", "dead"]:
+            for status in ["alive", "dead"]:
                 file_name = f"player_{str(d)}_{i}_cropped.png"
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 image_path = os.path.join(current_dir, "..", f"sprites/player_color/", file_name)
                 object_image = pygame.image.load(image_path)
-                player_height = (2 * Agent.RADIUS) * pix_square_size * (0.4 if sub_dir == "dead" else 1)
-                player_width = player_height * size_ratio[file_name] * (6 if sub_dir == "dead" else 1)
+                player_height = (2 * Agent.RADIUS) * pix_square_size * (0.4 if status == "dead" else 1)
+                player_width = player_height * size_ratio[file_name] * (6 if status == "dead" else 1)
                 image = pygame.transform.scale(object_image, (player_width, player_height))
-                player_images[d.value][sub_dir].append([image, player_width, player_height])
+                player_images[d.value][status].append([image, player_width, player_height])
     return player_images
