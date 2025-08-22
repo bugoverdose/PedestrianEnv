@@ -384,11 +384,11 @@ class PedestrianEnv(gym.Env):
             # update current score (include game_end_extra_score)
             self._render_text(center_ui_x, bottom_y, f"Current Score: {self.cur_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
 
-            # update best score
-            self._render_text(right_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
-
             # update total score: show the sum of previous scores (because it's confusing when both cur rewards and total rewards are constantly changing)
-            self._render_text(left_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
+            self._render_text(right_ui_x, bottom_y, f"Total Score: {self.prev_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
+
+            # update best score
+            self._render_text(left_ui_x, bottom_y, f"Best Score: {self.best_rewards}", self.UI_TEXT_WHITE_COLOR, font_size_s)
 
             # update time left
             time_left_sec = self._get_time_left_sec()
