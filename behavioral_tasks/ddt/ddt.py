@@ -29,7 +29,7 @@ class DdtDrawer:
                  box_w: float = 6,
                  box_h: float = 6,
                  dist_btwn: float = 8,
-                 text_font: str = 'NanumGothic',
+                 text_font: str = 'Nanum Gothic',
                  text_size: int = 1,
                  text_margin: float = 1,
                  fixation_size: float = 1,
@@ -308,9 +308,7 @@ class DdtRunner:
         am_soon = np.arange(10, 800, 10)
         am_late = [800]
 
-        amounts = np.vstack([
-            (ams, aml) for ams in am_soon for aml in am_late if ams < aml
-        ])
+        amounts = np.vstack([(ams, aml) for ams in am_soon for aml in am_late if ams < aml])
 
         # Delays
         t_ss = [0]
@@ -330,12 +328,10 @@ class DdtRunner:
 
     @staticmethod
     def generate_grid_params():
-        k = np.logspace(0,5,101)/100000 # range: 0~1 #make_grid_log(0.0001, 10, 50)
-        tau = np.linspace(0,1,101) #make_grid(0, 10, 30)
-
         # k: discounting rate parameter
+        k = np.logspace(0,5,101)/100_000 # range: 0.00001 ~ 1.00000
         # tau: inverse temperature parameter
-
+        tau = np.linspace(0,1,101)[1:] # range: 0.01 ~ 1.00
         params = {'k': k, 'tau': tau}
         return params
 
@@ -475,7 +471,7 @@ class DdtRunner:
                 for p, m in zip(self.model.params, self.engine.post_sd)
             }
 
-            self.df = self.df.append(pd.Series({
+            self.df = pd.concat([self.df, pd.DataFrame([{
                 'subject': self.subj,
                 'block': block,
                 'block_type': block_type,
@@ -485,17 +481,11 @@ class DdtRunner:
                 'rt': rt,
                 **dict_mean,
                 **dict_sd
-            }), ignore_index=True)
+            }])], ignore_index=True)
 
             self.save_record()
 
-def main():
-    # OS specific settings
-    if os.name == 'nt':
-        text_font = 'NanumGothic'
-    else:
-        text_font = 'Nanum Gothic'
-
+def main():    
     # Show an information dialog
     info = {
         'Date': data.getDateStr('%Y/%m/%d'),
@@ -510,7 +500,7 @@ def main():
         info,
         title='Subject information',
         order=[
-#            'Date',
+            'Date',
             'Subject ID',
             'Number of blocks',
             'Number of trials',
@@ -528,31 +518,28 @@ def main():
     has_tutorial = info['Show tutorial']
 
     time_now = datetime.now()
-    time_now_iso = time_now.isoformat().replace(
-        ':', '-').replace('T', '-')[:-7]
+    time_now_iso = time_now.isoformat().replace(':', '-').replace('T', '-')[:-7]
     
     # Save Data
-    fn_data = 'DDT{subj:03d}_{time_now_iso}.csv'.format(
-        subj=subj,  time_now_iso=time_now_iso)
+    fn_data = '{subj:04d}_DDT_{time_now_iso}.csv'.format(subj=subj,  time_now_iso=time_now_iso)
     PATH_DATA.mkdir(exist_ok=True)
     path_output = str(PATH_DATA / fn_data)
 
     # Open a window
-    window = visual.Window(size=[1920, 1080],
+    window = visual.Window(size=[1512, 982],
                            units='deg',
                            monitor='testMonitor',
                            color='black',
                            screen=0,
                            allowGUI=False,
-                           fullscr=True,
-                           pos=(100, 100))
+                           fullscr=True)
     event.globalKeys.add(key='escape', func=core.quit, name='shutdown')
 
     block_types = ['ado'] * n_block
     print('Block types:', block_types)
 
     # Initialize a drawer and a runner
-    drawer = DdtDrawer(window, text_font=text_font)
+    drawer = DdtDrawer(window)
     runner = DdtRunner(window, drawer, subj, path_output)
 
     # Run blocks

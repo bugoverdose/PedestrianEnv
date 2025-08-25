@@ -19,7 +19,6 @@ PATH_ROOT = Path(__file__).absolute().parent
 PATH_DATA = PATH_ROOT / 'data'
 PATH_IMAGE = PATH_ROOT / 'images'
 
-
 class State(Enum):
     """States for a option in the CRA task.
 
@@ -34,7 +33,6 @@ class State(Enum):
     hidden = 2
     chosen = 3
 
-
 class Color(Enum):
     """Colors for the choice under risk and ambiguity task."""
     high_inactive = '#9b001f'
@@ -46,7 +44,6 @@ class Color(Enum):
     border_chosen = '#ffffff'
     border = 'black'
     background = 'black' #'#333333'
-
 
 class Direction(Enum):
     """Directions for options of the choice under risk and ambiguity task."""
@@ -68,7 +65,6 @@ class Direction(Enum):
         else:
             return Direction.right
 
-
 class CraDrawer:
     """PsychoPy drawer for the choice under risk and ambiguity task."""
 
@@ -77,7 +73,7 @@ class CraDrawer:
                  box_w: float = 2, #originally 3
                  box_h: float = 8, #originally 12
                  dist_btwn: float = 16,
-                 text_font: str = 'NanumGothic',
+                 text_font: str = 'Nanum Gothic',
                  text_size: int = 1, #originally 13
                  text_margin: float = 0.5,
                  fixation_size: float = 0.8, #originally 1
@@ -246,7 +242,7 @@ class CraDrawer:
         pos = (lr.value * self.dist_btwn / 2,
                self.box_h / 2 + self.text_margin)
         text = visual.TextStim(self.window,
-                               text=reward,
+                               text='₩ {:,.0f}'.format(reward * 1000),
                                pos=pos)
         text.size = self.text_size
         text.draw()
@@ -255,7 +251,7 @@ class CraDrawer:
         pos = (lr.value * self.dist_btwn / 2,
                -(self.box_h / 2 + self.text_margin))
         text = visual.TextStim(self.window,
-                               text=reward,
+                               text='₩ {:,.0f}'.format(reward * 1000),
                                pos=pos)
         text.size = self.text_size
         text.draw()
@@ -518,7 +514,6 @@ class CraDrawer:
             anchorVert='center')
         text.draw()
 
-
 class CraRunner:
     def __init__(self, window, drawer, subj, path_output):
         self.window = window
@@ -756,7 +751,7 @@ class CraRunner:
                 for p, m in zip(self.model.params, self.engine.post_sd)
             }
 
-            self.df = self.df.append(pd.Series({
+            self.df = pd.concat([self.df, pd.DataFrame([{
                 'subject': self.subj,
                 'block': block,
                 'block_type': block_type,
@@ -768,18 +763,11 @@ class CraRunner:
                 'lr': lr,
                 **dict_mean,
                 **dict_sd
-            }), ignore_index=True)
+            }])], ignore_index=True)
 
             self.save_record()
 
-
 def main():
-    # OS specific settings
-    if os.name == 'nt':
-        text_font = 'NanumGothic'
-    else:
-        text_font = 'Nanum Gothic'
-
     # Show an information dialog
     info = {
         'Date': data.getDateStr('%Y/%m/%d'),
@@ -794,7 +782,7 @@ def main():
         info,
         title='Subject information',
         order=[
-#            'Date',
+            'Date',
             'Subject ID',
             'Number of blocks',
             'Number of trials',
@@ -812,24 +800,21 @@ def main():
     has_tutorial = info['Show tutorial']
 
     time_now = datetime.now()
-    time_now_iso = time_now.isoformat().replace(
-        ':', '-').replace('T', '-')[:-7]
+    time_now_iso = time_now.isoformat().replace(':', '-').replace('T', '-')[:-7]
     
     # Save Data
-    fn_data = 'CRA{subj:03d}_{time_now_iso}.csv'.format(
-        subj=subj, time_now_iso=time_now_iso)
+    fn_data = '{subj:04d}_CRA_{time_now_iso}.csv'.format(subj=subj, time_now_iso=time_now_iso)
     PATH_DATA.mkdir(exist_ok=True)
     path_output = str(PATH_DATA / fn_data)
 
     # Open a window
-    window = visual.Window(size=[1920, 1080],
+    window = visual.Window(size=[1512, 982],
                            units='deg',
                            monitor='testMonitor',
                            color=Color.background.value,
                            screen=0,
                            allowGUI=False,
-                           fullscr=True,
-                            pos=(100, 100) ) 
+                           fullscr=True) 
     event.globalKeys.add(key='escape', func=core.quit, name='shutdown')
 
     block_types = ['ado'] * n_block
@@ -837,7 +822,7 @@ def main():
     print('Block types:', block_types)
 
     # Initialize a drawer and a runner
-    drawer = CraDrawer(window, text_font=text_font)
+    drawer = CraDrawer(window)
     runner = CraRunner(window, drawer, subj, path_output)
 
     # Run blocks
@@ -852,7 +837,6 @@ def main():
             runner.show_block_end(block + 1)
         else: 
             runner.show_outro()
-
 
 if __name__ == '__main__':
     main()

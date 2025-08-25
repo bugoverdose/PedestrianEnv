@@ -1,5 +1,5 @@
 import os
-import random
+import sys
 
 from pathlib import Path
 from enum import Enum
@@ -11,14 +11,13 @@ from psychopy import core, visual, event, data, gui
 import yaml
 
 from adopy.tasks.cra import TaskCRA, ModelLinear
-from engine_hrado_new import Engine
-#from adopy import Engine
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from engine import Engine
 
 PATH_ROOT = Path(__file__).absolute().parent
 
 PATH_DATA = PATH_ROOT / 'data'
 PATH_IMAGE = PATH_ROOT / 'images'
-
 
 class State(Enum):
     """States for a option in the CRA task.
@@ -34,7 +33,6 @@ class State(Enum):
     hidden = 2
     chosen = 3
 
-
 class Color(Enum):
     """Colors for the choice under risk and ambiguity task."""
     high_inactive = '#9b001f'
@@ -46,7 +44,6 @@ class Color(Enum):
     border_chosen = '#ffffff'
     border = 'black'
     background = 'black' # '#333333'
-
 
 class Direction(Enum):
     """Directions for options of the choice under risk and ambiguity task."""
@@ -68,7 +65,6 @@ class Direction(Enum):
         else:
             return Direction.right
 
-
 class CraDrawer:
     """PsychoPy drawer for the choice under risk and ambiguity task."""
 
@@ -77,7 +73,7 @@ class CraDrawer:
                  box_w: float = 2, #originally 3
                  box_h: float = 8, #originally 12
                  dist_btwn: float = 16,
-                 text_font: str = 'NanumGothic',
+                 text_font: str = 'Nanum Gothic',
                  text_size: int = 1, #originally 13
                  text_margin: float = 0.5,
                  fixation_size: float = 0.8, #originally 1
@@ -91,7 +87,7 @@ class CraDrawer:
         self.text_margin = text_margin
         self.fixation_size = fixation_size
 
-        with open(PATH_ROOT / 'instructions.yml', 'r', encoding='utf-8') as f:
+        with open(PATH_ROOT / 'instructions_fixed.yml', 'r', encoding='utf-8') as f:
             self.instructions = yaml.load(f, Loader=yaml.FullLoader)
 
     def draw_box_high(self, state: State, lr: Direction, prob: float = 0.5):
@@ -518,7 +514,6 @@ class CraDrawer:
             anchorVert='center')
         text.draw()
 
-
 class CraRunner:
     def __init__(self, window, drawer, subj, path_output):
         self.window = window
@@ -729,13 +724,13 @@ class CraRunner:
                          design['r_var'], design['r_fix'],color)
         self.window.flip()
         timer = core.Clock()
-        keys = event.waitKeys(keyList=['z', 'slash', 'escape'])
+        keys = event.waitKeys(keyList=['s', 'l', 'escape'])
         rt = timer.getTime()
         
         if keys[0] == 'escape':
             core.quit()
 
-        lr_chosen = Direction.left if keys[0] == 'z' else Direction.right
+        lr_chosen = Direction.left if keys[0] == 's' else Direction.right
         self.drawer.draw_one(State.chosen, lr, lr_chosen,
                              design['p_var'], design['a_var'],
                              design['r_var'], design['r_fix'],color)
@@ -809,7 +804,7 @@ class CraRunner:
                 for p, m in zip(self.model.params, self.engine.post_sd)
             }
 
-            self.df = self.df.append(pd.Series({
+            self.df = pd.concat([self.df, pd.DataFrame([{
                 'subject': self.subj,
                 'block': block,
                 'block_type': block_type,
@@ -821,24 +816,17 @@ class CraRunner:
                 'lr': lr,
                 **dict_mean,
                 **dict_sd
-            }), ignore_index=True)
+            }])], ignore_index=True)
 
             self.save_record()
 
-
 def main():
-    # OS specific settings
-    if os.name == 'nt':
-        text_font = 'NanumGothic'
-    else:
-        text_font = 'Nanum Gothic'
-
     # Show an information dialog
     info = {
         'Date': data.getDateStr('%Y/%m/%d'),
         'Subject ID': 0,
         'Session': 1,
-        'Number of blocks': 4,
+        'Number of blocks': 1,
         'Number of trials': 60,
         'Number of train trials': 4,
         'Show tutorial': True,
@@ -848,7 +836,7 @@ def main():
         info,
         title='Subject information',
         order=[
-#            'Date',
+            'Date',
             'Subject ID',
             'Session',
             'Number of blocks',
@@ -868,42 +856,27 @@ def main():
     has_tutorial = info['Show tutorial']
 
     time_now = datetime.now()
-    time_now_iso = time_now.isoformat().replace(
-        ':', '-').replace('T', '-')[:-7]
+    time_now_iso = time_now.isoformat().replace(':', '-').replace('T', '-')[:-7]
     
     # Save Data
-    fn_data = 'CRA{subj:03d}_ses{session:01d}_{time_now_iso}.csv'.format(
-        subj=subj, session=session, time_now_iso=time_now_iso)
+    fn_data = '{subj:04d}_CRA_fixed_ses{session:01d}_{time_now_iso}.csv'.format(subj=subj, session=session, time_now_iso=time_now_iso)
     PATH_DATA.mkdir(exist_ok=True)
     path_output = str(PATH_DATA / fn_data)
 
     # Open a window
-    window = visual.Window(size=[1920, 1080],
+    window = visual.Window(size=[1512, 982],
                            units='deg',
                            monitor='testMonitor',
                            color=Color.background.value,
                            screen=0,
                            allowGUI=False,
-                           fullscr=True,
-                            pos=(100, 100) ) 
+                           fullscr=True) 
     event.globalKeys.add(key='escape', func=core.quit, name='shutdown')
 
-    block_types = ["fixed"]
-    # if int(subj) % 4 > 1: #Subject ID - condition 2&3
-    #     if session == 1:
-    #         block_types = ['ado', 'ado', 'fixed', 'fixed']
-    #     else:
-    #         block_types = ['fixed', 'fixed', 'ado', 'ado']
-    # else:  # Subject ID - condition 1&4
-    #     if session == 1:
-    #         block_types = ['fixed', 'fixed', 'ado', 'ado']
-    #     else:
-    #         block_types = ['ado', 'ado', 'fixed', 'fixed']
-
-    print('Block types:', block_types)
+    block_types = ["fixed"] # ["ado"]
 
     # Initialize a drawer and a runner
-    drawer = CraDrawer(window, text_font=text_font)
+    drawer = CraDrawer(window)
     runner = CraRunner(window, drawer, subj, path_output)
 
     # Run blocks
