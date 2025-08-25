@@ -1,0 +1,15 @@
+# MacOS (M4) 
+name: behavioral_tasks 
+channels:
+  - conda-forge
+  - default
+dependencies:
+  - python>=3.8,<3.10
+  - numpy>=1.19,<2.0
+  - scipy>=1.10
+  - hdf5
+  - pytables
+  - pip
+  - pip:
+    - psychopy==2025.1.1
+    - git+https://github.com/adopy/adopy.git@develop # adopy
