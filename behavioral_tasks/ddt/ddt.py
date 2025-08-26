@@ -17,8 +17,9 @@ from adopy.tasks.dd import TaskDD, ModelHyp
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from engine import Engine
 
+import argparse
+
 PATH_ROOT = Path(__file__).absolute().parent
-PATH_DATA = PATH_ROOT / 'data'
 PATH_IMAGE = PATH_ROOT / 'images'
 
 class DdtDrawer:
@@ -485,45 +486,25 @@ class DdtRunner:
 
             self.save_record()
 
-def main():    
-    # Show an information dialog
-    info = {
-        'Date': data.getDateStr('%Y/%m/%d'),
-        'Subject ID': 0,
-        'Number of blocks': 1,
-        'Number of trials': 20,
-        'Number of train trials': 4,
-        'Show tutorial': True,
-    }
+def main():
+    arg_parser = argparse.ArgumentParser(description="Run for experiment")
+    arg_parser.add_argument('--subjId', type=int, default=1, help='subject ID')
+    args = arg_parser.parse_args()
 
-    dialog = gui.DlgFromDict(
-        info,
-        title='Subject information',
-        order=[
-            'Date',
-            'Subject ID',
-            'Number of blocks',
-            'Number of trials',
-            'Number of train trials',
-            'Show tutorial'],
-        fixed=['Data'])
-
-    if not dialog.OK:
-        core.quit()
-
-    subj = info['Subject ID']
-    n_block = info['Number of blocks']
-    n_trial = info['Number of trials']
-    n_train_trial = info['Number of train trials']
-    has_tutorial = info['Show tutorial']
+    subj = args.subjId
+    n_block = 1
+    n_trial = 20
+    n_train_trial = 4
+    has_tutorial = True
 
     time_now = datetime.now()
     time_now_iso = time_now.isoformat().replace(':', '-').replace('T', '-')[:-7]
     
     # Save Data
-    fn_data = '{subj:04d}_DDT_{time_now_iso}.csv'.format(subj=subj,  time_now_iso=time_now_iso)
-    PATH_DATA.mkdir(exist_ok=True)
-    path_output = str(PATH_DATA / fn_data)
+    path_data = PATH_ROOT.parent.parent / 'data' / f"{subj}"
+    fn_data = f"DDT_{time_now_iso}.csv"
+    path_data.mkdir(exist_ok=True)
+    path_output = str(path_data / fn_data)
 
     # Open a window
     window = visual.Window(size=[1512, 982],
