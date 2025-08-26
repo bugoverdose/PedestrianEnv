@@ -19,6 +19,10 @@ from engine import Engine
 
 import argparse
 
+from scipy.stats import bernoulli
+
+from adopy import Task, Model
+
 PATH_ROOT = Path(__file__).absolute().parent
 PATH_IMAGE = PATH_ROOT / 'images'
 
@@ -219,7 +223,6 @@ class DdtDrawer:
             text.size = self.text_size
             text.draw()
         
-
         else:
             raise ValueError('Invalid page number for instructions.')
         self.draw_button_to_proceed()
@@ -235,7 +238,7 @@ class DdtDrawer:
         text.draw()
         self.draw_button_to_proceed()
 
-    def draw_main_before(self, block, n_trial):
+    def draw_main_before(self, n_trial):
         text = visual.TextStim(
             self.window,
             self.instructions['main_before'].format(n_trial),
@@ -246,7 +249,7 @@ class DdtDrawer:
         text.draw()
         self.draw_button_to_proceed()
 
-    def draw_main_after(self, block):
+    def draw_main_after(self):
         text = visual.TextStim(
             self.window,
             self.instructions['main_after'],
@@ -287,19 +290,50 @@ class DdtRunner:
         self.task = TaskDD()
         self.model = ModelHyp()
         self.grid_response = {'choice': [0, 1]}
-        self. engine = Engine(
+        self.engine = Engine(
             task=self.task,
             model=self.model,
             grid_design=self.generate_grid_designs(),
             grid_param=self.generate_grid_params(),
             grid_response=self.grid_response)
 
+        self.task_log = Task(
+        name='Delay Discounting Task',
+        designs=['t_ss', 't_ll', 'r_ss', 'r_ll'],
+        responses=['choice'])
+
+        self.model_log = Model(
+        name='Hyperbolic',
+        task=self.task_log,  
+        params=['log_k', 'tau_2'],
+        func=self.compute_prob_log)
+
+    def _initialize_engine(self):
+        engine = Engine(
+        task=self.task,
+        model=self.model,
+        grid_design=self.generate_grid_designs(),
+        grid_param=self.generate_grid_params(),
+        grid_response=self.grid_response)
+        return engine
+    
+    def _initialize_engine_log(self):
+        engine_log = Engine(
+        task=self.task_log,
+        model=self.model_log,
+        grid_design=self.generate_grid_designs(),
+        grid_param=self.generate_grid_params_log(),
+        grid_response=self.grid_response)
+        return engine_log
+    
     def save_record(self):
         columns=[
             'subject', 'block', 'block_type', 'trial',
-            *(self.task.designs),'resp_ss', 'rt',
+            *(self.task.designs),'resp_ss', 'rt', 'lr',
             *['mean_' + p for p in self.model.params],
             *['sd_' + p for p in self.model.params],
+            *['mean_' + p for p in self.model_log.params],
+            *['sd_' + p for p in self.model_log.params],
         ]
         self.df[columns].to_csv(self.path_output, sep='\t', index=False)
 
@@ -335,6 +369,26 @@ class DdtRunner:
         tau = np.linspace(0,1,101)[1:] # range: 0.01 ~ 1.00
         params = {'k': k, 'tau': tau}
         return params
+    
+    ### For estimating log k
+    @staticmethod
+    def compute_prob_log(choice, t_ss, t_ll, r_ss, r_ll, log_k, tau_2):
+        SV_ss = r_ss * (1 / (1 + np.exp(log_k) * t_ss))
+        SV_ll = r_ll * (1 / (1 + np.exp(log_k) * t_ll))
+            
+        #print(SV_ss, SV_ll, tau)
+        prob_ll = 1 / (1 + np.exp(-tau_2 * (SV_ll - SV_ss)))
+    
+        return bernoulli.logpmf(choice, prob_ll) # return log of the probability mass function
+    
+    @staticmethod
+    def generate_grid_params_log():
+        # k: discounting rate parameter
+        log_k = np.linspace(-11.51292546, 0, 101) # natural log # np.linspace(-5, 0, 101) 
+        # tau: inverse temperature parameter
+        tau_2 = np.linspace(0,1,101) #make_grid(0, 10, 30)
+        params = {'log_k': log_k, 'tau_2': tau_2}
+        return params
 
     def show_countdown(self):
         text1 = visual.TextStim(self.window, text="1",
@@ -366,28 +420,32 @@ class DdtRunner:
         self.window.flip()
         _ = event.waitKeys(keyList=['space', 'return'])
 
-    def show_block_start(self, block, n_trial):
-        self.drawer.draw_main_before(block, n_trial)
+    def show_block_start(self, n_trial):
+        self.drawer.draw_main_before(n_trial)
         self.window.flip()
         _ = event.waitKeys(keyList=['space', 'return'])
 
     def show_block_end(self, block):
-        self.drawer.draw_main_after(block)
+        self.drawer.draw_main_after()
         self.window.flip()
         _ = event.waitKeys(keyList=['space', 'return'])
 
-    def run_trial(self, design):
+    def fixed_design(self, n_trial):
+        #direction: balanced random
+        half_trial = n_trial//2
+        lr_design = [-1]*half_trial+[1]*(n_trial-half_trial)
+        np.random.shuffle(lr_design)
+
+        return lr_design
+
+    def run_trial(self, design, lr):
         self.drawer.draw_fixation()
         self.window.flip()
         core.wait(1)
 
-        # Direction: 0 (L - LL / R - SS) or
-        #            1 (L - SS / R - LL)
-        direction = int(np.random.randint(0, 2))
-
         self.drawer.draw(design['t_ss'], design['t_ll'],
                          design['r_ss'], design['r_ll'],
-                         direction)
+                         lr)
         self.window.flip()
         timer = core.Clock()
         keys = event.waitKeys(keyList=['s', 'l', 'escape'])
@@ -398,11 +456,11 @@ class DdtRunner:
 
         resp_left = int(keys[0] == 's')
         # 1 if chosen left, 0 if chosen right option
-        resp_ss = int((1 - resp_left) ^ (direction == 1))
+        resp_ss = int((1 - resp_left) ^ (lr == 1))
         # 1 if chosen SS option, 0 if chosen LL option
         self.drawer.draw(design['t_ss'], design['t_ll'],
                          design['r_ss'], design['r_ll'],
-                         direction, resp_ss)
+                         lr, resp_ss)
         self.window.flip()
         core.wait(1)
 
@@ -414,12 +472,12 @@ class DdtRunner:
             self.drawer.draw_train_before(i,  n_trial)
             self.window.flip()
             _ = event.waitKeys(keyList=['space', 'return'])
-
+        lr_design = self.fixed_design(n_trial)
         self.show_countdown()
         for trial in range(n_train_trial):
             design = self.engine.get_design('random')
             # print(trial, design)
-            _ = self.run_trial(design)
+            _ = self.run_trial(design, lr_design[trial])
 
         self.drawer.draw_train_after()
         self.window.flip()
@@ -427,41 +485,24 @@ class DdtRunner:
 
     def run_block(self, block, block_type, n_trial=20):
         """Run a block with optimal designs chosen by ADO."""
+        self.engine = self._initialize_engine()
+        self.engine_log = self._initialize_engine_log()
         self.engine.reset()
+        self.engine_log.reset()
 
-        ################### staircase params ###########################
-        # 1 week, 2 weeks, 1 month, 6 months, 1 year, 2 years, 10 years
-        #D_CAND = [1, 2, 4.3, 26, 52, 104, 520]
-        D_CAND = [0.43, 0.714, 1, 2, 3, 4.3, 6.44, 8.6, 10.8, 12.9, 17.2, 21.5, 26, 52, 104, 156, 260, 520]
-        # DELTA_R_SS for the staircase method:
-        # The amount of changes on R_SS every 6 trials.
-        DELTA_R_SS = [400, 200, 100, 50, 25, 12.5]
-        STAIR_STEP = 6
-        ################################################################
+        lr_design = self.fixed_design(n_trial)
 
         self.show_countdown()
         for trial in range(n_trial):
-            if block_type == 'fixed':
-                design = self.engine.get_design('random')
-            elif block_type =='staircase':
-                if trial % STAIR_STEP == 0:
-                    design = {
-                        't_ss': 0,
-                        't_ll': D_CAND[trial // STAIR_STEP],
-                        'r_ss': 400,
-                        'r_ll': 800
-                    }
-                else:
-                    if resp_ss == 0:
-                        design['r_ss'] += DELTA_R_SS[trial % STAIR_STEP]
-                    else:
-                        design['r_ss'] -= DELTA_R_SS[trial % STAIR_STEP]
-            else:
+            if block_type == 'ado':
                 design = self.engine.get_design('optimal')
-
-            resp_ss, rt = self.run_trial(design)
+            else:
+                raise Exception("block_type 'ado' only allowed")
+            lr = lr_design[trial]
+            resp_ss, rt = self.run_trial(design, lr)
             resp_ll = 1 - resp_ss
             self.engine.update(design, resp_ll)
+            self.engine_log.update(design, resp_ll)
             
             dict_mean = {
                 'mean_' + p: m
@@ -472,6 +513,16 @@ class DdtRunner:
                 for p, m in zip(self.model.params, self.engine.post_sd)
             }
 
+            dict_mean_log = {
+                'mean_' + p: m
+                for p, m in zip(self.model_log.params, self.engine_log.post_mean)
+            }
+
+            dict_sd_log = {
+                'sd_' + p: m
+                for p, m in zip(self.model_log.params, self.engine_log.post_sd)
+            }
+
             self.df = pd.concat([self.df, pd.DataFrame([{
                 'subject': self.subj,
                 'block': block,
@@ -480,8 +531,11 @@ class DdtRunner:
                 **design,
                 'resp_ss': resp_ss,
                 'rt': rt,
+                'lr': lr,
                 **dict_mean,
-                **dict_sd
+                **dict_sd,
+                **dict_mean_log,
+                **dict_sd_log
             }])], ignore_index=True)
 
             self.save_record()
@@ -529,7 +583,7 @@ def main():
         runner.run_train_block(n_train_trial, n_trial)
 
     for block, block_type in enumerate(block_types):
-        runner.show_block_start(block + 1, n_trial)
+        runner.show_block_start(n_trial)
         runner.run_block(block + 1, block_type, n_trial)
 
         if block+1 != n_block:
