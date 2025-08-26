@@ -8,6 +8,9 @@ from pedestrian_env.envs.utils import is_overlapping, is_overlapping_circle_and_
 from pedestrian_env.envs.road import Road, CrossWalk
 from pedestrian_env.envs.car_details import CAR_CANDIDATES, CARS_PER_LANE_PAIR_COMPOSITION
 
+AGENT_STATUS_ALIVE = "alive"
+AGENT_STATUS_DEAD = "dead"
+
 class GameObject:
 
     def __init__(self, default_speed, cur_location, pix_square_size, steps_per_second):
@@ -98,7 +101,7 @@ class Agent(GameObject):
         agent_center_y = self.cur_location[1] * self.pix_square_size + adjustment
         agent_position = (agent_center_x, agent_center_y)
         if self.images is not None:
-            sub_dir = "dead" if self.is_dead else "color"
+            sub_dir = AGENT_STATUS_DEAD if self.is_dead else AGENT_STATUS_ALIVE
             [image, player_width, player_height] = self.images[self.last_direction][sub_dir][self.mini_step_count % ACTION_DURATION[self.last_direction]]
             left_x_pix = agent_center_x - player_width/2
             top_y_pix = agent_center_y - player_height/2
@@ -389,16 +392,16 @@ def load_player_images(pix_square_size):
     }
     for d in directions:
         player_images[d.value] = {}
-        player_images[d.value]["color"] = []
-        player_images[d.value]["dead"] = []
+        player_images[d.value][AGENT_STATUS_ALIVE] = []
+        player_images[d.value][AGENT_STATUS_DEAD] = []
         for i in range(4):
-            for status in ["alive", "dead"]:
+            for status in [AGENT_STATUS_ALIVE, AGENT_STATUS_DEAD]:
                 file_name = f"player_{str(d)}_{i}_cropped.png"
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 image_path = os.path.join(current_dir, "..", f"sprites/player_color/", file_name)
                 object_image = pygame.image.load(image_path)
-                player_height = (2 * Agent.RADIUS) * pix_square_size * (0.4 if status == "dead" else 1)
-                player_width = player_height * size_ratio[file_name] * (6 if status == "dead" else 1)
+                player_height = (2 * Agent.RADIUS) * pix_square_size * (0.4 if status == AGENT_STATUS_DEAD else 1)
+                player_width = player_height * size_ratio[file_name] * (6 if status == AGENT_STATUS_DEAD else 1)
                 image = pygame.transform.scale(object_image, (player_width, player_height))
                 player_images[d.value][status].append([image, player_width, player_height])
     return player_images
