@@ -259,19 +259,6 @@ class Cars:
                         car_details = car_details_dict[car_name][road.car_color_type][going_right]
                         cars.append(Car(uid, initial_x, start_row_idx, height, road, map_grid_width, pix_square_size, steps_per_second, car_details, random))
 
-        # NOTE(maximum difficulty): add one height=1 car for each lane & add one height=2 car for each 2 lanes
-        # for road in roads.elements:
-        #     for height in CAR_CANDIDATES.keys():
-        #         for i in range(0, road.end_y - road.start_y + 1, height):
-        #             uid += 1
-        #             row_idx = road.start_y + i
-        #             height = min(roads.max_height_dic[row_idx], height)
-        #             (car_name, ratio) = random.choice(CAR_CANDIDATES[height])
-        #             initial_x = random.integers(0, map_grid_width)
-        #             going_right = road.going_right[i]
-        #             cars.append(Car(uid, car_name, initial_x, row_idx, height, ratio, going_right, road, map_grid_width, pix_square_size, steps_per_second, random, render_sprite))
-
-        # add nearby_cars info
         for i in range(len(cars)):
             cur_car = cars[i]
             top_y1, bottom_y1 = cur_car.get_cur_y_pos()

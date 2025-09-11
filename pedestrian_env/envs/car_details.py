@@ -38,6 +38,7 @@ RiskDetails = {
 CARS_PER_LANE_PAIR_COMPOSITION = [
     # 2 small cars
     {0: [1], 1: [1]},
+    {0: [1], 1: [1]},
     # 3 small cars
     {0: [1], 1: [1, 1]},
     {0: [1, 1], 1: [1]},
@@ -45,6 +46,7 @@ CARS_PER_LANE_PAIR_COMPOSITION = [
     {0: [2, 1], 1: []},
     {0: [2], 1: [1]},
     # 1 big car, 2 small cars
+    {0: [2, 1], 1: [1]},
     {0: [2, 1], 1: [1]},
 ]
 
