@@ -230,13 +230,12 @@ class PedestrianEnv(gym.Env):
         
         self._update_step_state()
         return self.obs, cumulative_reward, self.game_over, False, self.info
-    
+
     def _check_gameover(self):
         reward, terminated = 0, False
-        agent_dead, death_penalty = self.world.cars.has_hit_agent()
+        agent_dead, death_penalty = self.world.check_and_update_agent_collision()
         if agent_dead:
             terminated = True
-            self.world.agent.set_dead()
             reward -= death_penalty
             self.game_end_extra_score = -death_penalty
         elif self._get_time_left_sec() <= 0:
@@ -411,9 +410,7 @@ class PedestrianEnv(gym.Env):
             while elapsed >= self.step_ms:
                 elapsed -= self.step_ms
                 # NOTE: handle death during time over
-                agent_dead, _ = self.world.cars.has_hit_agent()
-                if agent_dead:
-                    self.world.agent.set_dead()
+                self.world.check_and_update_agent_collision()
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):

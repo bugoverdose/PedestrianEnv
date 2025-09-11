@@ -2,6 +2,7 @@ import pygame
 
 from pedestrian_env.envs.road import Roads
 from pedestrian_env.envs.game_object import Agent, Cars
+from pedestrian_env.envs.utils import is_overlapping_circle_and_rectangle
 
 class World:
     UP_REWARD_PER_UNIT = 5
@@ -55,6 +56,16 @@ class World:
             self.reward_per_y[road_crossed_y] = cum_reward
         for y in range(map_grid_height-1, 0, -1):
             self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])
+
+    def check_and_update_agent_collision(self):
+        [cx, cy] = self.agent.cur_location
+        for car in self.cars.elements:
+            left_x, right_x = car.get_cur_x_pos()
+            top_y, bottom_y = car.get_cur_y_pos()
+            if is_overlapping_circle_and_rectangle((cx, cy, Agent.RADIUS), (left_x, right_x, top_y, bottom_y)):
+                self.agent.set_dead()
+                return True, car.car_details.penalty.value
+        return False, 0
 
     def target_lane_reached(self):
         _, agent_y = self.agent.get_cur_location_grid()

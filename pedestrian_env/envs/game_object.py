@@ -297,18 +297,6 @@ class Cars:
         for car in self.elements:
             car.render(background)
 
-    def has_hit_agent(self):
-        for car in self.elements:
-            if self._check_collision(car):
-                return True, car.car_details.penalty.value
-        return False, 0
-
-    def _check_collision(self, car):
-        [cx, cy] = self.agent.cur_location
-        left_x, right_x = car.get_cur_x_pos()
-        top_y, bottom_y = car.get_cur_y_pos()
-        return is_overlapping_circle_and_rectangle((cx, cy, Agent.RADIUS), (left_x, right_x, top_y, bottom_y))
-
     @staticmethod
     def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random):
         cars = []
