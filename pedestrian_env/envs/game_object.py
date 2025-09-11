@@ -121,8 +121,6 @@ class Agent(GameObject):
             left_x_pix = agent_center_x - (agent_grid_width * self.pix_square_size / 2)
             top_y_pix = agent_center_y - (agent_grid_height * self.pix_square_size / 2)
             background.blit(image, (left_x_pix, top_y_pix))
-        else:
-            pass # TODO: consider removing render_sprite option
         return agent_position
 
 class Car(GameObject):
@@ -218,40 +216,13 @@ class Car(GameObject):
         self.is_moving = True # moving unless stopped
 
     def render(self, background):
-        left_x, right_x = self.get_cur_x_pos()
-        top_y, bottom_y = self.get_cur_y_pos()
+        left_x, _ = self.get_cur_x_pos()
+        top_y, _ = self.get_cur_y_pos()
         left_x_pix = left_x * self.pix_square_size
         top_y_pix = top_y * self.pix_square_size
         adjustment = 0.5 * self.pix_square_size
-        # render image or rectangle
         if self.car_details.image is not None:
             background.blit(self.car_details.image, (left_x_pix, top_y_pix + adjustment))
-        else:
-            center_x_pix = self.cur_location[0] * self.pix_square_size
-            center_y_pix = self.cur_location[1] * self.pix_square_size + adjustment
-            right_x_pix = right_x * self.pix_square_size
-
-            # draw car
-            radius = self.car_details.car_height/2
-            rect_width = self.car_details.car_width * 1.05 - radius
-            if self.car_details.go_right:
-                car_rect = pygame.Rect(left_x_pix, top_y_pix, rect_width, self.car_details.car_height)
-                pygame.draw.rect(background, self.car_details.color, car_rect, border_radius=10)
-                pygame.draw.circle(background, self.car_details.color, [center_x_pix + (self.car_details.car_width * 0.5 - radius), center_y_pix], self.car_details.car_height / 2)
-            else:
-                car_rect = pygame.Rect(right_x_pix-rect_width, top_y_pix, rect_width, self.car_details.car_height)
-                pygame.draw.rect(background, self.car_details.color, car_rect, border_radius=10)
-                pygame.draw.circle(background, self.car_details.color, [center_x_pix - (self.car_details.car_width * 0.5 - radius), center_y_pix], self.car_details.car_height / 2)
-
-            # draw window
-            window_width = self.car_details.car_height/3
-            window_height = (self.car_details.car_height * 0.7)
-            if self.car_details.go_right:
-                window_x = (right_x * self.pix_square_size) - window_width - window_width*1
-            else:
-                window_x = (left_x * self.pix_square_size) + window_width*1
-            window_y = (self.cur_location[1] * self.pix_square_size) - window_height/2
-            pygame.draw.rect(background, (0, 0, 0), (window_x, window_y, window_width, window_height), border_radius=30)
 
     def __str__(self):
         return f"Car(cur_pos=({self.cur_location[0], self.cur_location[1]}), crosswalk=({self.road.crosswalk}))"

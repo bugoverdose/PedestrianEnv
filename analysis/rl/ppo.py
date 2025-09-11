@@ -127,7 +127,7 @@ def _load_PPO_model(saved_model_name, fixed_episode_seed_range=[1001], render_mo
 
     def make_env():
         if render_mode_human:
-            env = PedestrianEnv(fixed_episode_seed_range=fixed_episode_seed_range, render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+            env = PedestrianEnv(fixed_episode_seed_range=fixed_episode_seed_range, render_mode = "human", realtime=True, gameover_screen_time=2000)
         else:
             env = PedestrianEnv(fixed_episode_seed_range=fixed_episode_seed_range)
         env.reset(seed = seed if fixed_episode_seed_range is None else None)

@@ -117,7 +117,7 @@ def _load_DQN_model(saved_model_name, seed=42, frame_stack=0, render_mode_human=
 
     def make_env():
         if render_mode_human:
-            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, render_sprite=True)
+            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000)
         else:
             env = PedestrianEnv()
         env.reset(seed=seed)

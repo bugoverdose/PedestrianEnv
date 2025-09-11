@@ -77,8 +77,7 @@ def play_episode(env, episode_seed, verbose = False):
 
 def play_game(base_dir, session_id, max_seconds, max_episodes=-1, base_seed=0, debug=False, verbose=False):
     episode_duration_sec = 10 if debug else 30
-    # env = PedestrianEnv(render_mode="human", realtime=True, gamescreen_width_fixed=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
-    env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug, render_sprite=True)
+    env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug)
     start_timestamp = int(time.time())
     episode_id = session_id * 1000 # assumes that each session is less than 1000 episodes
     while True:

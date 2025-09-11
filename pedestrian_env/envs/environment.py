@@ -36,8 +36,7 @@ class PedestrianEnv(gym.Env):
                  render_mode=None,
                  realtime=False,
                  extra_reward_using_crosswalk=False,
-                 debug=False,
-                 render_sprite=False):
+                 debug=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 5: raise Exception("minimum height is 5")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
@@ -62,11 +61,12 @@ class PedestrianEnv(gym.Env):
         assert fixed_episode_seed_range is None or len(fixed_episode_seed_range) > 0
         self.fixed_episode_seed_range = fixed_episode_seed_range
         self.fixed_episode_seed_idx = 0
-        self.player_asset_info = load_player_asset_info(self.pix_square_size, render_sprite)
-        self.car_details_dict = load_car_details_dict(self.pix_square_size, render_sprite)
         self.debug = debug
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
+        self.render_sprite = render_mode is not None
+        self.player_asset_info = load_player_asset_info(self.pix_square_size, self.render_sprite)
+        self.car_details_dict = load_car_details_dict(self.pix_square_size, self.render_sprite)
         self.window = None
         self.clock = None
 
@@ -127,7 +127,7 @@ class PedestrianEnv(gym.Env):
                            self.player_asset_info,
                            self.car_details_dict)
 
-        if self.render_mode == "human":
+        if self.render_sprite:
             self.render()
 
         if self.debug:
