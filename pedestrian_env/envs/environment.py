@@ -4,7 +4,7 @@ import pygame
 import numpy as np
 
 from pedestrian_env.envs.world import World
-from pedestrian_env.envs.game_object import Car, load_player_images
+from pedestrian_env.envs.game_object import Car, load_player_asset_info
 from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width, load_car_details_dict
 from pedestrian_env.envs.action import Action, ACTION_DURATION
 
@@ -62,7 +62,7 @@ class PedestrianEnv(gym.Env):
         assert fixed_episode_seed_range is None or len(fixed_episode_seed_range) > 0
         self.fixed_episode_seed_range = fixed_episode_seed_range
         self.fixed_episode_seed_idx = 0
-        self.player_images = load_player_images(self.pix_square_size) if render_sprite else None
+        self.player_asset_info = load_player_asset_info(self.pix_square_size, render_sprite)
         self.car_details_dict = load_car_details_dict(self.pix_square_size, render_sprite)
         self.debug = debug
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -124,7 +124,7 @@ class PedestrianEnv(gym.Env):
                            self.steps_per_second,
                            self.np_random,
                            self.debug,
-                           self.player_images,
+                           self.player_asset_info,
                            self.car_details_dict)
 
         if self.render_mode == "human":

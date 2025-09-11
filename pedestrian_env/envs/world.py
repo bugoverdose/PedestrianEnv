@@ -2,12 +2,12 @@ import pygame
 
 from pedestrian_env.envs.road import Roads
 from pedestrian_env.envs.game_object import Agent, Cars
-from pedestrian_env.envs.utils import is_overlapping_circle_and_rectangle
+from pedestrian_env.envs.utils import is_overlapping_rectangles
 
 class World:
     UP_REWARD_PER_UNIT = 5
 
-    def __init__(self, agent_x_range, map_grid_width, map_grid_height, camera_width, pix_square_size, steps_per_second, random, debug, player_images, car_details_dict):
+    def __init__(self, agent_x_range, map_grid_width, map_grid_height, camera_width, pix_square_size, steps_per_second, random, debug, player_asset_info, car_details_dict):
         self.random = random
         self.map_grid_width = map_grid_width
         self.map_grid_height = map_grid_height
@@ -15,7 +15,7 @@ class World:
 
         self.steps_per_second = steps_per_second
 
-        self.agent = Agent(agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, player_images, debug)
+        self.agent = Agent(agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, player_asset_info, debug)
         self.initial_player_y = self.agent.cur_location[1]
         self.roads = Roads(self.agent, camera_width, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random)
@@ -58,11 +58,11 @@ class World:
             self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])
 
     def check_and_update_agent_collision(self):
-        [cx, cy] = self.agent.cur_location
+        agent_rect = self.agent.get_cur_grid_pos()
         for car in self.cars.elements:
-            left_x, right_x = car.get_cur_x_pos()
             top_y, bottom_y = car.get_cur_y_pos()
-            if is_overlapping_circle_and_rectangle((cx, cy, Agent.RADIUS), (left_x, right_x, top_y, bottom_y)):
+            left_x, right_x = car.get_cur_x_pos()
+            if is_overlapping_rectangles(agent_rect, [top_y, bottom_y, left_x, right_x]):
                 self.agent.set_dead()
                 return True, car.car_details.penalty.value
         return False, 0
