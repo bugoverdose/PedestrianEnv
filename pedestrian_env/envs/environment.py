@@ -412,6 +412,7 @@ class PedestrianEnv(gym.Env):
                 self.world.check_and_update_agent_collision()
             self.apply_time_and_render(dt)
 
+    # TODO: remove car information on the non-target roads
     def _define_observation_space(self):
         """
         # Observation space
@@ -472,27 +473,30 @@ class PedestrianEnv(gym.Env):
           - 1 = in the same column or row as the target crosswalk
           - size: 3 (for each direction: up, right, left) * 3 crosswalks
 
-        ## Cars [31 ~ 62]
-        Information about the nearest car in each lane for each direction (left and right sides).
-        Each lane can only have 1 or 2 cars, but only consider the closest one.
+        ## Cars [31 ~ 66]
+        Information about the nearest cars in each lane for each direction (left and right sides).
+        Each lane can only have 1 or 2 cars
         Ignore the ones moving away since they are the same as out of sight.
-        - car in adjacent tile
+        - car in nearby tiles
           - 0 = no car in the tile
           - 1 = part of the car in the tile
-          - size: 4 (directions: up, down, right, left)
-        - closeness of dangerous cars to the agent
+          - size: 8 (directions: 3 rows x 3 columns around the agent)
+            x x x
+            x A x
+            x x x
+        - closeness of nearest dangerous cars
           - 0 = no car coming toward the agent in the direction
           - 0 ~ 1 = closeness of the nearest car
           - 1 = in the same column as agent
           - size: camera_height * 2 (for each lane, left vs right)
-        - approaching speed of dangerous cars
+        - approaching speed of nearest dangerous cars
           - 0 = no car or stopped
           - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
           - size: camera_height * 2 (for each lane, left vs right)
         """
         self.observation_space = gym.spaces.Box(
-            low=np.array([0.0 for _ in range(63)]),
-            high=np.array([1.0 for _ in range(63)]),
+            low=np.array([0.0 for _ in range(67)]),
+            high=np.array([1.0 for _ in range(67)]),
             dtype=np.float64
         )
 
@@ -671,10 +675,12 @@ class PedestrianEnv(gym.Env):
         # Cars
         if cars_info:
             car_in_adjecent_tiles = []
-            for action in [Action.UP, Action.DOWN, Action.RIGHT, Action.LEFT]:
-                [dx, dy] = ACTION_TO_DELTA[action.value]
-                grid_x = agent_x + dx
-                grid_y = agent_y + dy
+            for i in range(8):
+                # NW, N, NE, E, SE, S, SW, W
+                dx = [-1, 0, 1, 1, 1, 0, -1, -1] 
+                dy = [-1, -1, -1, 0, 1, 1, 1, 0]
+                grid_x = agent_x + dx[i]
+                grid_y = agent_y + dy[i]
                 tile_rect = [grid_y - 0.5, grid_y + 0.5, grid_x - 0.5, grid_x + 0.5]
                 car_in_tile = False
                 if grid_y in self.world.row_to_cars_dict:
@@ -684,11 +690,7 @@ class PedestrianEnv(gym.Env):
                             break
                 car_in_adjecent_tiles.append(1.0 if car_in_tile else 0.0)
             obs += car_in_adjecent_tiles
-            # print("car_in_adjecent_tiles up:", car_in_adjecent_tiles[0])
-            # print("car_in_adjecent_tiles down:", car_in_adjecent_tiles[1])
-            # print("car_in_adjecent_tiles right:", car_in_adjecent_tiles[2])
-            # print("car_in_adjecent_tiles left:", car_in_adjecent_tiles[3])
-
+            # print("car_in_adjecent_tiles up:", car_in_adjecent_tiles[1])
             dangerous_car_closeness_list = []
             dangerous_car_speed_list = []
             for i in range(self.camera_height):
@@ -725,11 +727,11 @@ class PedestrianEnv(gym.Env):
                 # print(f"car right speed [{grid_y}]:", right_car_speed)
             obs += dangerous_car_closeness_list
             obs += dangerous_car_speed_list
-        assert len(obs) == 63
+        assert len(obs) == 67
         assert max(obs) <= 1.0 and min(obs) >= 0.0
         self.obs = np.array(obs)
 
-    def _update_info(self, agent_x, agent_y, nearby_cars):
+    def _update_info(self):
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         grid_y_start = agent_y - self.camera_height//2 - 2
         if self.gamescreen_width_fixed:
