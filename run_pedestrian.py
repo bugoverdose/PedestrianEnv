@@ -44,13 +44,6 @@ def play_episode(env, episode_seed, verbose = False):
             agent_x = info["play_infos"][0]
             agent_y = info["play_infos"][1]
             print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({agent_x}, {agent_y})")
-            # print(info["play_infos"])
-            # for car in info["cars"]:
-            #     print(car)
-            # for y in range(env.camera_height):
-            #     print(obs[5][y])
-            # print(obs[5][4])
-            # print(f"Channel 10: Play time left: {obs[10][0][0]}")
         if terminated or truncated: return False, episode_metadata, observations, actions, rewards, play_infos, car_infos
         last_action = Action.NOTHING
 

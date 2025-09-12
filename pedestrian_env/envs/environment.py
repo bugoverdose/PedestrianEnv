@@ -6,7 +6,8 @@ import numpy as np
 from pedestrian_env.envs.world import World
 from pedestrian_env.envs.game_object import Car, load_player_asset_info
 from pedestrian_env.envs.car_details import Penalty, get_max_car_grid_width, load_car_details_dict
-from pedestrian_env.envs.action import Action, ACTION_DURATION
+from pedestrian_env.envs.action import Action, ACTION_TO_DELTA, ACTION_DURATION
+from pedestrian_env.envs.utils import is_overlapping, is_overlapping_rectangles
 
 class PedestrianEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -25,7 +26,7 @@ class PedestrianEnv(gym.Env):
     def __init__(self,
                  title="Pedestrian Task",
                  width=25,
-                 height=20,
+                 height=21,
                  camera_width=11,
                  camera_height=7,
                  steps_per_second=10,
@@ -38,11 +39,13 @@ class PedestrianEnv(gym.Env):
                  extra_reward_using_crosswalk=False,
                  debug=False):
         if width < 12: raise Exception("minimum width is 13")
-        if height < 5: raise Exception("minimum height is 5")
+        if height < 6: raise Exception("minimum height is 6")
+        if camera_height < 7: raise Exception("minimum camera_height is 7")
+        if camera_height%2 == 0: raise Exception("minimum camera_height should be an odd number")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
         self.title = title
         self.map_grid_width = width
-        self.map_grid_height = height + 1 # add starting lane
+        self.map_grid_height = height
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
         self.realtime = realtime
@@ -84,28 +87,27 @@ class PedestrianEnv(gym.Env):
         self.real_time_step_passed = 0
         self.obs = None
         self.info = None
-        self.prev_step_state = None
 
         self.max_car_penalty = Penalty.HIGH.value
         self.max_car_speed = max(Car.CAR_SPEEDS)
         agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
         agent_min_x = (agent_x_buffer)
         agent_max_x = self.map_grid_width - 1 - agent_x_buffer
-        self.agent_move_range = (agent_min_x, agent_max_x)
+        self.agent_x_range = (agent_min_x, agent_max_x)
 
         # action
         self.action_space = gym.spaces.Discrete(5)
         # obs
         self._define_observation_space()
 
-    def reset(self, seed=None, options=None):
-        # set seed at `self.np_random`
+    def reset(self, seed=None):
+        # set seed for World initialization and car speed change
+        self.cur_seed = seed
         if seed is None and self.fixed_episode_seed_range is not None:
-            self.fixed_episode_seed = self.fixed_episode_seed_range[self.fixed_episode_seed_idx]
+            # use each seed in the fixed_episode_seed_range
+            self.cur_seed = self.fixed_episode_seed_range[self.fixed_episode_seed_idx]
             self.fixed_episode_seed_idx = (self.fixed_episode_seed_idx + 1) % len(self.fixed_episode_seed_range)
-        else:
-            self.cur_seed = seed
-        super().reset(seed=seed)
+        super().reset(seed=self.cur_seed)
         self.elapsed = 0
 
         self.best_rewards = max(self.best_rewards, self.cur_rewards)
@@ -116,7 +118,7 @@ class PedestrianEnv(gym.Env):
         self.game_end_extra_score = 0
         self.real_time_step_passed = 0
 
-        self.world = World(self.agent_move_range,
+        self.world = World(self.agent_x_range,
                            self.map_grid_width,
                            self.map_grid_height,
                            self.camera_width,
@@ -135,9 +137,6 @@ class PedestrianEnv(gym.Env):
 
         self.obs = None
         self.info = None
-        self.prev_step_state = dict()
-        self._update_step_state()
-        self.apply_time_and_render(self.step_ms) # assume that the player waits and does nothing for 1 step for car movement observations
         self._update_step_state()
         return self.obs, self.info
 
@@ -363,7 +362,7 @@ class PedestrianEnv(gym.Env):
         else:
             # unreachable area
             if not self.gamescreen_width_fixed:
-                (agent_min_x, agent_max_x) = self.agent_move_range
+                (agent_min_x, agent_max_x) = self.agent_x_range
                 [agent_cur_x, _] = self.world.agent.cur_location
                 game_screen_left_end = agent_cur_x - (self.camera_width // 2)
                 game_screen_right_end = agent_cur_x + (self.camera_width // 2)
@@ -414,24 +413,323 @@ class PedestrianEnv(gym.Env):
             self.apply_time_and_render(dt)
 
     def _define_observation_space(self):
-        self.channel_count = 11
-        lower_bounds = [0, 0, 0, 0, 0, 
-                        0, 0, 0, -1, 0,0]
-        upper_bounds = [1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1]
-        if self.gamescreen_width_fixed:
-            self.channel_count += 1
-            lower_bounds.append(0)
-            upper_bounds.append(1)
+        """
+        # Observation space
+        All the observations are within 0 ~ 1 or -1 ~ 1 range,
+        and the total length varies depending on the camera_height configuration.
 
-        low_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), lower_bounds)
-        high_hwc = np.full((self.camera_height, self.camera_width, self.channel_count), upper_bounds)
+        ## Meta info [0 ~ 4]
+        - play time left
+          - 1 = initialized
+          - 0 ~ 1 = time remaining
+          - 0 = game over (time over, death, early finish)
+        - closeness to unreachable area
+          - 0 = only reachable area in sight
+          - 0 ~ 1 = closeness to nearest unreachable tile in the direction
+          - 1 = adjacent to unreachable tile, can't move in the direction
+          - size: 4 (directions: up, down, right, left)
 
-        low_chw = np.transpose(low_hwc, (2, 0, 1))
-        high_chw = np.transpose(high_hwc, (2, 0, 1))
-        self.observation_space = gym.spaces.Box(low=low_chw, high=high_chw, dtype=np.float32)
+        ## Tile types near the agent [5 ~ 12]
+        - is dangerous
+          - 0 = safe zone or end of the map
+          - 1 = on the road
+          - size: 3 (current, up, down)
+        - is crosswalk
+          - 0 = not crosswalk
+          - 1 = crosswalk or crosswalk activation tile in the safe zone
+          - size: 5 (current, up, down, right, left)
+
+        ## Target road info [13 ~ 21]
+        Information about the road that the agent is crossing or should cross
+        - crosswalk visible
+          - 0 = no crosswalk visible
+          - 1 = crosswalks in sight
+        - car penalty
+          - 0.1, 0.5, 1.0 = penalty based on car color (100, 500, 1000)
+        - y distance from the end of the road
+          - 0.0 = can escape the road after moving up 1 more tile
+          - 0.25 = can escape the road after moving up 2 more tile
+          - 0.50 = can escape the road after moving up 3 more tile
+          - 0.75 = can escape the road after moving up 4 more tile
+          - 1.0 = in the safe zone, before crossing the road
+        - y distance from the start of the road
+          - 0.0 = in the safe zone, before crossing the road
+          - 0.25 = agent can escape the road after moving down 1 more tile
+          - 0.50 = agent can escape the road after moving down 2 more tile
+          - 0.75 = agent can escape the road after moving down 3 more tile
+          - 1.0 = agent can escape the road after moving down 4 more tile
+        - total number of cars visible on the road
+          - 0 ~ 1 = 0 ~ 6 cars in sight
+          - NOTE: each road can have maximum of 6 cars
+        - number of cars coming toward the agent
+          - 0 ~ 1 = 0 ~ 6 cars in the direction
+          - size: 4 (for each direction: up, down, right, left)
+
+        ## Distance from crosswalks [22 ~ 30]
+        - closeness to three nearest crosswalk
+          - 0 = crosswalk not visible
+          - 0 ~ 1 = closeness (1 - distance from the target crosswalk)
+          - 1 = in the same column or row as the target crosswalk
+          - size: 3 (for each direction: up, right, left) * 3 crosswalks
+
+        ## Cars [31 ~ 62]
+        Information about the nearest car in each lane for each direction (left and right sides).
+        Each lane can only have 1 or 2 cars, but only consider the closest one.
+        Ignore the ones moving away since they are the same as out of sight.
+        - car in adjacent tile
+          - 0 = no car in the tile
+          - 1 = part of the car in the tile
+          - size: 4 (directions: up, down, right, left)
+        - closeness of dangerous cars to the agent
+          - 0 = no car coming toward the agent in the direction
+          - 0 ~ 1 = closeness of the nearest car
+          - 1 = in the same column as agent
+          - size: camera_height * 2 (for each lane, left vs right)
+        - approaching speed of dangerous cars
+          - 0 = no car or stopped
+          - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
+          - size: camera_height * 2 (for each lane, left vs right)
+        """
+        self.observation_space = gym.spaces.Box(
+            low=np.array([0.0 for _ in range(63)]),
+            high=np.array([1.0 for _ in range(63)]),
+            dtype=np.float64
+        )
 
     def _update_step_state(self):
+        self._update_obs()
+        self._update_info()
+
+    def _update_obs(self, meta_info = True, tile_types = True, target_road = True, crosswalk_info = True, cars_info = True):
+        obs = []
+        agent_x, agent_y = self.world.agent.get_cur_location_grid()
+        [_, _, agent_left_x, agent_right_x] = self.world.agent.get_hitbox()
+        agent_y_range = [0, self.map_grid_height-1]
+        y_top_visible_distance = self.camera_height//2 + 2
+        y_bottom_visible_distance = self.camera_height//2 - 2
+        grid_top_y = agent_y - y_top_visible_distance
+        grid_bottom_y = grid_top_y + self.camera_height - 1
+        x_visible_distance = self.camera_width//2
+        if self.gamescreen_width_fixed:
+            grid_x_left_end = self.world.agent.init_pos[0] - x_visible_distance
+        else:
+            grid_x_left_end = agent_x - x_visible_distance
+        grid_x_right_end = grid_x_left_end + self.camera_width - 1
+
+        visible_top_y_end = grid_top_y - 0.5
+        visible_bottom_y_end = visible_top_y_end + self.camera_height
+        visible_x_left_start = grid_x_left_end - 0.5
+        visible_x_right_end = visible_x_left_start + self.camera_width
+        game_screen_rect = [visible_top_y_end, visible_bottom_y_end, visible_x_left_start, visible_x_right_end]
+
+        # Meta info
+        if meta_info:
+            time_left = 0
+            if not self.game_over:
+                time_left = max(0, (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000))
+            top_end_closeness = 0
+            if grid_top_y < agent_y_range[0]:
+                top_end_closeness = (y_top_visible_distance - (agent_y - agent_y_range[0])) / y_top_visible_distance
+            bottom_end_closeness = 0
+            if grid_bottom_y > agent_y_range[1]:
+                bottom_end_closeness = (y_bottom_visible_distance - (agent_y_range[1] - agent_y)) / y_bottom_visible_distance
+            left_end_closeness = 0
+            if grid_x_left_end < self.agent_x_range[0]:
+                left_end_closeness = (x_visible_distance - (agent_x - self.agent_x_range[0])) / x_visible_distance
+            right_end_closeness = 0
+            if self.agent_x_range[1] < grid_x_right_end:
+                right_end_closeness = (x_visible_distance - (self.agent_x_range[1] - agent_x)) / x_visible_distance
+            obs += [time_left, top_end_closeness, bottom_end_closeness, left_end_closeness, right_end_closeness]
+            # print("agent:", agent_x, agent_y, self.camera_height, self.camera_width)
+            # print("grid_top_y:", grid_top_y, " top_end_of_map_visible:", top_end_closeness, " distance:", agent_y - agent_y_range[0])
+            # print("grid_bottom_y:", grid_bottom_y, " bottom_end_closeness:", bottom_end_closeness, " distance:", agent_y_range[1] - agent_y)
+            # print("grid_x_left_end:", grid_x_left_end, ", left_end_closeness:", left_end_closeness, " distance:", agent_x - self.agent_x_range[0])
+            # print("grid_x_right_end:", grid_x_right_end, ", right_end_closeness:", right_end_closeness, " distance:", self.agent_x_range[1] - agent_x)
+        assert len(obs) == 5
+
+        # Tile types near the agent
+        if tile_types:
+            is_dangerous = []
+            is_crosswalk = []
+            for action in [Action.NOTHING, Action.UP, Action.DOWN, Action.RIGHT, Action.LEFT]:
+                [dx, dy] = ACTION_TO_DELTA[action.value]
+                grid_x = agent_x + dx
+                grid_y = agent_y + dy
+                out_of_move_range = grid_y < agent_y_range[0] or grid_y > agent_y_range[1] or grid_x < self.agent_x_range[0] or grid_x > self.agent_x_range[1]
+                if action != Action.RIGHT and action != Action.LEFT:
+                    if out_of_move_range:
+                        is_dangerous.append(0)
+                    else:
+                        is_dangerous.append(1 if self.world.danger_row[grid_y] else 0)
+                if out_of_move_range:
+                    is_crosswalk.append(0)
+                else:
+                    is_crosswalk.append(1 if self.world.crosswalk_map[grid_y][grid_x] else 0)
+            obs += is_dangerous
+            obs += is_crosswalk
+            # print("is_dangerous cur:", is_dangerous[0])
+            # print("is_dangerous up:", is_dangerous[1])
+            # print("is_dangerous down:", is_dangerous[2])
+            # print("is_crosswalk cur:", is_crosswalk[0])
+            # print("is_crosswalk: up", is_crosswalk[1])
+            # print("is_crosswalk down:", is_crosswalk[2])
+            # print("is_crosswalk right:", is_crosswalk[3])
+            # print("is_crosswalk left:", is_crosswalk[4])
+        assert len(obs) == 13
+
+        # Target road info
+        if target_road:
+            crosswalk_visible = 0.0
+            penalty = 0.0
+            dist_end_of_target_road = 1.0
+            dist_start_of_target_road = 0.0
+            visible_car_count = 0
+            dangerous_car_counts = [0, 0, 0, 0]
+            for i in range(len(self.world.roads.elements), 0, -1):
+                road = self.world.roads.elements[i-1]
+                if road.top_y > agent_y: continue # already crossed
+                if road.crosswalk is not None:
+                    if is_overlapping(road.crosswalk.left_end, road.crosswalk.right_end, grid_x_left_end, grid_x_right_end):
+                        crosswalk_visible = 1.0
+                penalty = road.risk_detail.penalty.value / self.max_car_penalty
+                is_crossing = road.bottom_y >= agent_y >= road.top_y
+                if is_crossing:
+                    dist_end_of_target_road = (agent_y - road.top_y) / 4
+                    dist_start_of_target_road = (road.bottom_y - agent_y + 1) / 4
+                cars = self.world.road_uid_to_cars_dict[road.uid]
+                for car in cars:
+                    car_rect = car.get_hitbox()
+                    if not is_overlapping_rectangles(car_rect, game_screen_rect): continue # filter out of sight cars
+                    visible_car_count += 1
+                    [_, _, car_left_x, car_right_x] = car_rect
+                    is_left = car_left_x <= agent_x
+                    is_right = agent_x <= car_right_x
+                    going_right = car.car_details.go_right
+                    if (is_left and not going_right) or (is_right and going_right): continue # filter safe cars
+                    car_top_row, car_bottom_row = min(car.rows), max(car.rows)
+                    if car_top_row < agent_y:
+                        dangerous_car_counts[0] += 1 # dangerous car in the front
+                    if agent_y < car_bottom_row:
+                        dangerous_car_counts[1] += 1 # dangerous car in the back
+                    if is_left:
+                        dangerous_car_counts[2] += 1 # dangerous car on the left
+                    if is_right:
+                        dangerous_car_counts[3] += 1 # dangerous car on the right
+                # NOTE: each road can have maximum of 6 cars
+                visible_car_count /= 6
+                dangerous_car_counts = [cnt / 6 for cnt in dangerous_car_counts]
+                break
+            obs += [crosswalk_visible, penalty, dist_end_of_target_road, dist_start_of_target_road, visible_car_count]
+            obs += dangerous_car_counts
+            # print("crosswalk_visible:", crosswalk_visible)
+            # print("penalty:", penalty)
+            # print("dist_end_of_target_road:", dist_end_of_target_road)
+            # print("dist_start_of_target_road:", dist_start_of_target_road)
+            # print("visible_car_count:", visible_car_count)
+            # print("dangerous_car_counts:", dangerous_car_counts)
+        assert len(obs) == 22
+
+        # Distance from crosswalks
+        if crosswalk_info:
+            crosswalk_closeness_list = []
+            for i in range(len(self.world.roads.elements), 0, -1):
+                road = self.world.roads.elements[i-1]
+                if road.top_y > agent_y: continue # already crossed
+                if road.bottom_y < grid_top_y: break # out of sight
+                if road.crosswalk is None: continue
+
+                crosswalk_closeness = [0, 0, 0] # up, right, left
+                if road.crosswalk.top_row <= agent_y <= road.crosswalk.end_row:
+                    crosswalk_closeness[0] = 1
+                elif agent_y >= road.crosswalk.end_row:
+                    if road.crosswalk.end_row >= grid_top_y:
+                        crosswalk_closeness[0] = (y_top_visible_distance - (agent_y - road.crosswalk.end_row)) / (y_top_visible_distance)
+
+                if road.crosswalk.left_end <= agent_x <= road.crosswalk.right_end:
+                    crosswalk_closeness[1] = 1
+                    crosswalk_closeness[2] = 1
+                elif agent_x < road.crosswalk.left_end:
+                    if road.crosswalk.left_end <= grid_x_right_end:
+                        crosswalk_closeness[1] = (x_visible_distance + 1 - (road.crosswalk.left_end - agent_x)) / (x_visible_distance + 1)
+                elif road.crosswalk.right_end < agent_x:
+                    if grid_x_left_end <= road.crosswalk.right_end:
+                        crosswalk_closeness[2] = (x_visible_distance + 1 - (agent_x - road.crosswalk.right_end)) / (x_visible_distance + 1)
+
+                crosswalk_closeness_list += crosswalk_closeness
+                if len(crosswalk_closeness_list) == 3 * 3: break
+
+            while len(crosswalk_closeness_list) < 3 * 3:
+                crosswalk_closeness_list += [0.0, 0.0, 0.0] # fill up defaults
+            obs += crosswalk_closeness_list
+            # for i in range(3):
+            #     print(f"crosswalk {i}")
+            #     print("up closeness to crosswalk:",  crosswalk_closeness_list[3*i])
+            #     print("right closeness to crosswalk:",  crosswalk_closeness_list[3*i + 1])
+            #     print("left closeness to crosswalk:",  crosswalk_closeness_list[3*i + 2])
+        assert len(obs) == 31
+
+        # Cars
+        if cars_info:
+            car_in_adjecent_tiles = []
+            for action in [Action.UP, Action.DOWN, Action.RIGHT, Action.LEFT]:
+                [dx, dy] = ACTION_TO_DELTA[action.value]
+                grid_x = agent_x + dx
+                grid_y = agent_y + dy
+                tile_rect = [grid_y - 0.5, grid_y + 0.5, grid_x - 0.5, grid_x + 0.5]
+                car_in_tile = False
+                if grid_y in self.world.row_to_cars_dict:
+                    for car in self.world.row_to_cars_dict[grid_y]:
+                        if is_overlapping_rectangles(tile_rect, car.get_hitbox()):
+                            car_in_tile = True
+                            break
+                car_in_adjecent_tiles.append(1.0 if car_in_tile else 0.0)
+            obs += car_in_adjecent_tiles
+            # print("car_in_adjecent_tiles up:", car_in_adjecent_tiles[0])
+            # print("car_in_adjecent_tiles down:", car_in_adjecent_tiles[1])
+            # print("car_in_adjecent_tiles right:", car_in_adjecent_tiles[2])
+            # print("car_in_adjecent_tiles left:", car_in_adjecent_tiles[3])
+
+            dangerous_car_closeness_list = []
+            dangerous_car_speed_list = []
+            for i in range(self.camera_height):
+                grid_y = grid_top_y + i
+                left_car_closeness, left_car_speed = 0.0, 0.0
+                right_car_closeness, right_car_speed = 0.0, 0.0
+                if grid_y in self.world.row_to_cars_dict:
+                    for car in self.world.row_to_cars_dict[grid_y]:
+                        car_left_x, car_right_x = car.get_cur_x_pos()
+                        if car_right_x < visible_x_left_start: continue # filter out of sight
+                        if visible_x_right_end < car_left_x: continue # filter out of sight
+                        car_speed = abs(car.default_speed) if car.is_moving else 0
+                        if car_right_x < agent_left_x:
+                            # car on the left side of the agent
+                            if not car.car_details.go_right: pass # moving away
+                            left_car_closeness = max(left_car_closeness, (x_visible_distance - (agent_left_x - car_right_x)) / (x_visible_distance))
+                            left_car_speed = max(left_car_speed, car_speed)
+                        elif agent_right_x < car_left_x:
+                            # car on the right side of the agent
+                            if car.car_details.go_right: pass # moving away
+                            right_car_closeness = max(right_car_closeness, (x_visible_distance - (car_left_x - agent_right_x)) / (x_visible_distance))
+                            right_car_speed = max(right_car_speed, car_speed)
+                        else:
+                            # car in the same column as the agent
+                            left_car_closeness, right_car_closeness = 1.0, 1.0
+                            left_car_speed, right_car_speed = car_speed, car_speed
+                dangerous_car_closeness_list.append(left_car_closeness)
+                dangerous_car_closeness_list.append(right_car_closeness)
+                dangerous_car_speed_list.append(left_car_speed / self.max_car_speed)
+                dangerous_car_speed_list.append(right_car_speed / self.max_car_speed)
+                # print(f"car left closeness [{grid_y}]:", left_car_closeness)
+                # print(f"car left speed [{grid_y}]:", left_car_speed)
+                # print(f"car right closeness [{grid_y}]:", right_car_closeness)
+                # print(f"car right speed [{grid_y}]:", right_car_speed)
+            obs += dangerous_car_closeness_list
+            obs += dangerous_car_speed_list
+        assert len(obs) == 63
+        assert max(obs) <= 1.0 and min(obs) >= 0.0
+        self.obs = np.array(obs)
+
+    def _update_info(self, agent_x, agent_y, nearby_cars):
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         grid_y_start = agent_y - self.camera_height//2 - 2
         if self.gamescreen_width_fixed:
@@ -441,205 +739,13 @@ class PedestrianEnv(gym.Env):
         visible_x_start = grid_x_start - 0.5
         visible_x_end = visible_x_start + self.camera_width
 
-        # calculate nearby car info (include cars out of sight with buffer of grid size 1)
-        nearby_cars = set()
-        for y in range(self.camera_height + 2):
-            grid_y = grid_y_start + y - 1
-            if grid_y not in self.world.row_to_cars_dict: continue # no car
-            for car in self.world.row_to_cars_dict[grid_y]:
-                if car in nearby_cars: continue
-                car_left_x, car_right_x = car.get_cur_x_pos()
-                # out of sight with buffer
-                if car_right_x < visible_x_start - 1: continue
-                if visible_x_end + 1 < car_left_x: continue
-                nearby_cars.add(car)
-
-        self._update_obs(agent_x, agent_y, grid_x_start, grid_y_start, visible_x_start, visible_x_end, nearby_cars)
-        self._update_info(agent_x, agent_y, nearby_cars)
-
-    def _update_obs(self, agent_x, agent_y, grid_x_start, grid_y_start, visible_x_start, visible_x_end, nearby_cars):
-        """
-        Observation (normalized)
-        - structure: (C, H, W) = (channels, y, x)
-
-        Channel 0: Danger zone
-        - 0: safe zone (or unreachable)
-        - 1: danger zone (includes crosswalks because cars on crosswalks can still kill the agent)
-
-        Channel 1: Crosswalk
-        - 0: not crosswalk
-        - 1: crosswalk
-
-        Channel 2: Crosswalk Activation (Crosswalk x Agent)
-        - 0: not activated crosswalk
-        - 1: activated crosswalk with agent
-
-        Channel 3: Reachable tile
-        - 0: unreachable
-        - 1: reachable or target area
-
-        Channel 4: Reward tile
-        - 0: no reward
-        - 1: give reward on reaching the tile with UP action (same amount as penalty on leaving the tile with DOWN action)
-        - NOTE: should be masked out in AIRL Reward Net to prevent reward leakage
-
-        Channel 5: Car tile (soft mask)
-        - 0    : no car on tile
-        - 0 ~ 1: proportion of tile covered by car
-
-        Channel 6: Car ingress delta
-        - 0 ~ 1: how much a car moved into the tile (compared to previous observation)
-        - 0    : no incoming movement
-
-        Channel 7: Car egress delta
-        - 0 ~ 1: how much a car moved out of the tile (compared to previous observation)
-        - 0    : no outgoing movement
-
-        Channel 8: Car speed
-        - 0     : no car or stopped
-        - -1 ~ 0: car going left speed
-        - 0 ~ +1: car going right speed
-
-        Channel 9: Car penalty
-        - 0    : no car in the tile
-        - 0 ~ 1: penalty of the existing car (normalized)
-
-        Channel 10: Play time left
-        - 0 ~ 1: time remaining (normalized)
-        - 0    : game over (time over, death, early finish)
-        - NOTE: included in AIRL Reward Net because it effects the amount of bonus reward
-
-        Extra Channel: Agent position (gamescreen_width_fixed == True)
-        - 0: not agent
-        - 1: agent
-        """
-        prev_left_covered_dict = self.prev_step_state["left_covered"] if "left_covered" in self.prev_step_state else dict()
-        prev_right_covered_dict = self.prev_step_state["right_covered"]  if "right_covered" in self.prev_step_state else dict()
-
-        cur_left_covered_dict = dict()
-        cur_fully_covered_set = set()
-        cur_right_covered_dict = dict()
-        cur_car_info_dict = dict()
-        for car in nearby_cars:
-            for grid_y in car.rows:
-                # NOTE: start of the tile is half of a tile width left from grid_x
-                car_left_x, car_right_x = car.get_cur_x_pos()
-                car_left_x_adjusted = car_left_x + 0.5
-                car_right_x_adjusted = car_right_x + 0.5
-
-                grix_left_end_x = int(car_left_x_adjusted)
-                cur_right_covered_dict[(grid_y, grix_left_end_x)] = grix_left_end_x + 1 - car_left_x_adjusted # right part of the tile partially covered
-                grix_right_end_x = int(car_right_x_adjusted)
-                cur_left_covered_dict[(grid_y, grix_right_end_x)] = car_right_x_adjusted - grix_right_end_x # left part of the tile partially covered
-                for grid_x in range(grix_left_end_x + 1, grix_right_end_x):
-                    cur_fully_covered_set.add((grid_y, grid_x)) # tile fully covered by a single car
-                for grid_x in range(int(max(visible_x_start - 0.5, grix_left_end_x)), int(min(visible_x_end + 0.5, grix_right_end_x)+1)):
-                    cur_speed = car.get_cur_speed()
-                    penalty = car.car_details.penalty.value
-                    if (grid_y, grid_x) not in cur_car_info_dict:
-                        cur_car_info_dict[(grid_y, grid_x)] = [car.default_speed > 0, cur_speed, penalty]
-                    else:
-                        if abs(cur_speed) > abs(cur_car_info_dict[(grid_y, grid_x)][1]):
-                            cur_car_info_dict[(grid_y, grid_x)][1] = cur_speed
-                        cur_car_info_dict[(grid_y, grid_x)][2] = max(penalty, cur_car_info_dict[(grid_y, grid_x)][2])
-
-        # fill up obs
-        obs = np.zeros((self.channel_count, self.camera_height, self.camera_width), dtype=np.float32)
-        for y in range(self.camera_height):
-            grid_y = grid_y_start + y
-            # fill up visible, but not reachable area to encourage reaching the end of the map
-            if grid_y < 0:
-                # Channel 3: Reachable tile
-                obs[3][y] = 1
-                # Channel 4: Reward tile
-                obs[4][y] = 1
-            # fill up reachable and visible grids
-            elif 0 <= grid_y < self.map_grid_height:
-                for x in range(self.camera_width):
-                    grid_x = grid_x_start + x
-                    if (0 <= grid_x < self.map_grid_width):
-                        # Channel 0: Danger tile
-                        obs[0][y][x] = 1 if self.world.danger_map[grid_y][grid_x] else 0
-                        # Channel 1: Crosswalk
-                        if self.world.crosswalk_map[grid_y][grid_x]:
-                            obs[1][y][x] = 1
-                        # Channel 3: Reachable tile
-                        obs[3][y][x] = 1 if self.world.reachable_map[grid_y][grid_x] else 0
-                        # Channel 4: Reward tile
-                        obs[4][y][x] = 1 if self.world.reward_y[grid_y] else 0
-                    if agent_x == grid_x and agent_y == grid_y:
-                        # Channel 2: Crosswalk Activation (Crosswalk x Agent)
-                        if self.world.crosswalk_map[grid_y][grid_x]:
-                            obs[2][y][x] = 1
-                        # Channel 11: Agent position
-                        if self.gamescreen_width_fixed:
-                            obs[11][y][x] = 1
-                    
-                    key = (grid_y, grid_x)
-                    if key in cur_car_info_dict:
-                        [going_right, cur_speed, penalty] = cur_car_info_dict[key]
-                        # Channel 5: Car tile (soft mask)
-                        if key in cur_fully_covered_set:
-                            obs[5][y][x] = 1 # tile fully covered by a single car
-                        elif (key in cur_left_covered_dict and key in cur_right_covered_dict):
-                            obs[5][y][x] = 1 # both ends of the tile covered by two cars
-                        elif key in cur_left_covered_dict:
-                            obs[5][y][x] = cur_left_covered_dict[key] # left part of the tile partially covered
-                        elif key in cur_right_covered_dict:
-                            obs[5][y][x] = cur_right_covered_dict[key] # right part of the tile partially covered
-                    
-                        cur_covered, prev_covered = 0, 0
-                        ingress, egress = 0, 0
-                        if key in cur_left_covered_dict:
-                            cur_covered = cur_left_covered_dict[key]
-                            if key in prev_left_covered_dict:
-                                prev_covered = prev_left_covered_dict[key]
-                            if going_right:
-                                ingress = cur_covered - prev_covered
-                            else:
-                                egress = prev_covered - cur_covered
-                        if key in cur_right_covered_dict:
-                            cur_covered = cur_right_covered_dict[key]
-                            if key in prev_right_covered_dict:
-                                prev_covered = prev_right_covered_dict[key]
-                            if not going_right:
-                                ingress = cur_covered - prev_covered
-                            else:
-                                egress = prev_covered - cur_covered
-                        # Channel 6: Car ingress delta
-                        obs[6][y][x] = max(0, ingress)
-                        # Channel 7: Car egress delta
-                        obs[7][y][x] = max(0, egress)
-                        # Channel 8: Car speed
-                        obs[8][y][x] = cur_speed / self.max_car_speed
-                        # Channel 9: Car penalty
-                        obs[9][y][x] = penalty / self.max_car_penalty
-
-        self.prev_step_state["left_covered"] = cur_left_covered_dict
-        self.prev_step_state["right_covered"] = cur_right_covered_dict
-        # Channel 10: Play time left
-        if self.game_over or self.time_left - 1000 <= 0:
-            obs[10] = 0
-        else:
-            obs[10] = (self.time_left - 1000) / (self.GAME_TIME_MS  - 1000)
-        self.obs = obs
-
-    def _update_info(self, agent_x, agent_y, nearby_cars):
-        """
-        Returns:
-            info (dict): Contains auxiliary diagnostic information (helpful for debugging, learning, and logging).
-                This might, for instance, contain: metrics that describe the agent's performance state, variables that are
-                hidden from observations, or individual reward terms that are combined to produce the total reward.
-                In OpenAI Gym <v26, it contains "TimeLimit.truncated" to distinguish truncation and termination,
-                however this is deprecated in favour of returning terminated and truncated variables.
-        """
         if self.info is None:
             road_infos = []
             for road in self.world.roads.elements:
                 road_info = {
                     "uid": road.uid,
-                    "start_y": road.start_y,
-                    "end_y": road.end_y,
+                    "top_y": road.top_y,
+                    "bottom_y": road.bottom_y,
                     "going_right": road.going_right,
                     "car_color": str(road.car_color_type),
                     "penalty": road.risk_detail.penalty.value,
@@ -678,12 +784,21 @@ class PedestrianEnv(gym.Env):
                                    game_end_extra_score, cur_episode_score, total_score, self.cur_seed]
         # car_infos
         cars = []
-        for car in nearby_cars:
-            left_x, right_x = car.get_cur_x_pos()
-            top_row, bottom_row = car.rows[0], car.rows[-1]
-            cars.append([car.uid, car.cur_location[0], car.cur_location[1],
-                         left_x, right_x, top_row, bottom_row,
-                         car.default_speed, 1 if car.is_moving else 0])
+        car_uid_set = set()
+        for i in range(self.camera_height):
+            grid_y = grid_y_start + i
+            if grid_y not in self.world.row_to_cars_dict: continue # no car
+            for car in self.world.row_to_cars_dict[grid_y]:
+                if car.uid in car_uid_set: continue
+                car_uid_set.add(car.uid)
+                car_left_x, car_right_x = car.get_cur_x_pos()
+                if car_right_x < visible_x_start: continue # out of sight
+                if visible_x_end < car_left_x: continue # out of sight
+                left_x, right_x = car.get_cur_x_pos()
+                top_row, bottom_row = car.rows[0], car.rows[-1]
+                cars.append([car.uid, car.cur_location[0], car.cur_location[1],
+                            left_x, right_x, top_row, bottom_row,
+                            car.default_speed, 1 if car.is_moving else 0])
         self.info["cars"] = cars
 
     def _total_rewards(self):

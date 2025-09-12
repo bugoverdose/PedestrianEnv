@@ -20,6 +20,13 @@ class World:
         self.roads = Roads(self.agent, camera_width, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random)
 
+        self.road_uid_to_cars_dict = {}
+        for car in self.cars.elements:
+            road_uid = car.road.uid
+            if road_uid not in self.road_uid_to_cars_dict:
+                self.road_uid_to_cars_dict[road_uid] = []
+            self.road_uid_to_cars_dict[road_uid].append(car)
+            
         self.row_to_cars_dict = {}
         for car in self.cars.elements:
             for row in car.rows:
@@ -27,10 +34,9 @@ class World:
                     self.row_to_cars_dict[row] = []
                 self.row_to_cars_dict[row].append(car)
 
-        self.danger_map = [[True for _ in range(map_grid_width)] for _ in range(map_grid_height)]
+        self.danger_row = [True for _ in range(map_grid_height)]
         for y in self.roads.safe_row_idx_list:
-            for x in range(map_grid_width):
-                self.danger_map[y][x] = False # safe
+            self.danger_row[y] = False # safe
 
         self.crosswalk_map = [[False for _ in range(map_grid_width)] for _ in range(map_grid_height)]
         for road in self.roads.elements:
@@ -40,17 +46,11 @@ class World:
                 for x in range(crosswalk.left_end, crosswalk.right_end+1):
                     self.crosswalk_map[y][x] = True # crosswalk
 
-        self.reachable_map = [[True for _ in range(map_grid_width)] for _ in range(map_grid_height)]
-        for y in range(map_grid_height):
-            for x in range(map_grid_width):
-                if agent_x_range[0] <= x <= agent_x_range[1]: continue
-                self.reachable_map[y][x] = False # unreachable
-
         self.reward_y = [False for _ in range(map_grid_height)]
         self.reward_y[Agent.TARGET_LANE] = True
         self.reward_per_y = [0 for _ in range(map_grid_height)]
         for road in self.roads.elements:
-            road_crossed_y = road.start_y - 1
+            road_crossed_y = road.top_y - 1
             self.reward_y[road_crossed_y] = True
             cum_reward = int(self.steps_per_second * (self.initial_player_y - road_crossed_y)) * self.UP_REWARD_PER_UNIT
             self.reward_per_y[road_crossed_y] = cum_reward
@@ -58,11 +58,10 @@ class World:
             self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])
 
     def check_and_update_agent_collision(self):
-        agent_rect = self.agent.get_cur_grid_pos()
+        agent_rect = self.agent.get_hitbox()
         for car in self.cars.elements:
-            top_y, bottom_y = car.get_cur_y_pos()
-            left_x, right_x = car.get_cur_x_pos()
-            if is_overlapping_rectangles(agent_rect, [top_y, bottom_y, left_x, right_x]):
+            car_rectangle = car.get_hitbox()
+            if is_overlapping_rectangles(agent_rect, car_rectangle):
                 self.agent.set_dead()
                 return True, car.car_details.penalty.value
         return False, 0

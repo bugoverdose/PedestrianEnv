@@ -54,9 +54,6 @@ class GameObject:
 
 class Agent(GameObject):
     TARGET_LANE = 0
-    BODY_COLOR = (0, 50, 255) # (0, 0, 255)
-    EYE_COLOR = (0, 0, 0)
-    RADIUS = 0.25
 
     def __init__(self, agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, player_asset_info, debug):
         fixed_speed = 2.5
@@ -75,7 +72,7 @@ class Agent(GameObject):
         self.sizes = player_asset_info["sizes"]
         self.mini_step_count = 0
 
-    def get_cur_grid_pos(self):
+    def get_hitbox(self):
         center_x = self.cur_location[0]
         center_y = self.cur_location[1]
         sub_dir = AGENT_STATUS_DEAD if self.is_dead else AGENT_STATUS_ALIVE
@@ -144,6 +141,11 @@ class Car(GameObject):
 
     def get_cur_speed(self):
         return self.default_speed if self.is_moving else 0
+
+    def get_hitbox(self):
+        left_x, right_x = self.get_cur_x_pos()
+        top_y, bottom_y = self.get_cur_y_pos()
+        return [top_y, bottom_y, left_x, right_x]
 
     def get_cur_x_pos(self):
         left_x = self.cur_location[0] - (self.car_details.car_grid_width/2)
@@ -246,12 +248,12 @@ class Cars:
         cars = []
         uid = 0
         for road in roads.elements:
-            road_height = road.end_y - road.start_y + 1
+            road_height = road.bottom_y - road.top_y + 1
             for i in range(0, road_height, Road.COMPOSITION_SIZE):
                 going_right = road.going_right[i]
                 cars_per_lane_pair = random.choice(CARS_PER_LANE_PAIR_COMPOSITION)
                 for j in cars_per_lane_pair.keys():
-                    start_row_idx = road.start_y + i + j
+                    start_row_idx = road.top_y + i + j
                     for height in cars_per_lane_pair[j]:
                         uid += 1
                         (car_name, _) = random.choice(CAR_CANDIDATES[height])

@@ -93,8 +93,8 @@ class Roads:
                 continue
             if row_type == RowType.SAFE:
                 uid += 1
-                start_y, end_y = danger_start_idx, row_idx-1
-                roads.append(Road(uid, start_y, end_y, row_types[start_y:end_y+1], random))
+                top_y, bottom_y = danger_start_idx, row_idx-1
+                roads.append(Road(uid, top_y, bottom_y, row_types[top_y:bottom_y+1], random))
                 danger_start_idx = None
 
         # add crosswalks on road
@@ -108,7 +108,7 @@ class Roads:
             crosswalk_range = (agent.MIN_X, max(agent.MIN_X+1, agent_initial_col - buffer)) if left else (min(agent.MAX_X-1, agent_initial_col + buffer), agent.MAX_X)
             left = not left
             col = random.integers(crosswalk_range[0], crosswalk_range[1])
-            road.crosswalk = CrossWalk(crosswalk_uid, col, road.start_y, road.end_y)
+            road.crosswalk = CrossWalk(crosswalk_uid, col, road.top_y, road.bottom_y)
 
         self.agent = agent
         self.elements = roads
@@ -121,12 +121,12 @@ class Roads:
         for road in self.elements:
             crosswalk = road.crosswalk
             if crosswalk is None: continue
-            # deactivate right after crossing the road
-            start_y = crosswalk.top_row - 1
+            # deactivate right after completely crossing the road
+            top_y = crosswalk.top_row - 1
             # activate before crossing the road
-            end_y = crosswalk.end_row + 1 
+            bottom_y = crosswalk.end_row + 1 
             left_x, right_x = crosswalk.left_end, crosswalk.right_end
-            crosswalk.is_active = (start_y < agent_y <= end_y) and (left_x <= agent_x <= right_x)
+            crosswalk.is_active = (top_y < agent_y <= bottom_y) and (left_x <= agent_x <= right_x)
             if crosswalk.is_active:
                 self.activated_crosswalk_uid = crosswalk.uid
                 break
@@ -165,27 +165,27 @@ class Roads:
             start_x, end_x = crosswalk.get_activation_left_right()
             cw_width = (end_x - start_x) * pix_square_size
             start_x = start_x * pix_square_size
-            start_y = road.start_y * pix_square_size
-            end_y = (road.end_y + 1) * pix_square_size
-            cw_height = end_y - start_y
+            top_y = road.top_y * pix_square_size
+            bottom_y = (road.bottom_y + 1) * pix_square_size
+            cw_height = bottom_y - top_y
             # NOTE: cover up background (-1 pixel at top and bottom, +pix_square_size at left and right)
-            pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, start_y + 1, cw_width + pix_square_size * 2, cw_height - 1))
+            pygame.draw.rect(background, self.ROAD_GRAY_COLOR, (start_x - pix_square_size, top_y + 1, cw_width + pix_square_size * 2, cw_height - 1))
 
-            stripe_count = 3 * (road.end_y - road.start_y + 1)
+            stripe_count = 3 * (road.bottom_y - road.top_y + 1)
             stripe_thickness = pix_square_size / 3
             for i in range(stripe_count):
                 for j in range(2):
                     if i % 2 == j: continue
-                    stripe_rect = pygame.Rect(start_x + (cw_width/2 * j), start_y + (i * stripe_thickness), cw_width/2, stripe_thickness)
+                    stripe_rect = pygame.Rect(start_x + (cw_width/2 * j), top_y + (i * stripe_thickness), cw_width/2, stripe_thickness)
                     pygame.draw.rect(background, self.ROAD_WHITE_COLOR, stripe_rect)
 
 class Road:
     COMPOSITION_SIZE = 2
 
-    def __init__(self, uid, start_y, end_y, row_types, random):
+    def __init__(self, uid, top_y, bottom_y, row_types, random):
         self.uid = uid
-        self.start_y = start_y
-        self.end_y = end_y
+        self.top_y = top_y
+        self.bottom_y = bottom_y
         self.going_right = [row_type == RowType.CAR_GOING_RIGHT for row_type in row_types]
         self.car_color_type = random.choice([CarColorType.RED, CarColorType.YELLOW, CarColorType.GREEN])
         self.risk_detail = RiskDetails[self.car_color_type]
