@@ -217,6 +217,10 @@ if __name__ == "__main__":
     # ppo_v3_LeakyReLU_1
     # test score: 1565.0000
 
+    # ppo_v4_LeakyReLU_1
+    # test score: 1280.0000
+    # test score: 888.5000
+
     # model_name="ppo_v3_ReLU_1"
     # tuning(model_name=model_name,
     #        net_arch_depth=3,
@@ -247,6 +251,10 @@ if __name__ == "__main__":
     # test score: 1500.5000
     # ppo_v3_ReLU_1
     # test score: 1636.5000
+
+    # ppo_v4_ReLU_1
+    # test score: 1104.5000
+    # test score: 1357.5000
 
     # model_name="ppo_v3_SiLU_1"
     # tuning(model_name=model_name,
