@@ -439,7 +439,7 @@ class PedestrianEnv(gym.Env):
           - 1 = crosswalk or crosswalk activation tile in the safe zone
           - size: 5 (current, up, down, right, left)
 
-        ## Target road info [13 ~ 19]
+        ## Target road info [13 ~ 21]
         Information about the target road that the agent is crossing or should cross
         - crosswalk visible
           - 0 = no crosswalk visible
@@ -463,20 +463,27 @@ class PedestrianEnv(gym.Env):
           - NOTE: each road can have maximum of 6 cars
         - number of cars coming toward the agent
           - 0 ~ 1 = 0 ~ 6 cars in the direction
-          - size: 4 (for each direction: up, down)
+          - size: 6 (each quadrant: NW, NE, SE, SW / same row: left, right)
 
-        ## Distance from crosswalks [20 ~ 28]
+        ## Distance from crosswalks [24 ~ 32]
         - closeness to three nearest crosswalk
           - 0 = crosswalk not visible
           - 0 ~ 1 = closeness (1 - distance from the target crosswalk)
           - 1 = in the same column or row as the target crosswalk
           - size: 3 (for each direction: up, right, left) * 3 crosswalks
 
-        ## Cars [29 ~ 64]
+        ## Cars [33 ~ 76]
         Information about the nearest cars in each lane for each direction (left and right sides).
         Only consider the roads right next to the agent (1 in front of the agent, 1 behind the agent, or the 1 the agent is crossing)
         Each lane can only have 1 or 2 cars.
         Ignore the ones moving away since they are the same as out of sight.
+        - car in nearby tiles
+          - 0 = no car in the tile
+          - 1 = part of the car in the tile
+          - size: 8 (directions: 3 rows x 3 columns around the agent)
+            x x x
+            x A x
+            x x x
         - closeness of nearest dangerous cars
           - 0 = no car coming toward the agent in the direction
           - 0 ~ 1 = closeness of the nearest car
@@ -488,8 +495,8 @@ class PedestrianEnv(gym.Env):
           - size: 1 closest car * 6 lanes * 2 (left vs right)
         """
         self.observation_space = gym.spaces.Box(
-            low=np.array([0.0 for _ in range(65)]),
-            high=np.array([1.0 for _ in range(65)]),
+            low=np.array([0.0 for _ in range(77)]),
+            high=np.array([1.0 for _ in range(77)]),
             dtype=np.float64
         )
 
@@ -593,7 +600,7 @@ class PedestrianEnv(gym.Env):
             dist_end_of_target_road = 1.0
             dist_start_of_target_road = 0.0
             visible_car_count = 0
-            dangerous_car_counts = [0, 0]
+            dangerous_car_counts = [0, 0, 0, 0, 0, 0]
             if target_road is not None:
                 if target_road.crosswalk is not None:
                     if is_overlapping(target_road.crosswalk.left_end, target_road.crosswalk.right_end, grid_x_left_end, grid_x_right_end):
@@ -614,14 +621,21 @@ class PedestrianEnv(gym.Env):
                     going_right = car.car_details.go_right
                     if (is_left and not going_right) or (is_right and going_right): continue # filter safe cars
                     car_top_row, car_bottom_row = min(car.rows), max(car.rows)
-                    if car_top_row < agent_y:
-                        dangerous_car_counts[0] += 1 # dangerous car in the front
-                    if agent_y < car_bottom_row:
-                        dangerous_car_counts[1] += 1 # dangerous car in the back
-                    # if is_left:
-                    #     dangerous_car_counts[2] += 1 # dangerous car on the left
-                    # if is_right:
-                    #     dangerous_car_counts[3] += 1 # dangerous car on the right
+                    car_in_front = car_top_row < agent_y
+                    car_same_row = car_top_row == agent_y or agent_y == car_bottom_row
+                    car_in_back = agent_y < car_bottom_row
+                    if car_in_front and is_left:
+                        dangerous_car_counts[0] += 1 # NW
+                    if car_in_front and is_right:
+                        dangerous_car_counts[1] += 1 # NE
+                    if car_in_back and is_left:
+                        dangerous_car_counts[2] += 1 # SE
+                    if car_in_back and is_right:
+                        dangerous_car_counts[3] += 1 # SW
+                    if car_same_row and is_left:
+                        dangerous_car_counts[4] += 1 # left
+                    if car_same_row and is_right:
+                        dangerous_car_counts[5] += 1 # right
                 # NOTE: each road can have maximum of 6 cars
                 visible_car_count /= 6
                 dangerous_car_counts = [cnt / 6 for cnt in dangerous_car_counts]
@@ -633,7 +647,7 @@ class PedestrianEnv(gym.Env):
             # print("dist_start_of_target_road:", dist_start_of_target_road)
             # print("visible_car_count:", visible_car_count)
             # print("dangerous_car_counts:", dangerous_car_counts)
-        assert len(obs) == 20
+        assert len(obs) == 24
 
         # Distance from crosswalks
         if crosswalk_info:
@@ -672,26 +686,26 @@ class PedestrianEnv(gym.Env):
             #     print("up closeness to crosswalk:",  crosswalk_closeness_list[3*i])
             #     print("right closeness to crosswalk:",  crosswalk_closeness_list[3*i + 1])
             #     print("left closeness to crosswalk:",  crosswalk_closeness_list[3*i + 2])
-        assert len(obs) == 29
+        assert len(obs) == 33
 
         # Cars
         if cars_info:
-            # car_in_adjecent_tiles = []
-            # for i in range(8):
-            #     # NW, N, NE, E, SE, S, SW, W
-            #     dx = [-1, 0, 1, 1, 1, 0, -1, -1] 
-            #     dy = [-1, -1, -1, 0, 1, 1, 1, 0]
-            #     grid_x = agent_x + dx[i]
-            #     grid_y = agent_y + dy[i]
-            #     tile_rect = [grid_y - 0.5, grid_y + 0.5, grid_x - 0.5, grid_x + 0.5]
-            #     car_in_tile = False
-            #     if grid_y in self.world.row_to_cars_dict:
-            #         for car in self.world.row_to_cars_dict[grid_y]:
-            #             if is_overlapping_rectangles(tile_rect, car.get_hitbox()):
-            #                 car_in_tile = True
-            #                 break
-            #     car_in_adjecent_tiles.append(1.0 if car_in_tile else 0.0)
-            # obs += car_in_adjecent_tiles
+            car_in_adjecent_tiles = []
+            for i in range(8):
+                # NW, N, NE, E, SE, S, SW, W
+                dx = [-1, 0, 1, 1, 1, 0, -1, -1] 
+                dy = [-1, -1, -1, 0, 1, 1, 1, 0]
+                grid_x = agent_x + dx[i]
+                grid_y = agent_y + dy[i]
+                tile_rect = [grid_y - 0.5, grid_y + 0.5, grid_x - 0.5, grid_x + 0.5]
+                car_in_tile = False
+                if grid_y in self.world.row_to_cars_dict:
+                    for car in self.world.row_to_cars_dict[grid_y]:
+                        if is_overlapping_rectangles(tile_rect, car.get_hitbox()):
+                            car_in_tile = True
+                            break
+                car_in_adjecent_tiles.append(1.0 if car_in_tile else 0.0)
+            obs += car_in_adjecent_tiles
             # print("car_in_adjecent_tiles up:", car_in_adjecent_tiles[1])
             # print("car_in_adjecent_tiles down:", car_in_adjecent_tiles[5])
             # print("car_in_adjecent_tiles right:", car_in_adjecent_tiles[3])
@@ -740,7 +754,7 @@ class PedestrianEnv(gym.Env):
                 # print(f"car right [{grid_y}]:", right_cars)
             obs += dangerous_car_closeness_list
             obs += dangerous_car_speed_list
-        assert len(obs) == 65
+        assert len(obs) == 77
         assert max(obs) <= 1.0 and min(obs) >= 0.0
         self.obs = np.array(obs)
 

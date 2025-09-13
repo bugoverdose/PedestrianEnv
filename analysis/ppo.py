@@ -158,8 +158,7 @@ def _load_PPO_model(saved_model_name, activation_fn, seed=42, render_mode_human=
 # - near 0 : learning rate too low, update too weak
 def tuning(
         model_name,
-        net_arch_depth=3,
-        net_arch_width=256,
+        net_arch=[256, 256, 256],
         activation_fn=nn.Tanh,
         learning_rate=1e-4,
         n_steps=512,
@@ -172,7 +171,7 @@ def tuning(
     ):
     run_PPO(saved_model_name=model_name,
             tb_log_name=model_name[:-2],
-            net_arch=[net_arch_width] * net_arch_depth,
+            net_arch=net_arch,
             activation_fn=activation_fn,
             learning_rate=learning_rate,
             n_steps=n_steps,
@@ -186,173 +185,82 @@ def tuning(
     test_policy(model_name, activation_fn)
 
 if __name__ == "__main__":
-    model_name="ppo_v3_LeakyReLU_1"
+    model_name="ppo_v5_LeakyReLU_2"
     tuning(model_name=model_name,
-           net_arch_depth=3,
-           net_arch_width=256,
+           net_arch=[512, 256, 256],
            activation_fn=nn.LeakyReLU,
            total_timesteps=1_000_000)
-    # net_arch [256, 256, 256]
-    # n_steps 512
-    # batch_size 32
-    # n_epochs 8
-    # gamma 0.99
-    # gae_lambda 0.95
-    # clip_range 0.2
-    # clip_range_vf None
-    # normalize_advantage True
-    # ent_coef 0.01
-    # vf_coef 0.5
-    # max_grad_norm 0.5
-    # use_sde False
-    # sde_sample_freq -1
-    # rollout_buffer_class None
-    # rollout_buffer_kwargs None
-    # target_kl None
-    # stats_window_size 100
-    # learning_rate (0.0001,)
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1483.0000
+
+    # model_name="ppo_v5_LeakyReLU_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+
+    # =====================================
+    # Best so far
+    # model_name="ppo_v5_LeakyReLU_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v5_LeakyReLU_1
+    # test score: 1615.0000
+    # test score: 1564.0000
+
     # ppo_v3_LeakyReLU_1
+    # test score: 1483.0000
     # test score: 1565.0000
 
     # ppo_v4_LeakyReLU_1
     # test score: 1280.0000
     # test score: 888.5000
 
-    # model_name="ppo_v3_ReLU_1"
-    # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=256,
-    #        activation_fn=nn.ReLU,
-    #        total_timesteps=1_000_000)
-    # net_arch [256, 256, 256]
-    # n_steps 512
-    # batch_size 32
-    # n_epochs 8
-    # gamma 0.99
-    # gae_lambda 0.95
-    # clip_range 0.2
-    # clip_range_vf None
-    # normalize_advantage True
-    # ent_coef 0.01
-    # vf_coef 0.5
-    # max_grad_norm 0.5
-    # use_sde False
-    # sde_sample_freq -1
-    # rollout_buffer_class None
-    # rollout_buffer_kwargs None
-    # target_kl None
-    # stats_window_size 100
-    # learning_rate (0.0001,)
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1500.5000
+    # ppo_v5_SiLU_1
+    # test score: 1442.0000
+    # test score: 1478.0000
+
     # ppo_v3_ReLU_1
+    # test score: 1500.5000
     # test score: 1636.5000
+
+    # ppo_v5_ReLU_1
+    # test score: 1366.0000
+    # test score: 1397.5000
 
     # ppo_v4_ReLU_1
     # test score: 1104.5000
     # test score: 1357.5000
 
-    # model_name="ppo_v3_SiLU_1"
-    # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=256,
-    #        activation_fn=nn.SiLU,
-    #        total_timesteps=1_000_000)
-    # net_arch [256, 256, 256]
-    # n_steps 512
-    # batch_size 32
-    # n_epochs 8
-    # gamma 0.99
-    # gae_lambda 0.95
-    # clip_range 0.2
-    # clip_range_vf None
-    # normalize_advantage True
-    # ent_coef 0.01
-    # vf_coef 0.5
-    # max_grad_norm 0.5
-    # use_sde False
-    # sde_sample_freq -1
-    # rollout_buffer_class None
-    # rollout_buffer_kwargs None
-    # target_kl None
-    # stats_window_size 100
-    # learning_rate (0.0001,)
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1570.5000
     # ppo_v3_SiLU_1
+    # test score: 1570.5000
     # test score: 1247.0000
 
     # model_name="ppo_v3_SiLU_2" # BAD
     # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=256,
+    #        net_arch=[256, 256, 256],
     #        activation_fn=nn.SiLU,
     #        learning_rate=3e-4,
     #        total_timesteps=1_000_000)
 
     # model_name="ppo_v3_Tanh_1"
-    # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=256,
-    #        activation_fn=nn.Tanh,
-    #        total_timesteps=1_000_000)
-    # net_arch [256, 256, 256]
-    # n_steps 512
-    # batch_size 32
-    # n_epochs 8
-    # gamma 0.99
-    # gae_lambda 0.95
-    # clip_range 0.2
-    # clip_range_vf None
-    # normalize_advantage True
-    # ent_coef 0.01
-    # vf_coef 0.5
-    # max_grad_norm 0.5
-    # use_sde False
-    # sde_sample_freq -1
-    # rollout_buffer_class None
-    # rollout_buffer_kwargs None
-    # target_kl None
-    # stats_window_size 100
-    # learning_rate (0.0001,)
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1498.0000
+
+    # ppo_v5_Tanh_1
+    # test score: 1364.0000
+    # test score: 1192.0000
+
     # ppo_v3_1
+    # test score: 1498.0000
     # test score: 1384.0000
 
     # model_name="ppo_v3_2"
     # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=512,
+    #        net_arch=[512, 512, 512],
     #        activation_fn=nn.Tanh,
     #        total_timesteps=1_000_000)
     # net_arch [512, 512, 512]
     # n_steps 512
-    # batch_size 32
-    # n_epochs 8
-    # gamma 0.99
-    # gae_lambda 0.95
-    # clip_range 0.2
-    # clip_range_vf None
-    # normalize_advantage True
-    # ent_coef 0.01
-    # vf_coef 0.5
-    # max_grad_norm 0.5
-    # use_sde False
-    # sde_sample_freq -1
-    # rollout_buffer_class None
-    # rollout_buffer_kwargs None
-    # target_kl None
-    # stats_window_size 100
-    # learning_rate (0.0001,)
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1199.0000
+
     # ppo_v3_2
+    # test score: 1199.0000
     # test score: 1183.0000

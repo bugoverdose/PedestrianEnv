@@ -121,6 +121,7 @@ def tuning(
         model_name,
         net_arch_depth=3,
         net_arch_width=128,
+        activation_fn=nn.Tanh,
         gamma=0.99,
         learning_rate=1e-4,
         train_freq_cnt=4,
@@ -155,8 +156,20 @@ def tuning(
     test_policy(model_name)
 
 if __name__ == "__main__":
-    # TODO
-    # model_name="dqn_v3_SiLU_1"
+    model_name="dqn_v5_LeakyReLU_1"
+    tuning(model_name=model_name,
+           net_arch_depth=3,
+           net_arch_width=256,
+           activation_fn=nn.LeakyReLU,
+           total_timesteps=1_000_000,
+           exploration_fraction=0.5,
+           exploration_initial_eps=1.0,
+           exploration_final_eps=0.0)
+    # dqn_v5_LeakyReLU_1
+    # test score: 1770.5000
+    # test score: 1586.5000
+
+    # model_name="dqn_v3_1"
     # tuning(model_name=model_name,
     #        net_arch_depth=3,
     #        net_arch_width=256,
@@ -164,27 +177,8 @@ if __name__ == "__main__":
     #        exploration_fraction=0.5,
     #        exploration_initial_eps=1.0,
     #        exploration_final_eps=0.0)
-    
-    model_name="dqn_v3_1"
-    tuning(model_name=model_name,
-           net_arch_depth=3,
-           net_arch_width=256,
-           total_timesteps=1_000_000,
-           exploration_fraction=0.5,
-           exploration_initial_eps=1.0,
-           exploration_final_eps=0.0)
-    # net_arch [256, 256, 256]
-    # target_update_interval 50
-    # buffer_size 10000
-    # learning_starts 10000
-    # train_freq (4, 'episode')
-    # exploration_fraction 0.5
-    # exploration_final_eps 0.0
-    # learning_rate 0.0001
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1675.5000
     # dqn_v3_1
+    # test score: 1675.5000
     # test score: 1447.0000
 
     # model_name="dqn_v3_3"
