@@ -5,6 +5,7 @@ import os
 import numpy as np
 import random
 
+import torch.nn as nn
 from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -14,6 +15,7 @@ from pedestrian_env.envs import PedestrianEnv
 
 def run_DQN(seed=42,
             net_arch=[256, 256, 256],
+            activation_fn=nn.Tanh, # default=nn.Tanh
             learning_rate=1e-4, # default=1e-4
             buffer_size=10_000, # Experience Replay: (default=1_000_000)
             learning_starts=10_000, # default=50000
@@ -55,7 +57,7 @@ def run_DQN(seed=42,
                 exploration_initial_eps=exploration_initial_eps,
                 exploration_fraction=exploration_fraction,
                 tensorboard_log="./tb_logs/dqn/",
-                policy_kwargs=dict(net_arch=net_arch),
+                policy_kwargs=dict(net_arch=net_arch, activation_fn=activation_fn),
                 verbose=1 if verbose else 0,
                 seed=seed,
     )
@@ -153,6 +155,16 @@ def tuning(
     test_policy(model_name)
 
 if __name__ == "__main__":
+    # TODO
+    # model_name="dqn_v3_SiLU_1"
+    # tuning(model_name=model_name,
+    #        net_arch_depth=3,
+    #        net_arch_width=256,
+    #        total_timesteps=1_000_000,
+    #        exploration_fraction=0.5,
+    #        exploration_initial_eps=1.0,
+    #        exploration_final_eps=0.0)
+    
     model_name="dqn_v3_1"
     tuning(model_name=model_name,
            net_arch_depth=3,
