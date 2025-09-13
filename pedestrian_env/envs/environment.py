@@ -412,7 +412,6 @@ class PedestrianEnv(gym.Env):
                 self.world.check_and_update_agent_collision()
             self.apply_time_and_render(dt)
 
-    # TODO: remove car information on the non-target roads
     def _define_observation_space(self):
         """
         # Observation space
@@ -441,7 +440,7 @@ class PedestrianEnv(gym.Env):
           - size: 5 (current, up, down, right, left)
 
         ## Target road info [13 ~ 21]
-        Information about the road that the agent is crossing or should cross
+        Information about the target road that the agent is crossing or should cross
         - crosswalk visible
           - 0 = no crosswalk visible
           - 1 = crosswalks in sight
@@ -473,9 +472,10 @@ class PedestrianEnv(gym.Env):
           - 1 = in the same column or row as the target crosswalk
           - size: 3 (for each direction: up, right, left) * 3 crosswalks
 
-        ## Cars [31 ~ 66]
+        ## Cars [31 ~ 74]
         Information about the nearest cars in each lane for each direction (left and right sides).
-        Each lane can only have 1 or 2 cars
+        Only consider the roads right next to the agent (1 in front of the agent, 1 behind the agent, or the 1 the agent is crossing)
+        Each lane can only have 1 or 2 cars.
         Ignore the ones moving away since they are the same as out of sight.
         - car in nearby tiles
           - 0 = no car in the tile
@@ -488,15 +488,15 @@ class PedestrianEnv(gym.Env):
           - 0 = no car coming toward the agent in the direction
           - 0 ~ 1 = closeness of the nearest car
           - 1 = in the same column as agent
-          - size: camera_height * 2 (for each lane, left vs right)
+          - size: 2 cars * 6 lanes * 2 (left vs right)
         - approaching speed of nearest dangerous cars
           - 0 = no car or stopped
           - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
-          - size: camera_height * 2 (for each lane, left vs right)
+          - size: 1 closest car * 6 lanes * 2 (left vs right)
         """
         self.observation_space = gym.spaces.Box(
-            low=np.array([0.0 for _ in range(67)]),
-            high=np.array([1.0 for _ in range(67)]),
+            low=np.array([0.0 for _ in range(75)]),
+            high=np.array([1.0 for _ in range(75)]),
             dtype=np.float64
         )
 
@@ -504,7 +504,7 @@ class PedestrianEnv(gym.Env):
         self._update_obs()
         self._update_info()
 
-    def _update_obs(self, meta_info = True, tile_types = True, target_road = True, crosswalk_info = True, cars_info = True):
+    def _update_obs(self, meta_info = True, tile_types = True, target_road_info = True, crosswalk_info = True, cars_info = True):
         obs = []
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         [_, _, agent_left_x, agent_right_x] = self.world.agent.get_hitbox()
@@ -522,9 +522,12 @@ class PedestrianEnv(gym.Env):
 
         visible_top_y_end = grid_top_y - 0.5
         visible_bottom_y_end = visible_top_y_end + self.camera_height
-        visible_x_left_start = grid_x_left_end - 0.5
-        visible_x_right_end = visible_x_left_start + self.camera_width
-        game_screen_rect = [visible_top_y_end, visible_bottom_y_end, visible_x_left_start, visible_x_right_end]
+        visible_x_left_end = grid_x_left_end - 0.5
+        visible_x_right_end = visible_x_left_end + self.camera_width
+        game_screen_rect = [visible_top_y_end, visible_bottom_y_end, visible_x_left_end, visible_x_right_end]
+
+        left_visible_dist = agent_left_x - visible_x_left_end
+        right_visible_dist = visible_x_right_end - agent_right_x
 
         # Meta info
         if meta_info:
@@ -582,18 +585,25 @@ class PedestrianEnv(gym.Env):
         assert len(obs) == 13
 
         # Target road info
-        if target_road:
+        prev_road = None # the road that the agent previously crossed
+        target_road = None # the road that the agent is crossing or should cross
+        for i in range(len(self.world.roads.elements), 0, -1):
+            road = self.world.roads.elements[i-1]
+            if road.top_y > agent_y:
+                prev_road = road
+                continue # already crossed
+            target_road = road
+            break
+        if target_road_info:
             crosswalk_visible = 0.0
             penalty = 0.0
             dist_end_of_target_road = 1.0
             dist_start_of_target_road = 0.0
             visible_car_count = 0
             dangerous_car_counts = [0, 0, 0, 0]
-            for i in range(len(self.world.roads.elements), 0, -1):
-                road = self.world.roads.elements[i-1]
-                if road.top_y > agent_y: continue # already crossed
-                if road.crosswalk is not None:
-                    if is_overlapping(road.crosswalk.left_end, road.crosswalk.right_end, grid_x_left_end, grid_x_right_end):
+            if target_road is not None:
+                if target_road.crosswalk is not None:
+                    if is_overlapping(target_road.crosswalk.left_end, target_road.crosswalk.right_end, grid_x_left_end, grid_x_right_end):
                         crosswalk_visible = 1.0
                 penalty = road.risk_detail.penalty.value / self.max_car_penalty
                 is_crossing = road.bottom_y >= agent_y >= road.top_y
@@ -622,7 +632,6 @@ class PedestrianEnv(gym.Env):
                 # NOTE: each road can have maximum of 6 cars
                 visible_car_count /= 6
                 dangerous_car_counts = [cnt / 6 for cnt in dangerous_car_counts]
-                break
             obs += [crosswalk_visible, penalty, dist_end_of_target_road, dist_start_of_target_road, visible_car_count]
             obs += dangerous_car_counts
             # print("crosswalk_visible:", crosswalk_visible)
@@ -691,43 +700,54 @@ class PedestrianEnv(gym.Env):
                 car_in_adjecent_tiles.append(1.0 if car_in_tile else 0.0)
             obs += car_in_adjecent_tiles
             # print("car_in_adjecent_tiles up:", car_in_adjecent_tiles[1])
+            # print("car_in_adjecent_tiles down:", car_in_adjecent_tiles[5])
+            # print("car_in_adjecent_tiles right:", car_in_adjecent_tiles[3])
+            # print("car_in_adjecent_tiles left:", car_in_adjecent_tiles[7])
             dangerous_car_closeness_list = []
             dangerous_car_speed_list = []
-            for i in range(self.camera_height):
-                grid_y = grid_top_y + i
-                left_car_closeness, left_car_speed = 0.0, 0.0
-                right_car_closeness, right_car_speed = 0.0, 0.0
-                if grid_y in self.world.row_to_cars_dict:
+            # only consider until 4 rows ahead of agent since maximum road size is 4
+            for grid_y in range(agent_y - 4, grid_bottom_y + 1):
+                left_cars = []
+                right_cars = []
+                # only consider the roads near the agent
+                is_prev_road = prev_road is not None and prev_road.top_y <= grid_y <= prev_road.bottom_y
+                is_target_road = target_road is not None and target_road.top_y <= grid_y <= target_road.bottom_y
+                if is_prev_road or is_target_road:
                     for car in self.world.row_to_cars_dict[grid_y]:
                         car_left_x, car_right_x = car.get_cur_x_pos()
-                        if car_right_x < visible_x_left_start: continue # filter out of sight
+                        if car_right_x < visible_x_left_end: continue # filter out of sight
                         if visible_x_right_end < car_left_x: continue # filter out of sight
                         car_speed = abs(car.default_speed) if car.is_moving else 0
                         if car_right_x < agent_left_x:
                             # car on the left side of the agent
                             if not car.car_details.go_right: pass # moving away
-                            left_car_closeness = max(left_car_closeness, (x_visible_distance - (agent_left_x - car_right_x)) / (x_visible_distance))
-                            left_car_speed = max(left_car_speed, car_speed)
+                            left_car_closeness = (left_visible_dist - (agent_left_x - car_right_x)) / left_visible_dist
+                            left_cars.append((left_car_closeness, car_speed))
                         elif agent_right_x < car_left_x:
                             # car on the right side of the agent
                             if car.car_details.go_right: pass # moving away
-                            right_car_closeness = max(right_car_closeness, (x_visible_distance - (car_left_x - agent_right_x)) / (x_visible_distance))
-                            right_car_speed = max(right_car_speed, car_speed)
+                            right_car_closeness = (right_visible_dist - (car_left_x - agent_right_x)) / right_visible_dist
+                            right_cars.append((right_car_closeness, car_speed))
                         else:
                             # car in the same column as the agent
                             left_car_closeness, right_car_closeness = 1.0, 1.0
-                            left_car_speed, right_car_speed = car_speed, car_speed
-                dangerous_car_closeness_list.append(left_car_closeness)
-                dangerous_car_closeness_list.append(right_car_closeness)
-                dangerous_car_speed_list.append(left_car_speed / self.max_car_speed)
-                dangerous_car_speed_list.append(right_car_speed / self.max_car_speed)
-                # print(f"car left closeness [{grid_y}]:", left_car_closeness)
-                # print(f"car left speed [{grid_y}]:", left_car_speed)
-                # print(f"car right closeness [{grid_y}]:", right_car_closeness)
-                # print(f"car right speed [{grid_y}]:", right_car_speed)
+                            left_cars.append((left_car_closeness, car_speed))
+                            right_cars.append((right_car_closeness, car_speed))
+                left_cars.sort(key=lambda x: x[0], reverse=True)
+                right_cars.sort(key=lambda x: x[0], reverse=True)
+                while len(left_cars) < 2:
+                    left_cars.append((0.0, 0.0))
+                while len(right_cars) < 2:
+                    right_cars.append((0.0, 0.0))
+                # consider the distance/closeness of 2 cars on each side 
+                dangerous_car_closeness_list += [left_cars[0][0], left_cars[1][0], right_cars[0][0], right_cars[1][0]]
+                # only consider the speed of the nearest 1 car on each side
+                dangerous_car_speed_list += [left_cars[0][1] / self.max_car_speed, right_cars[0][1] / self.max_car_speed]
+                # print(f"car left [{grid_y}]:", left_cars)
+                # print(f"car right [{grid_y}]:", right_cars)
             obs += dangerous_car_closeness_list
             obs += dangerous_car_speed_list
-        assert len(obs) == 67
+        assert len(obs) == 75
         assert max(obs) <= 1.0 and min(obs) >= 0.0
         self.obs = np.array(obs)
 
