@@ -157,7 +157,10 @@ def tuning(
 
 # Tanh > LeakyReLU in DQN
 if __name__ == "__main__":
-    model_name="dqn_v7_Tanh_1"
+
+    # ======================
+    # Best so far
+    model_name="dqn_v8_Tanh_1"
     tuning(model_name=model_name,
            net_arch=[256, 256, 256],
            activation_fn=nn.Tanh,
@@ -165,71 +168,11 @@ if __name__ == "__main__":
            exploration_fraction=0.5,
            exploration_initial_eps=1.0,
            exploration_final_eps=0.0)
-    # dqn_v7_Tanh_1
-    # test score: 1580.5000
-    # test score: 1296.0000
+    # dqn_v8_Tanh_1
+    # test score: 1894.5000
+    # test score: 1613.5000
 
-    # dqn_v5_Tanh_2
-    # test score: 1770.5000
-    # test score: 1586.5000
-
-    model_name="dqn_v7_LeakyReLU_1"
-    tuning(model_name=model_name,
-           net_arch=[256, 256, 256],
-           activation_fn=nn.LeakyReLU,
-           total_timesteps=1_000_000,
-           exploration_fraction=0.5,
-           exploration_initial_eps=1.0,
-           exploration_final_eps=0.0)
-    # dqn_v7_LeakyReLU_1
-    # test score: 1754.0000
-    # test score: 1655.0000
-
-    # dqn_v5_LeakyReLU_2
-    # test score: 1666.5000
-    # test score: 1161.5000
-
-    # ======================
-    # Best so far
-
-    # model_name="dqn_v5_Tanh_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.Tanh,
-    #        total_timesteps=1_500_000,
-    #        exploration_fraction=0.5,
-    #        exploration_initial_eps=1.0,
-    #        exploration_final_eps=0.0)
-    # dqn_v5_Tanh_1
-    # test score: 1561.0000
-    # test score: 1512.5000
-
-
-    # model_name="dqn_v5_LeakyReLU_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_500_000,
-    #        exploration_fraction=0.5,
-    #        exploration_initial_eps=1.0,
-    #        exploration_final_eps=0.0)
-    # dqn_v5_LeakyReLU_1
-    # test score: 1524.0000
-    # test score: 1549.0000
-
-    # model_name="dqn_v6_Tanh_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.Tanh,
-    #        total_timesteps=1_000_000,
-    #        exploration_fraction=0.5,
-    #        exploration_initial_eps=1.0,
-    #        exploration_final_eps=0.0)
-    # dqn_v6_Tanh_1
-    # test score: 1705.0000
-    # test score: 1706.0000
-
-    # model_name="dqn_v6_LeakyReLU_1"
+    # model_name="dqn_v8_LeakyReLU_1"
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
     #        activation_fn=nn.LeakyReLU,
@@ -237,6 +180,6 @@ if __name__ == "__main__":
     #        exploration_fraction=0.5,
     #        exploration_initial_eps=1.0,
     #        exploration_final_eps=0.0)
-    # dqn_v6_LeakyReLU_1
-    # test score: 1776.5000
-    # test score: 1347.5000
+    # dqn_v8_LeakyReLU_1
+    # test score: 1870.5000
+    # test score: 1605.0000
