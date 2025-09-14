@@ -185,29 +185,11 @@ def tuning(
     test_policy(model_name, activation_fn)
 
 if __name__ == "__main__":
-    # model_name="ppo_v6_LeakyReLU_2"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-
-    # model_name="ppo_v6_LeakyReLU_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v6_LeakyReLU_1
-    # test score: 1554.5000
-    # test score: 1327.0000
-
-    model_name="ppo_v6_Tanh_1"
+    model_name="ppo_v5_LeakyReLU_1"
     tuning(model_name=model_name,
            net_arch=[256, 256, 256],
-           activation_fn=nn.Tanh,
+           activation_fn=nn.LeakyReLU,
            total_timesteps=1_000_000)
-    # ppo_v6_Tanh_1
-    # test score: 1522.0000
-    # test score: 1553.5000
 
     # =====================================
     # Best so far
@@ -219,6 +201,25 @@ if __name__ == "__main__":
     # ppo_v5_LeakyReLU_1
     # test score: 1615.0000
     # test score: 1564.0000
+
+    # ppo_v7_LeakyReLU_1
+    # test score: 1519.5000
+    # test score: 1572.5000
+
+    # model_name="ppo_v7_Tanh_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000)
+    # ppo_v7_Tanh_1
+    # test score: 1436.5000
+    # test score: 1559.5000
+
+    # ppo_v5_Tanh_1
+    # test score: 1364.0000
+    # test score: 1192.0000
+
+    # =================================
 
     # model_name="ppo_v5_LeakyReLU_2"
     #  net_arch=[512, 256, 256],
@@ -307,3 +308,22 @@ if __name__ == "__main__":
     # ppo_v3_2
     # test score: 1199.0000
     # test score: 1183.0000
+
+
+    # model_name="ppo_v6_LeakyReLU_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v6_LeakyReLU_1
+    # test score: 1554.5000
+    # test score: 1327.0000
+
+    # model_name="ppo_v6_Tanh_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000)
+    # ppo_v6_Tanh_1
+    # test score: 1522.0000
+    # test score: 1553.5000

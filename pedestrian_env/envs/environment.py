@@ -472,9 +472,9 @@ class PedestrianEnv(gym.Env):
           - 1 = in the same column or row as the target crosswalk
           - size: 3 (for each direction: up, right, left) * 3 crosswalks
 
-        ## Cars [33 ~ 112]
+        ## Cars [33 ~ 88]
         Information about the nearest cars in each lane for each direction (left and right sides).
-        Only consider the roads right next to the agent (1 in front of the agent, 1 behind the agent, or the 1 the agent is crossing)
+        Only consider the roads right next to the agent (1 in front of the agent, 1 behind the agent, or the 1 the agent is crossing).
         Each lane can only have 1 or 2 cars.
         Ignore the ones moving away since they are the same as out of sight.
         - car existance in nearby tiles
@@ -484,8 +484,7 @@ class PedestrianEnv(gym.Env):
             x x x
             x A x
             x x x
-        - dangerous car info sorted by closeness
-          - NOTE: each road can have maximum of 2 cars
+        - closest dangerous car info
           - car head and car tail
             - 0 = no car coming toward the agent
             - 0 ~ 1 = closeness of the car coming toward the agent
@@ -493,11 +492,16 @@ class PedestrianEnv(gym.Env):
           - dangerous car speed
             - 0 = no car or stopped
             - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
-            - size: 2 cars * 3 (car_head, car_tail, speed) * 6 lanes * 2 (left vs right)
+          - size: 3 (car_head, car_tail, speed) * 6 lanes * 2 (left vs right)
+        - second closest dangerous car head
+          - 0 = no car coming toward the agent
+          - 0 ~ 1 = closeness of the car coming toward the agent
+          - 1 = in the same column as agent
+          - size: 6 lanes * 2 (left vs right)
         """
         self.observation_space = gym.spaces.Box(
-            low=np.array([0.0 for _ in range(113)]),
-            high=np.array([1.0 for _ in range(113)]),
+            low=np.array([0.0 for _ in range(89)]),
+            high=np.array([1.0 for _ in range(89)]),
             dtype=np.float64
         )
 
@@ -526,6 +530,9 @@ class PedestrianEnv(gym.Env):
         visible_x_left_end = grid_x_left_end - 0.5
         visible_x_right_end = visible_x_left_end + self.camera_width
         game_screen_rect = [visible_top_y_end, visible_bottom_y_end, visible_x_left_end, visible_x_right_end]
+
+        left_visible_dist = agent_left_x - visible_x_left_end
+        right_visible_dist = visible_x_right_end - agent_right_x
 
         # Meta info
         if meta_info:
@@ -754,14 +761,13 @@ class PedestrianEnv(gym.Env):
                 while len(right_cars) < 2:
                     right_cars.append([0.0, 0.0, 0.0])
                 # consider the closeness and speed of 2 cars on each side 
-                dangerous_car_info_list += left_cars[0]
-                dangerous_car_info_list += left_cars[1]
-                dangerous_car_info_list += right_cars[0]
-                dangerous_car_info_list += right_cars[1]
-                # print(f"[{grid_y}] left cars:", left_cars[0], left_cars[1])
-                # print(f"[{grid_y}] right cars:", right_cars[0], right_cars[1])
+                dangerous_car_info_list += left_cars[0] # [head closeness, tail closeness, speed]
+                dangerous_car_info_list += right_cars[0] # [head closeness, tail closeness, speed]
+                dangerous_car_info_list += [left_cars[1][0], right_cars[1][0]] # [head closeness]
+                # print(f"[{grid_y}] left cars:", left_cars[0], left_cars[1][0])
+                # print(f"[{grid_y}] right cars:", right_cars[0], right_cars[1][0])
             obs += dangerous_car_info_list
-        assert len(obs) == 113
+        assert len(obs) == 89
         assert max(obs) <= 1.0 and min(obs) >= 0.0
         self.obs = np.array(obs)
 
