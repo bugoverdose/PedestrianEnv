@@ -90,7 +90,8 @@ class PedestrianEnv(gym.Env):
 
         self.max_car_penalty = Penalty.HIGH.value
         self.max_car_speed = max(Car.CAR_SPEEDS)
-        agent_x_buffer = 2 + int(max(get_max_car_grid_width(), self.camera_width)/2)
+        self.max_car_width = get_max_car_grid_width()
+        agent_x_buffer = 2 + int(max(self.max_car_width, self.camera_width)/2)
         agent_min_x = (agent_x_buffer)
         agent_max_x = self.map_grid_width - 1 - agent_x_buffer
         self.agent_x_range = (agent_min_x, agent_max_x)
@@ -484,19 +485,18 @@ class PedestrianEnv(gym.Env):
             x x x
             x A x
             x x x
-        - closest dangerous car info
-          - car head and car tail
-            - 0 = no car coming toward the agent
-            - 0 ~ 1 = closeness of the car coming toward the agent
-            - 1 = in the same column as agent
-          - dangerous car speed
-            - 0 = no car or stopped
-            - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
-          - size: 3 (car_head, car_tail, speed) * 6 lanes * 2 (left vs right)
-        - second closest dangerous car head
+        - closeness of car head (closest dangerous cars)
           - 0 = no car coming toward the agent
-          - 0 ~ 1 = closeness of the car coming toward the agent
-          - 1 = in the same column as agent
+          - 0 ~ 1 = closeness of the head of the car coming toward the agent
+          - 1 = car right in front of the agent
+          - size: 2 cars * 6 lanes * 2 (left vs right)
+        - distance until car tail (closest dangerous car)
+          - 0 = no car in front of the agent
+          - 0 ~ 1 = distance from the tail of the car that is in front of the agent
+          - size: 6 lanes * 2 (left vs right)
+        - car speed (closest dangerous car)
+          - 0 = no car or stopped
+          - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
           - size: 6 lanes * 2 (left vs right)
         """
         self.observation_space = gym.spaces.Box(
@@ -513,6 +513,7 @@ class PedestrianEnv(gym.Env):
         obs = []
         agent_x, agent_y = self.world.agent.get_cur_location_grid()
         [_, _, agent_left_x, agent_right_x] = self.world.agent.get_hitbox()
+        agent_width = agent_right_x - agent_left_x
         agent_y_range = [0, self.map_grid_height-1]
         y_top_visible_distance = self.camera_height//2 + 2
         y_bottom_visible_distance = self.camera_height//2 - 2
@@ -530,9 +531,6 @@ class PedestrianEnv(gym.Env):
         visible_x_left_end = grid_x_left_end - 0.5
         visible_x_right_end = visible_x_left_end + self.camera_width
         game_screen_rect = [visible_top_y_end, visible_bottom_y_end, visible_x_left_end, visible_x_right_end]
-
-        left_visible_dist = agent_left_x - visible_x_left_end
-        right_visible_dist = visible_x_right_end - agent_right_x
 
         # Meta info
         if meta_info:
@@ -717,10 +715,8 @@ class PedestrianEnv(gym.Env):
             # print("car_in_adjecent_tiles left:", car_in_adjecent_tiles[7])
 
             dangerous_car_info_list = []
-            agent_left_to_map_left = agent_left_x - visible_x_left_end
-            agent_right_to_map_right = visible_x_right_end - agent_right_x
-            agent_right_to_map_left = agent_right_x - visible_x_left_end
-            agent_left_to_map_right = visible_x_right_end - agent_left_x
+            visible_left_width = agent_left_x - visible_x_left_end
+            visible_right_width = visible_x_right_end - agent_right_x
             # only consider until 4 rows ahead of agent since maximum road size is 4
             for grid_y in range(agent_y - 4, grid_bottom_y + 1):
                 left_cars = []
@@ -736,24 +732,24 @@ class PedestrianEnv(gym.Env):
                         car_left_x = max(car_left_x, visible_x_left_end)
                         car_right_x = min(car_right_x, visible_x_right_end)
                         car_speed = abs(car.default_speed) / self.max_car_speed if car.is_moving else 0
-                        # cars on the left side
-                        if car_left_x <= agent_right_x:
-                            if not car.car_details.go_right: pass # moving away
+                        # cars on the left side and coming toward the agent
+                        if car_left_x <= agent_right_x and car.car_details.go_right:
                             if car_right_x < agent_left_x:
-                                car_head_closeness = (agent_left_to_map_left - (agent_left_x - car_right_x)) / agent_left_to_map_left
+                                car_head_closeness = (visible_left_width - (agent_left_x - car_right_x)) / visible_left_width
+                                car_tail_distance = 0.0
                             else:
                                 car_head_closeness = 1.0 # car overlapping with the agent
-                            car_tail_closeness = (agent_right_to_map_left - (agent_right_x - car_left_x)) / agent_right_to_map_left
-                            left_cars.append([car_head_closeness, car_tail_closeness, car_speed])
-                        # cars on the right side
-                        if agent_left_x <= car_right_x:
-                            if car.car_details.go_right: pass # moving away
+                                car_tail_distance = (agent_right_x - car_left_x) / (self.max_car_width + agent_width)
+                            left_cars.append([car_head_closeness, car_tail_distance, car_speed])
+                        # cars on the right side and coming toward the agent
+                        if agent_left_x <= car_right_x and not car.car_details.go_right:
                             if agent_right_x < car_left_x:
-                                car_head_closeness = (agent_right_to_map_right - (car_left_x - agent_right_x)) / agent_right_to_map_right
+                                car_head_closeness = (visible_right_width - (car_left_x - agent_right_x)) / visible_right_width
+                                car_tail_distance = 0.0
                             else:
                                 car_head_closeness = 1.0 # car overlapping with the agent
-                            car_tail_closeness = (agent_left_to_map_right - (car_right_x - agent_left_x)) / agent_left_to_map_right
-                            right_cars.append([car_head_closeness, car_tail_closeness, car_speed])
+                                car_tail_distance = (car_right_x - agent_left_x) / (self.max_car_width + agent_width)
+                            right_cars.append([car_head_closeness, car_tail_distance, car_speed])
                 left_cars.sort(key=lambda x: x[0], reverse=True)
                 right_cars.sort(key=lambda x: x[0], reverse=True)
                 while len(left_cars) < 2:
@@ -761,12 +757,12 @@ class PedestrianEnv(gym.Env):
                 while len(right_cars) < 2:
                     right_cars.append([0.0, 0.0, 0.0])
                 # consider the closeness and speed of 2 cars on each side 
-                dangerous_car_info_list += left_cars[0] # [head closeness, tail closeness, speed]
-                dangerous_car_info_list += right_cars[0] # [head closeness, tail closeness, speed]
+                dangerous_car_info_list += left_cars[0] # [head closeness, tail distance, speed]
+                dangerous_car_info_list += right_cars[0] # [head closeness, tail distance, speed]
                 dangerous_car_info_list += [left_cars[1][0], right_cars[1][0]] # [head closeness]
-                # print(f"[{grid_y}] left cars:", left_cars[0], left_cars[1][0])
-                # print(f"[{grid_y}] right cars:", right_cars[0], right_cars[1][0])
             obs += dangerous_car_info_list
+            # print(f"[{grid_y}] left cars:", left_cars[0], left_cars[1][0])
+            # print(f"[{grid_y}] right cars:", right_cars[0], right_cars[1][0])
         assert len(obs) == 89
         assert max(obs) <= 1.0 and min(obs) >= 0.0
         self.obs = np.array(obs)
