@@ -185,17 +185,14 @@ def tuning(
     test_policy(model_name, activation_fn)
 
 if __name__ == "__main__":
-    model_name="ppo_v5_LeakyReLU_2"
+    model_name="ppo_v5_LeakyReLU_5"
     tuning(model_name=model_name,
-           net_arch=[512, 256, 256],
+           net_arch=[256, 256, 256],
            activation_fn=nn.LeakyReLU,
-           total_timesteps=1_000_000)
-
-    # model_name="ppo_v5_LeakyReLU_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
+           total_timesteps=1_500_000)
+    # ppo_v5_LeakyReLU_5
+    # test score: 1519.0000
+    # test score: 1586.5000
 
     # =====================================
     # Best so far
@@ -207,6 +204,21 @@ if __name__ == "__main__":
     # ppo_v5_LeakyReLU_1
     # test score: 1615.0000
     # test score: 1564.0000
+
+    # model_name="ppo_v5_LeakyReLU_2"
+    #  net_arch=[512, 256, 256],
+    # test score: 1425.5000
+    # test score: 1224.5000
+
+    # model_name="ppo_v5_LeakyReLU_3"
+    #  net_arch=[512, 256, 128],
+    # test score: 1492.5000
+    # test score: 1363.5000
+
+    # model_name="ppo_v5_LeakyReLU_4"
+    # net_arch=[256, 256, 128],
+    # test score: 1538.0000
+    # test score: 1425.0000
 
     # ppo_v3_LeakyReLU_1
     # test score: 1483.0000
@@ -243,11 +255,20 @@ if __name__ == "__main__":
     #        learning_rate=3e-4,
     #        total_timesteps=1_000_000)
 
-    # model_name="ppo_v3_Tanh_1"
-
-    # ppo_v5_Tanh_1
+    # model_name="ppo_v5_Tanh_1"
+    # net_arch=[256, 256, 256],
     # test score: 1364.0000
     # test score: 1192.0000
+
+    # ppo_v5_Tanh_2
+    # net_arch [512, 256, 256]
+    # test score: 1280.5000
+    # test score: 1095.5000
+
+    # ppo_v5_Tanh_3
+    # net_arch [256, 256, 128]
+    # test score: 1292.0000
+    # test score: 1224.0000
 
     # ppo_v3_1
     # test score: 1498.0000

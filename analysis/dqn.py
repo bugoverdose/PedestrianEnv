@@ -119,8 +119,7 @@ def _load_DQN_model(saved_model_name, seed=42, render_mode_human=True):
 
 def tuning(
         model_name,
-        net_arch_depth=3,
-        net_arch_width=128,
+        net_arch=[256, 256, 256],
         activation_fn=nn.Tanh,
         gamma=0.99,
         learning_rate=1e-4,
@@ -137,7 +136,8 @@ def tuning(
     ):
     run_DQN(saved_model_name=model_name,
             tb_log_name=model_name[:-2],
-            net_arch=[net_arch_width] * net_arch_depth,
+            net_arch=net_arch,
+            activation_fn=activation_fn,
             gamma=gamma,
             learning_rate=learning_rate,
             train_freq=(train_freq_cnt, train_freq_type),
@@ -155,94 +155,62 @@ def tuning(
     )
     test_policy(model_name)
 
+# Tanh > LeakyReLU in DQN
 if __name__ == "__main__":
-    model_name="dqn_v5_LeakyReLU_1"
+    model_name="dqn_v5_Tanh_2"
     tuning(model_name=model_name,
-           net_arch_depth=3,
-           net_arch_width=256,
-           activation_fn=nn.LeakyReLU,
+           net_arch=[256, 256, 256],
+           activation_fn=nn.Tanh,
            total_timesteps=1_000_000,
            exploration_fraction=0.5,
            exploration_initial_eps=1.0,
            exploration_final_eps=0.0)
-    # dqn_v5_LeakyReLU_1
+    # ======================
+    # Best so far
+    # model_name="dqn_v5_Tanh_2"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000,
+    #        exploration_fraction=0.5,
+    #        exploration_initial_eps=1.0,
+    #        exploration_final_eps=0.0)
+    # dqn_v5_Tanh_2
     # test score: 1770.5000
     # test score: 1586.5000
 
-    # model_name="dqn_v3_1"
+    # model_name="dqn_v5_Tanh_1"
     # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=256,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_500_000,
+    #        exploration_fraction=0.5,
+    #        exploration_initial_eps=1.0,
+    #        exploration_final_eps=0.0)
+
+    # dqn_v5_Tanh_1
+    # test score: 1561.0000
+    # test score: 1512.5000
+    # model_name="dqn_v5_LeakyReLU_2"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.LeakyReLU,
     #        total_timesteps=1_000_000,
     #        exploration_fraction=0.5,
     #        exploration_initial_eps=1.0,
     #        exploration_final_eps=0.0)
-    # dqn_v3_1
-    # test score: 1675.5000
-    # test score: 1447.0000
+    # dqn_v5_LeakyReLU_2
+    # test score: 1666.5000
+    # test score: 1161.5000
 
-    # model_name="dqn_v3_3"
+    # model_name="dqn_v5_LeakyReLU_1"
     # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=512,
-    #        total_timesteps=1_000_000,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_500_000,
     #        exploration_fraction=0.5,
     #        exploration_initial_eps=1.0,
     #        exploration_final_eps=0.0)
-    # net_arch [512, 512, 512]
-    # target_update_interval 50
-    # buffer_size 10000
-    # learning_starts 10000
-    # train_freq (4, 'episode')
-    # exploration_fraction 0.5
-    # exploration_final_eps 0.0
-    # learning_rate 0.0001
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1503.0000
-    # dqn_v3_3
-    # test score: 1390.5000
-
-    # model_name="dqn_v3_2"
-    # tuning(model_name=model_name,
-    #        net_arch_depth=3,
-    #        net_arch_width=128,
-    #        total_timesteps=1_000_000,
-    #        exploration_fraction=0.5,
-    #        exploration_initial_eps=1.0,
-    #        exploration_final_eps=0.0)
-    # net_arch [128, 128, 128]
-    # target_update_interval 50
-    # buffer_size 10000
-    # learning_starts 10000
-    # train_freq (4, 'episode')
-    # exploration_fraction 0.5
-    # exploration_final_eps 0.0
-    # learning_rate 0.0001
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1574.5000
-    # dqn_v3_2
-    # test score: 1253.0000
-
-    # tuning(net_arch_depth=3, 
-    #        net_arch_width=256, 
-    #        total_timesteps=1_000_000, 
-    #        exploration_fraction=0.5,
-    #        exploration_initial_eps=1.0,
-    #        exploration_final_eps=0.0,
-    #        ver=2)
-    # model_name = "dqn_v2_1"
-    # net_arch [256, 256, 256]
-    # target_update_interval 50
-    # buffer_size 10000
-    # learning_starts 10000
-    # train_freq (4, 'episode')
-    # exploration_fraction 0.5
-    # exploration_final_eps 0.0
-    # learning_rate 0.0001
-    # n_eval_episodes 100
-    # total_timesteps 1000000
-    # test score: 1701.5000
-    # visualize_test(model_name)
-    # test score: 1514.5000
+    # dqn_v5_LeakyReLU_1
+    # test score: 1524.0000
+    # test score: 1549.0000
