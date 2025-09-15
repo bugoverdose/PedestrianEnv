@@ -185,19 +185,134 @@ def tuning(
     test_policy(model_name, activation_fn)
 
 if __name__ == "__main__":
-    model_name="ppo_v8_Tanh_1"
+    model_name="ppo_v8_LeakyReLU_7"
     tuning(model_name=model_name,
            net_arch=[256, 256, 256],
-           activation_fn=nn.Tanh,
+           n_steps=512,
+           batch_size=32,
+           n_epochs=4,
+           activation_fn=nn.LeakyReLU,
            total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_7
+    # test score: 1748.5000
+    # test score: 1664.0000
 
     # =====================================
     # Best so far
+    # model_name="ppo_v8_LeakyReLU_7"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=32,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_7
+    # test score: 1748.5000
+    # test score: 1664.0000
+
     # model_name="ppo_v8_LeakyReLU_1"
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=32,
+    #        n_epochs=8,
     #        activation_fn=nn.LeakyReLU,
     #        total_timesteps=1_000_000)
     # ppo_v8_LeakyReLU_1
     # test score: 1747.5000
     # test score: 1616.0000
+
+    # model_name="ppo_v8_LeakyReLU_5"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=1024,
+    #        batch_size=64,
+    #        n_epochs=10,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_5
+    # test score: 1700.0000
+    # test score: 1644.5000
+
+    # model_name="ppo_v8_LeakyReLU_6"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=1024,
+    #        batch_size=64,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_6
+    # test score: 1790.0000
+    # test score: 1589.5000
+
+    # model_name="ppo_v8_LeakyReLU_2"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=1024,
+    #        batch_size=32,
+    #        n_epochs=8,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_2
+    # test score: 1638.5000
+    # test score: 1511.0000
+
+    # model_name="ppo_v8_LeakyReLU_3"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=64,
+    #        n_epochs=8,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_3
+    # test score: 1597.0000
+    # test score: 1429.0000
+
+    # model_name="ppo_v8_LeakyReLU_4"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=1024,
+    #        batch_size=64,
+    #        n_epochs=8,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # test_policy(model_name, nn.LeakyReLU)
+    # ppo_v8_LeakyReLU_4
+    # test score: 1826.5000
+    # test score: 1311.5000
+
+    # model_name="ppo_v8_Tanh_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_Tanh_1
+    # test score: 1676.0000
+    # test score: 1590.5000
+
+    # model_name="ppo_v8_LeakyReLU_8"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=32,
+    #        n_epochs=10,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_8
+    # test score: 1644.0000
+    # test score: 1630.5000
+
+    # model_name="ppo_v8_LeakyReLU_9"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=2048,
+    #        batch_size=32,
+    #        n_epochs=8,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v8_LeakyReLU_9
+    # test score: 1690.0000
+    # test score: 1048.0000
