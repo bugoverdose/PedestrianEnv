@@ -185,7 +185,7 @@ def tuning(
     test_policy(model_name, activation_fn)
 
 if __name__ == "__main__":
-    model_name="ppo_v8_LeakyReLU_7"
+    model_name="ppo_v9_LeakyReLU_1"
     tuning(model_name=model_name,
            net_arch=[256, 256, 256],
            n_steps=512,
@@ -193,12 +193,59 @@ if __name__ == "__main__":
            n_epochs=4,
            activation_fn=nn.LeakyReLU,
            total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_7
-    # test score: 1748.5000
-    # test score: 1664.0000
+    # ppo_v9_LeakyReLU_1
+    # test score: 1781.5000
+    # test score: 1833.0000
+
+    # model_name="ppo_v9_LeakyReLU_4"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=1024,
+    #        batch_size=64,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v9_LeakyReLU_4
+    # test score: 1741.5000
+    # test score: 1679.0000
+
+    # model_name="ppo_v9_LeakyReLU_2"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=16,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v9_LeakyReLU_2
+    # test score: 1710.5000
+    # test score: 1463.5000
+
+    # model_name="ppo_v9_LeakyReLU_3"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=64,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v9_LeakyReLU_3
+    # est score: 1706.5000
+    # test score: 1711.0000
+
+    # model_name="ppo_v9_LeakyReLU_5"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=256,
+    #        batch_size=16,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v9_LeakyReLU_5
+    # test score: 1561.5000
+    # test score: 1380.0000
 
     # =====================================
-    # Best so far
     # model_name="ppo_v8_LeakyReLU_7"
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],

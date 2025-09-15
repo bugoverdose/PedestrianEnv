@@ -473,7 +473,7 @@ class PedestrianEnv(gym.Env):
           - 1 = in the same column or row as the target crosswalk
           - size: 3 (for each direction: up, right, left) * 3 crosswalks
 
-        ## Cars [33 ~ 88]
+        ## Cars [33 ~ 112]
         Information about the nearest cars in each lane for each direction (left and right sides).
         Only consider the roads right next to the agent (1 in front of the agent, 1 behind the agent, or the 1 the agent is crossing).
         Each lane can only have 1 or 2 cars.
@@ -490,6 +490,11 @@ class PedestrianEnv(gym.Env):
           - 0 ~ 1 = closeness of the head of the car coming toward the agent
           - 1 = car right in front of the agent
           - size: 2 cars * 6 lanes * 2 (left vs right)
+        - closeness of car tail (closest dangerous cars)
+          - 0 = no car coming toward the agent
+          - 0 ~ 1 = closeness of the tail of the car coming toward the agent
+          - 1 = car right in front of the agent
+          - size: 2 cars * 6 lanes * 2 (left vs right)
         - distance until car tail (closest dangerous car)
           - 0 = no car in front of the agent
           - 0 ~ 1 = distance from the tail of the car that is in front of the agent
@@ -500,8 +505,8 @@ class PedestrianEnv(gym.Env):
           - size: 6 lanes * 2 (left vs right)
         """
         self.observation_space = gym.spaces.Box(
-            low=np.array([0.0 for _ in range(89)]),
-            high=np.array([1.0 for _ in range(89)]),
+            low=np.array([0.0 for _ in range(113)]),
+            high=np.array([1.0 for _ in range(113)]),
             dtype=np.float64
         )
 
@@ -735,109 +740,238 @@ class PedestrianEnv(gym.Env):
                         # cars on the left side and coming toward the agent
                         if car_left_x <= agent_right_x and car.car_details.go_right:
                             if car_right_x < agent_left_x:
+                                # [car] < [agent]
                                 car_head_closeness = (visible_left_width - (agent_left_x - car_right_x)) / visible_left_width
                                 car_tail_distance = 0.0
                             else:
-                                car_head_closeness = 1.0 # car overlapping with the agent
+                                # car overlapping with the agent
+                                car_head_closeness = 1.0
                                 car_tail_distance = (agent_right_x - car_left_x) / (self.max_car_width + agent_width)
-                            left_cars.append([car_head_closeness, car_tail_distance, car_speed])
+                            if car_left_x < agent_left_x:
+                                # [car]=>
+                                #    [agent]
+                                car_tail_closeness = (visible_left_width - (agent_left_x - car_left_x)) / visible_left_width
+                            else:
+                                #   =>[car]
+                                # [agent]
+                                car_tail_closeness = 1.0
+                            left_cars.append([car_head_closeness, car_tail_closeness, car_tail_distance, car_speed])
                         # cars on the right side and coming toward the agent
                         if agent_left_x <= car_right_x and not car.car_details.go_right:
                             if agent_right_x < car_left_x:
+                                # [agent] < [car]
                                 car_head_closeness = (visible_right_width - (car_left_x - agent_right_x)) / visible_right_width
+                                car_tail_closeness = (visible_right_width - (car_right_x - agent_right_x)) / visible_right_width
                                 car_tail_distance = 0.0
                             else:
-                                car_head_closeness = 1.0 # car overlapping with the agent
+                                # car overlapping with the agent
+                                car_head_closeness = 1.0
+                                car_tail_closeness = 0.0
                                 car_tail_distance = (car_right_x - agent_left_x) / (self.max_car_width + agent_width)
-                            right_cars.append([car_head_closeness, car_tail_distance, car_speed])
+                            if agent_right_x < car_right_x:
+                                #   <=[car]
+                                # [agent]
+                                car_tail_closeness = (visible_right_width - (car_right_x - agent_right_x)) / visible_right_width
+                            else:
+                                # [car]<=
+                                #   [agent]
+                                car_tail_closeness = 1.0
+                            right_cars.append([car_head_closeness, car_tail_closeness, car_tail_distance, car_speed])
                 left_cars.sort(key=lambda x: x[0], reverse=True)
                 right_cars.sort(key=lambda x: x[0], reverse=True)
                 while len(left_cars) < 2:
-                    left_cars.append([0.0, 0.0, 0.0])
+                    left_cars.append([0.0, 0.0, 0.0, 0.0])
                 while len(right_cars) < 2:
-                    right_cars.append([0.0, 0.0, 0.0])
-                # consider the closeness and speed of 2 cars on each side 
-                dangerous_car_info_list += left_cars[0] # [head closeness, tail distance, speed]
-                dangerous_car_info_list += right_cars[0] # [head closeness, tail distance, speed]
-                dangerous_car_info_list += [left_cars[1][0], right_cars[1][0]] # [head closeness]
+                    right_cars.append([0.0, 0.0, 0.0, 0.0])
+                # consider the position and speed of 2 cars on each side 
+                dangerous_car_info_list += left_cars[0] # [head closeness, tail closeness, tail distance, speed]
+                dangerous_car_info_list += right_cars[0] # [head closeness, tail closeness, tail distance, speed]
+                dangerous_car_info_list += [left_cars[1][0], left_cars[1][1]] # [head closeness, tail closeness]
+                dangerous_car_info_list += [right_cars[1][0], right_cars[1][1]] # [head closeness, tail closeness]
             obs += dangerous_car_info_list
             # print(f"[{grid_y}] left cars:", left_cars[0], left_cars[1][0])
             # print(f"[{grid_y}] right cars:", right_cars[0], right_cars[1][0])
-        assert len(obs) == 89
+        assert len(obs) == 113
         assert max(obs) <= 1.0 and min(obs) >= 0.0
         self.obs = np.array(obs)
 
     def _update_info(self):
-        agent_x, agent_y = self.world.agent.get_cur_location_grid()
-        grid_y_start = agent_y - self.camera_height//2 - 2
-        if self.gamescreen_width_fixed:
-            grid_x_start = self.world.agent.init_pos[0] - self.camera_width//2
-        else:
-            grid_x_start = agent_x - self.camera_width//2
-        visible_x_start = grid_x_start - 0.5
-        visible_x_end = visible_x_start + self.camera_width
-
+        agent = self.world.agent
+        [agent_top_y, agent_bottom_y, agent_left_x, agent_right_x] = agent.get_hitbox()
+        visible_distances, game_screen_grid_rect, game_screen_rect = self._game_screen_relative_positions()
         if self.info is None:
-            road_infos = []
-            for road in self.world.roads.elements:
-                road_info = {
+            agent_y_range = [agent.TARGET_LANE, self.map_grid_height - 1]
+            [grid_y_top_visible_distance, grid_y_bottom_visible_distance, grid_x_visible_distance] = visible_distances
+            agent_metadata = {
+                "initial_pos": agent.init_pos,
+                "x_range": self.agent_x_range,
+                "y_range": agent_y_range,
+                "speed": agent.default_speed,
+                "grid_y_top_visible_distance": grid_y_top_visible_distance,
+                "grid_y_bottom_visible_distance": grid_y_bottom_visible_distance,
+                "grid_x_visible_distance": grid_x_visible_distance,
+            }
+            roads_metadata = {
+                "is_dangerous_row": self.world.danger_row,
+                "roads": [],
+            }
+            for i in range(len(self.world.roads.elements), 0, -1):
+                road = self.world.roads.elements[i-1]
+                roads_metadata["roads"].append({
                     "uid": road.uid,
                     "top_y": road.top_y,
                     "bottom_y": road.bottom_y,
                     "going_right": road.going_right,
-                    "car_color": str(road.car_color_type),
-                    "penalty": road.risk_detail.penalty.value,
-                    "crosswalk_col": int(road.crosswalk.col) if road.crosswalk is not None else -1,
-                    "going_right": road.going_right,
-                }
-                road_infos.append(road_info)
-            car_infos = []
+                    "car_color_type": road.car_color_type.value, # 0=GREEN, 1=YELLOW, 2=RED
+                    "penalty": road.risk_detail.penalty.value, # 100=GREEN, 500=YELLOW, 1000=RED
+                    "crosswalk": None if road.crosswalk is None else {"uid": road.crosswalk.uid, "col": road.crosswalk.col},
+                })
+            cars_metadata = []
             for car in self.world.cars.elements:
-                start_row, end_row = car.rows[0], car.rows[-1]
-                car_info = {
+                cars_metadata.append({
                     "uid": car.uid,
-                    "start_row": start_row,
-                    "end_row": end_row,
-                    "go_right": car.car_details.go_right,
-                    "car_grid_width": car.car_details.car_grid_width,
-                    "car_grid_height": car.car_details.car_grid_height,
+                    "road_uid": car.road.uid,
+                    "rows": car.rows,
                     "car_type": car.car_details.car_type,
-                    "color": str(car.car_details.color),
                     "penalty": car.car_details.penalty.value,
-                }
-                car_infos.append(car_info)
-            self.info = { "road_metadata": road_infos, "car_metadata": car_infos }
+                    "go_right" :car.car_details.go_right,
+                    "car_grid_height": car.car_details.car_grid_height,
+                    "car_grid_width": car.car_details.car_grid_width,
+                })
+            self.info = {
+                "env_configuration": {
+                    "map_grid_width": self.map_grid_width,
+                    "map_grid_height": self.map_grid_height,
+                    "steps_per_second": self.steps_per_second,
+                    "step_ms": self.step_ms,
+                    "realtime": self.realtime,
+                    "gameover_screen_time": self.gameover_screen_time,
+                    "render_fps": self.metadata["render_fps"],
+                    "pix_square_size": self.pix_square_size,
+                    "camera_width": self.camera_width,
+                    "camera_height": self.camera_height,
+                    "gamescreen_width_fixed": self.gamescreen_width_fixed,
+                    "debug": self.debug,
+                    "render_mode": self.render_mode,
+                },
+                "episode_configuration": {
+                    "seed": self.cur_seed,
+                    "agent": agent_metadata,
+                    "roads": roads_metadata,
+                    "cars": cars_metadata,
+                },
+                "play_infos": None,
+            }
 
-        # play_infos
-        is_dead = self.world.agent.is_dead
-        terminated = self.game_over
-        activated_crosswalk_uid = self.world.roads.activated_crosswalk_uid
-        time_left = self.time_left
-        real_time_step_passed = self.real_time_step_passed
-        game_end_extra_score = self.game_end_extra_score
-        cur_episode_score = self.cur_rewards
-        total_score = self._total_rewards()
-        self.info["play_infos"] = [agent_x, agent_y, is_dead, terminated,
-                                   activated_crosswalk_uid, time_left, real_time_step_passed,
-                                   game_end_extra_score, cur_episode_score, total_score, self.cur_seed]
-        # car_infos
-        cars = []
-        car_uid_set = set()
-        for i in range(self.camera_height):
-            grid_y = grid_y_start + i
-            if grid_y not in self.world.row_to_cars_dict: continue # no car
+        agent_grid_x, agent_grid_y = agent.get_cur_location_grid()
+        [grid_top_y, grid_bottom_y, grid_x_left_end, grid_x_right_end] = game_screen_grid_rect
+        [visible_top_y_end, visible_bottom_y_end, visible_x_left_end, visible_x_right_end] = game_screen_rect
+
+        visible_cars_per_lane = {}
+        prev_road = None # the road that the agent previously crossed
+        target_road = None # the road that the agent is crossing or should cross
+        for i in range(len(self.world.roads.elements), 0, -1):
+            road = self.world.roads.elements[i-1]
+            if road.top_y > agent_grid_y:
+                prev_road = road
+                continue # already crossed
+            target_road = road
+            break
+        # only consider until 4 rows ahead of agent since maximum road size is 4
+        for grid_y in range(agent_grid_y - 4, grid_bottom_y + 1):
+            # only consider the roads near the agent
+            is_prev_road = prev_road is not None and prev_road.top_y <= grid_y <= prev_road.bottom_y
+            is_target_road = target_road is not None and target_road.top_y <= grid_y <= target_road.bottom_y
+            if not is_prev_road and not is_target_road: continue
+            cars = []
             for car in self.world.row_to_cars_dict[grid_y]:
-                if car.uid in car_uid_set: continue
-                car_uid_set.add(car.uid)
-                car_left_x, car_right_x = car.get_cur_x_pos()
-                if car_right_x < visible_x_start: continue # out of sight
-                if visible_x_end < car_left_x: continue # out of sight
-                left_x, right_x = car.get_cur_x_pos()
-                top_row, bottom_row = car.rows[0], car.rows[-1]
-                cars.append([car.uid, car.cur_location[0], car.cur_location[1],
-                            left_x, right_x, top_row, bottom_row,
-                            car.default_speed, 1 if car.is_moving else 0])
-        self.info["cars"] = cars
+                [car_top_y, car_bottom_y, car_left_x, car_right_x] = car.get_hitbox()
+                if car_right_x < visible_x_left_end: continue # filter out of sight
+                if visible_x_right_end < car_left_x: continue # filter out of sight
+                car_left_x = max(car_left_x, visible_x_left_end)
+                car_right_x = min(car_right_x, visible_x_right_end)
+                car_speed = abs(car.default_speed) / self.max_car_speed if car.is_moving else 0
+                car_going_right = car.car_details.go_right
+                cars.append({
+                    "top_y": car_top_y,
+                    "bottom_y": car_bottom_y,
+                    "left_x": car_left_x,
+                    "right_x": car_right_x,
+                    "speed": car_speed,
+                    "going_right": car_going_right,
+                })
+            visible_cars_per_lane[grid_y] = cars
+
+        self.info["play_infos"] = {
+            "game_info": {
+                "time_left": self.time_left,
+                "real_time_step_passed": self.real_time_step_passed,
+                "game_end_extra_score":  self.game_end_extra_score,
+                "cur_episode_score": self.cur_rewards,
+                "total_score": self._total_rewards(),
+            },
+            "map": {
+                # game screen grid rectangle
+                "grid_top_y": grid_top_y,
+                "grid_bottom_y": grid_bottom_y,
+                "grid_x_left_end": grid_x_left_end,
+                "grid_x_right_end": grid_x_right_end,
+
+                # game screen rectangle
+                "visible_top_y_end": visible_top_y_end, 
+                "visible_bottom_y_end": visible_bottom_y_end, 
+                "visible_x_left_end": visible_x_left_end, 
+                "visible_x_right_end": visible_x_right_end,
+
+                "activated_crosswalk_uid": self.world.roads.activated_crosswalk_uid,
+            },
+            "agent": {
+                "grid_x": agent_grid_x,
+                "grid_y": agent_grid_y,
+                "cur_location": agent.cur_location,
+                "target_location": agent.target_location,
+                "facing_direction": agent.last_direction,
+                # NOTE: hitbox = [top_y, bottom_y, left_x, right_x]
+                "top_y": agent_top_y,
+                "bottom_y": agent_bottom_y,
+                # NOTE: agent_width = agent_right_x - agent_left_x
+                "left_x": agent_left_x,
+                "right_x": agent_right_x, 
+                "dead": agent.is_dead,
+            },
+            "visible_cars": visible_cars_per_lane,
+        }
+        # road in sight
+        # for i in range(len(self.world.roads.elements), 0, -1):
+        #     if grid_bottom_y < road.top_y: continue # out of sight: below the map
+        #     if road.bottom_y < grid_top_y: continue # out of sight: above the map
+
+    def _game_screen_relative_positions(self):
+        agent = self.world.agent
+        agent_grid_x, agent_grid_y = agent.get_cur_location_grid()
+        grid_y_top_visible_distance = self.camera_height//2 + 2
+        grid_y_bottom_visible_distance = self.camera_height//2 - 2
+        grid_x_visible_distance = self.camera_width//2
+        visible_distances = [grid_y_top_visible_distance, grid_y_bottom_visible_distance, grid_x_visible_distance]
+
+        # game screen grid rectangle
+        grid_top_y = agent_grid_y - grid_y_top_visible_distance
+        grid_bottom_y = grid_top_y + self.camera_height - 1
+        if self.gamescreen_width_fixed:
+            grid_x_left_end = agent.init_pos[0] - grid_x_visible_distance
+        else:
+            grid_x_left_end = agent_grid_x - grid_x_visible_distance
+        grid_x_right_end = grid_x_left_end + self.camera_width - 1
+        game_screen_grid_rect = [grid_top_y, grid_bottom_y, grid_x_left_end, grid_x_right_end]
+
+        # game screen rectangle
+        visible_top_y_end = grid_top_y - 0.5
+        visible_bottom_y_end = visible_top_y_end + self.camera_height
+        visible_x_left_end = grid_x_left_end - 0.5
+        visible_x_right_end = visible_x_left_end + self.camera_width
+
+        game_screen_rect = [visible_top_y_end, visible_bottom_y_end, visible_x_left_end, visible_x_right_end]
+        return visible_distances, game_screen_grid_rect, game_screen_rect
 
     def _total_rewards(self):
         return self.prev_rewards + self.cur_rewards

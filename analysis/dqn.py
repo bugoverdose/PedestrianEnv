@@ -155,30 +155,32 @@ def tuning(
     )
     test_policy(model_name)
 
-# Tanh > LeakyReLU in DQN
 if __name__ == "__main__":
-    model_name="dqn_v8_Tanh_1"
+    model_name="dqn_v9_LeakyReLU_1"
     tuning(model_name=model_name,
            net_arch=[256, 256, 256],
-           activation_fn=nn.Tanh,
+           activation_fn=nn.LeakyReLU,
            total_timesteps=1_000_000,
            exploration_fraction=0.5,
            exploration_initial_eps=1.0,
            exploration_final_eps=0.0)
+    # dqn_v9_LeakyReLU_1
+    # test score: 1886.0000
+    # test score: 1881.5000
 
     # ======================
     # Best so far
-    # model_name="dqn_v8_Tanh_1"
+    # model_name="dqn_v9_LeakyReLU_1"
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.Tanh,
+    #        activation_fn=nn.LeakyReLU,
     #        total_timesteps=1_000_000,
     #        exploration_fraction=0.5,
     #        exploration_initial_eps=1.0,
     #        exploration_final_eps=0.0)
-    # dqn_v8_Tanh_1
-    # test score: 1894.5000
-    # test score: 1613.5000
+    # dqn_v9_LeakyReLU_1
+    # test score: 1886.0000
+    # test score: 1881.5000
 
     # model_name="dqn_v8_LeakyReLU_1"
     # tuning(model_name=model_name,
@@ -191,3 +193,27 @@ if __name__ == "__main__":
     # dqn_v8_LeakyReLU_1
     # test score: 1870.5000
     # test score: 1605.0000
+
+    # model_name="dqn_v8_Tanh_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000,
+    #        exploration_fraction=0.5,
+    #        exploration_initial_eps=1.0,
+    #        exploration_final_eps=0.0)
+    # dqn_v8_Tanh_1
+    # test score: 1894.5000
+    # test score: 1613.5000
+
+    # model_name="dqn_v9_Tanh_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000,
+    #        exploration_fraction=0.5,
+    #        exploration_initial_eps=1.0,
+    #        exploration_final_eps=0.0)
+    # dqn_v9_Tanh_1
+    # test score: 1802.5000
+    # test score: 1691.0000

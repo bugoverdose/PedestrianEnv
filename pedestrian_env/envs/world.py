@@ -16,7 +16,7 @@ class World:
         self.steps_per_second = steps_per_second
 
         self.agent = Agent(agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, player_asset_info, debug)
-        self.initial_player_y = self.agent.cur_location[1]
+        self.initial_agent_y = self.agent.cur_location[1]
         self.roads = Roads(self.agent, camera_width, map_grid_height, self.random)
         self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random)
 
@@ -46,13 +46,13 @@ class World:
                 for x in range(crosswalk.left_end, crosswalk.right_end+1):
                     self.crosswalk_map[y][x] = True # crosswalk
 
-        self.reward_y = [False for _ in range(map_grid_height)]
-        self.reward_y[Agent.TARGET_LANE] = True
+        reward_y = [False for _ in range(map_grid_height)]
+        reward_y[Agent.TARGET_LANE] = True
         self.reward_per_y = [0 for _ in range(map_grid_height)]
         for road in self.roads.elements:
             road_crossed_y = road.top_y - 1
-            self.reward_y[road_crossed_y] = True
-            cum_reward = int(self.steps_per_second * (self.initial_player_y - road_crossed_y)) * self.UP_REWARD_PER_UNIT
+            reward_y[road_crossed_y] = True
+            cum_reward = int(self.steps_per_second * (self.initial_agent_y - road_crossed_y)) * self.UP_REWARD_PER_UNIT
             self.reward_per_y[road_crossed_y] = cum_reward
         for y in range(map_grid_height-1, 0, -1):
             self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])

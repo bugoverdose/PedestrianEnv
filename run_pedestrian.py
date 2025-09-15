@@ -25,9 +25,8 @@ KEY_ACTION = {
 def play_episode(env, episode_seed, verbose = False):
     obs, info = env.reset(seed=episode_seed)
     observations = [obs]
-    episode_metadata = { "road_metadata": info["road_metadata"], "car_metadata": info["car_metadata"] }
+    episode_metadata = {"env_configuration": info["env_configuration"], "episode_configuration": info["episode_configuration"]}
     play_infos = [info["play_infos"]]
-    car_infos = [info["cars"]]
     actions = []
     rewards = []
 
@@ -37,14 +36,12 @@ def play_episode(env, episode_seed, verbose = False):
         obs, reward, terminated, truncated, info = env.step(last_action.value)
         observations.append(obs)
         play_infos.append(info["play_infos"])
-        car_infos.append(info["cars"])
         actions.append(last_action.value)
         rewards.append(reward)
         if verbose:
-            agent_x = info["play_infos"][0]
-            agent_y = info["play_infos"][1]
+            [agent_x, agent_y] = info["play_infos"]["agent"]["cur_location"]
             print(f"timeleft={env.time_left}, action={last_action}, reward={reward}, agent=({agent_x}, {agent_y})")
-        if terminated or truncated: return False, episode_metadata, observations, actions, rewards, play_infos, car_infos
+        if terminated or truncated: return False, episode_metadata, observations, actions, rewards, play_infos
         last_action = Action.NOTHING
 
         # check if a key was being pressed down (needed for continuous movement)
@@ -55,7 +52,7 @@ def play_episode(env, episode_seed, verbose = False):
                 break
         for event in pygame.event.get():
             # close window to finish early
-            if event.type == pygame.QUIT: return True, episode_metadata, observations, actions, rewards, play_infos, car_infos
+            if event.type == pygame.QUIT: return True, episode_metadata, observations, actions, rewards, play_infos
 
             if last_action == Action.NOTHING:
                 # check if started to press a key (needed for instant start)
@@ -80,17 +77,15 @@ def play_game(base_dir, session_id, max_seconds, max_episodes=-1, base_seed=0, d
             if time_passed >= max_seconds: break
         episode_id += 1
         episode_seed = base_seed + episode_id
-        quit_game, episode_metadata, observations, actions, rewards, play_infos, car_infos = play_episode(env, episode_seed, verbose)
+        quit_game, episode_metadata, observations, actions, rewards, play_infos = play_episode(env, episode_seed, verbose)
         if quit_game: break
         # NOTE: .npy is more lightweight than CSV because it stores data in pure binary format
         os.makedirs(f"{base_dir}/{episode_seed:04d}", exist_ok=True)
-        with open(f"{base_dir}/{episode_seed:04d}/episode_metadata.json", "w") as f:
-            json.dump(episode_metadata, f)
         np.save(f"{base_dir}/{episode_seed:04d}/observations.npy", np.array(observations))
         np.save(f"{base_dir}/{episode_seed:04d}/actions.npy", np.array(actions))
         np.save(f"{base_dir}/{episode_seed:04d}/rewards.npy", np.array(rewards))
+        np.save(f"{base_dir}/{episode_seed:04d}/episode_metadata.npy", np.array(episode_metadata, dtype=object), allow_pickle=True)
         np.save(f"{base_dir}/{episode_seed:04d}/play_infos.npy", np.array(play_infos, dtype=object), allow_pickle=True)
-        np.save(f"{base_dir}/{episode_seed:04d}/car_infos.npy", np.array(car_infos, dtype=object), allow_pickle=True)
     env.close()
 
 if __name__ == "__main__":
