@@ -95,7 +95,8 @@ def visualize_test(model_name, episode_count=20, seed=42):
     while episode_count < 10:
         action, _states = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
-        print(f"action={action}, reward={reward}, agent=({info[0]['play_infos'][0]}, {info[0]['play_infos'][1]})")
+        [agent_x, agent_y] = info[0]["play_infos"]["agent"]["cur_location"]
+        print(f"action={action}, reward={reward}, agent=({agent_x}, {agent_y})")
         if done:
             episode_count += 1
 
@@ -157,16 +158,18 @@ def tuning(
 
 if __name__ == "__main__":
     model_name="dqn_v9_LeakyReLU_1"
-    tuning(model_name=model_name,
-           net_arch=[256, 256, 256],
-           activation_fn=nn.LeakyReLU,
-           total_timesteps=1_000_000,
-           exploration_fraction=0.5,
-           exploration_initial_eps=1.0,
-           exploration_final_eps=0.0)
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000,
+    #        exploration_fraction=0.5,
+    #        exploration_initial_eps=1.0,
+    #        exploration_final_eps=0.0)
     # dqn_v9_LeakyReLU_1
     # test score: 1886.0000
+    # test_policy(model_name)
     # test score: 1881.5000
+    visualize_test(model_name)
 
     # ======================
     # Best so far
