@@ -229,7 +229,7 @@ class PedestrianEnv(gym.Env):
             self._render_game_over()
         
         self._update_step_state()
-        return self.obs, cumulative_reward, self.game_over, False, self.info
+        return self.obs, float(cumulative_reward), self.game_over, False, self.info
 
     def _check_gameover(self):
         reward, terminated = 0, False

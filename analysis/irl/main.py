@@ -1,3 +1,5 @@
+import numpy as np
+
 from util import data_dir, get_sorted_episodes, load_episode_full_log
 
 def check_episode_full_log(subjId):
@@ -18,6 +20,7 @@ def check_episode_full_log(subjId):
         print("observation size:", len(full_log["observations"][0]))
         print("actions:", full_log["actions"][:10])
         print("rewards:", full_log["rewards"][:10])
+        assert type(full_log["rewards"][0]) == np.float32 or type(full_log["rewards"][0]) == np.float64
         print("trajectory size:", len(full_log["observations"]))
 
 if __name__ == "__main__":
