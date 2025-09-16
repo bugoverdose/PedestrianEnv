@@ -27,6 +27,14 @@ python run_pedestrian.py --max_episodes=10 --seed=1000
 python run_pedestrian.py --debug
 ```
 
+### Subject ID
+
+- 1~99 : development
+- 100~999 : analysis test
+  - 100: always use crosswalk
+  - 101: never cross RED without crosswalk
+- 1000 ~ : experiment
+
 ## Run experiment
 
 Setup and activate environment

@@ -421,57 +421,57 @@ class PedestrianEnv(gym.Env):
 
         ## Meta info [0 ~ 4]
         - play time left
-          - 1 = initialized
-          - 0 ~ 1 = time remaining
-          - 0 = game over (time over, death, early finish)
+            - 1 = initialized
+            - 0 ~ 1 = time remaining
+            - 0 = game over (time over, death, early finish)
         - closeness to unreachable area
-          - 0 = only reachable area in sight
-          - 0 ~ 1 = closeness to nearest unreachable tile in the direction
-          - 1 = adjacent to unreachable tile, can't move in the direction
-          - size: 4 (directions: up, down, right, left)
+            - 0 = only reachable area in sight
+            - 0 ~ 1 = closeness to nearest unreachable tile in the direction
+            - 1 = adjacent to unreachable tile, can't move in the direction
+            - size: 4 (directions: up, down, right, left)
 
         ## Tile types near the agent [5 ~ 12]
         - is dangerous
-          - 0 = safe row or end of the map
-          - 1 = dangerous row where cars can appear
-          - size: 3 (current, up, down)
+            - 0 = safe row or end of the map
+            - 1 = dangerous row where cars can appear
+            - size: 3 (current, up, down)
         - is crosswalk
-          - 0 = not crosswalk
-          - 1 = crosswalk or crosswalk activation tile in the safe zone
-          - size: 5 (current, up, down, right, left)
+            - 0 = not crosswalk
+            - 1 = crosswalk or crosswalk activation tile in the safe zone
+            - size: 5 (current, up, down, right, left)
 
         ## Target road info [13 ~ 21]
         Information about the target road that the agent is crossing or should cross
         - crosswalk visible
-          - 0 = no crosswalk visible
-          - 1 = crosswalk in sight
+            - 0 = no crosswalk visible
+            - 1 = crosswalk in sight
         - car penalty
-          - 0.1, 0.5, 1.0 = penalty based on car color (100, 500, 1000)
+            - 0.1, 0.5, 1.0 = penalty based on car color (100, 500, 1000)
         - y distance from the end of the road
-          - 0.0 = can escape the road after moving up 1 more tile
-          - 0.25 = can escape the road after moving up 2 more tile
-          - 0.50 = can escape the road after moving up 3 more tile
-          - 0.75 = can escape the road after moving up 4 more tile
-          - 1.0 = in the safe zone, before crossing the road
+            - 0.0 = can escape the road after moving up 1 more tile
+            - 0.25 = can escape the road after moving up 2 more tile
+            - 0.50 = can escape the road after moving up 3 more tile
+            - 0.75 = can escape the road after moving up 4 more tile
+            - 1.0 = in the safe zone, before crossing the road
         - y distance from the start of the road
-          - 0.0 = in the safe zone, before crossing the road
-          - 0.25 = agent can escape the road after moving down 1 more tile
-          - 0.50 = agent can escape the road after moving down 2 more tile
-          - 0.75 = agent can escape the road after moving down 3 more tile
-          - 1.0 = agent can escape the road after moving down 4 more tile
+            - 0.0 = in the safe zone, before crossing the road
+            - 0.25 = agent can escape the road after moving down 1 more tile
+            - 0.50 = agent can escape the road after moving down 2 more tile
+            - 0.75 = agent can escape the road after moving down 3 more tile
+            - 1.0 = agent can escape the road after moving down 4 more tile
         - total number of cars visible on the road
-          - 0 ~ 1 = 0 ~ 6 cars in sight
-          - NOTE: each road can have maximum of 6 cars
+            - 0 ~ 1 = 0 ~ 6 cars in sight
+            - NOTE: each road can have maximum of 6 cars
         - number of cars coming toward the agent
-          - 0 ~ 1 = 0 ~ 6 cars in the direction
-          - size: 6 (each quadrant: NW, NE, SE, SW / same row: left, right)
+            - 0 ~ 1 = 0 ~ 6 cars in the direction
+            - size: 6 (each quadrant: NW, NE, SE, SW / same row: left, right)
 
         ## Distance from crosswalks [24 ~ 32]
         - closeness to three nearest crosswalk
-          - 0 = crosswalk not visible
-          - 0 ~ 1 = closeness (1 - distance from the target crosswalk)
-          - 1 = in the same column or row as the target crosswalk
-          - size: 3 (for each direction: up, right, left) * 3 crosswalks
+            - 0 = crosswalk not visible
+            - 0 ~ 1 = closeness (1 - distance from the target crosswalk)
+            - 1 = in the same column or row as the target crosswalk
+            - size: 3 (for each direction: up, right, left) * 3 crosswalks
 
         ## Cars [33 ~ 112]
         Information about the nearest cars in each lane for each direction (left and right sides).
@@ -479,30 +479,30 @@ class PedestrianEnv(gym.Env):
         Each lane can only have 1 or 2 cars.
         Ignore the ones moving away since they are the same as out of sight.
         - car existance in nearby tiles
-          - 0 = no car in the tile
-          - 1 = part of the car in the tile
-          - size: 8 (directions: 3 rows x 3 columns around the agent)
+            - 0 = no car in the tile
+            - 1 = part of the car in the tile
+            - size: 8 (directions: 3 rows x 3 columns around the agent)
             x x x
             x A x
             x x x
         - closeness of car head (closest dangerous cars)
-          - 0 = no car coming toward the agent
-          - 0 ~ 1 = closeness of the head of the car coming toward the agent
-          - 1 = car right in front of the agent
-          - size: 2 cars * 6 lanes * 2 (left vs right)
+            - 0 = no car coming toward the agent
+            - 0 ~ 1 = closeness of the head of the car coming toward the agent
+            - 1 = car right in front of the agent
+            - size: 2 cars * 6 lanes * 2 (left vs right)
         - closeness of car tail (closest dangerous cars)
-          - 0 = no car coming toward the agent
-          - 0 ~ 1 = closeness of the tail of the car coming toward the agent
-          - 1 = car right in front of the agent
-          - size: 2 cars * 6 lanes * 2 (left vs right)
+            - 0 = no car coming toward the agent
+            - 0 ~ 1 = closeness of the tail of the car coming toward the agent
+            - 1 = car right in front of the agent
+            - size: 2 cars * 6 lanes * 2 (left vs right)
         - distance until car tail (closest dangerous car)
-          - 0 = no car in front of the agent
-          - 0 ~ 1 = distance from the tail of the car that is in front of the agent
-          - size: 6 lanes * 2 (left vs right)
+            - 0 = no car in front of the agent
+            - 0 ~ 1 = distance from the tail of the car that is in front of the agent
+            - size: 6 lanes * 2 (left vs right)
         - car speed (closest dangerous car)
-          - 0 = no car or stopped
-          - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
-          - size: 6 lanes * 2 (left vs right)
+            - 0 = no car or stopped
+            - 0 ~ 1 = speed of 3.0 ~ 4.5 coming toward the agent
+            - size: 6 lanes * 2 (left vs right)
         """
         self.observation_space = gym.spaces.Box(
             low=np.array([0.0 for _ in range(113)]),

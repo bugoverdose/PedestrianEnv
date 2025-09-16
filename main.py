@@ -9,7 +9,7 @@ from run_pedestrian import play_game
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Run for experiment")
     arg_parser.add_argument('--subjId', type=int, default=1, help='subject ID')
-    arg_parser.add_argument('--sessionId', type=int, default=1, help='session ID')
+    arg_parser.add_argument('--sessionId', type=int, default=0, help='session ID')
     args = arg_parser.parse_args()
 
     base_dir = f"data/{args.subjId}"

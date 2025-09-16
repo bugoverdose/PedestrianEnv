@@ -91,7 +91,7 @@ def play_game(base_dir, session_id, max_seconds, max_episodes=-1, base_seed=0, d
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Run for test")
     arg_parser.add_argument('--subjId', type=int, default=1, help='subject ID')
-    arg_parser.add_argument('--sessionId', type=int, default=1, help='session ID')
+    arg_parser.add_argument('--sessionId', type=int, default=0, help='session ID')
     arg_parser.add_argument('--verbose', action='store_true', help='enable verbose log')
     arg_parser.add_argument('--debug', action='store_true', help='enable debugging mode')
     arg_parser.add_argument('--seed', type=int, default=0, help='seed value added')
