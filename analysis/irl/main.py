@@ -1,23 +1,27 @@
-import sys
-import os
+from util import data_dir, get_sorted_episodes, load_episode_full_log
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from analysis.util import data_dir, get_sorted_episodes, load_episode_play_log
-
-if __name__ == "__main__":
-    subjId = 1
+def check_episode_full_log(subjId):
     subj_data_dir = data_dir(subjId)
     episodes = get_sorted_episodes(subj_data_dir)
     for episode in episodes:
-        play_log = load_episode_play_log(subj_data_dir, episode)
+        full_log = load_episode_full_log(subj_data_dir, episode)
+        print()
         print(subj_data_dir / episode)
-        print(play_log["road_metadata"][0])
-        print(play_log["car_metadata"][0])
-        print(play_log["observations"][0][0][0])
-        print(play_log["play_infos"][0])
-        print(play_log["car_infos"][0])
-        print(play_log["actions"][0])
-        print(play_log["rewards"][0])
+        print("env_configuration")
+        print(full_log["env_configuration"])
+        print("episode_configuration")
+        print(full_log["episode_configuration"])
+        print("play_infos")
+        print(full_log["play_infos"][0])
+        print("observations")
+        print(full_log["observations"][0])
+        print("observation size:", len(full_log["observations"][0]))
+        print("actions:", full_log["actions"][:10])
+        print("rewards:", full_log["rewards"][:10])
+        print("trajectory size:", len(full_log["observations"]))
+
+if __name__ == "__main__":
+    check_episode_full_log(1)
 
 # TODO: 분석 함수 구현 필요
 # - 바로 앞줄에서 플레이어를 향해 달려오는 자동차가 있음에도 앞으로 이동한 비율

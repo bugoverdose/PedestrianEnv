@@ -1,6 +1,5 @@
 import os
 import time
-import json
 from datetime import datetime
 
 import pygame
@@ -24,9 +23,9 @@ KEY_ACTION = {
 
 def play_episode(env, episode_seed, verbose = False):
     obs, info = env.reset(seed=episode_seed)
-    observations = [obs]
     episode_metadata = {"env_configuration": info["env_configuration"], "episode_configuration": info["episode_configuration"]}
     play_infos = [info["play_infos"]]
+    observations = [obs]
     actions = []
     rewards = []
 
@@ -34,8 +33,8 @@ def play_episode(env, episode_seed, verbose = False):
     last_action = Action.NOTHING
     while True:
         obs, reward, terminated, truncated, info = env.step(last_action.value)
-        observations.append(obs)
         play_infos.append(info["play_infos"])
+        observations.append(obs)
         actions.append(last_action.value)
         rewards.append(reward)
         if verbose:
@@ -84,7 +83,7 @@ def play_game(base_dir, session_id, max_seconds, max_episodes=-1, base_seed=0, d
         np.save(f"{base_dir}/{episode_seed:04d}/observations.npy", np.array(observations))
         np.save(f"{base_dir}/{episode_seed:04d}/actions.npy", np.array(actions))
         np.save(f"{base_dir}/{episode_seed:04d}/rewards.npy", np.array(rewards))
-        np.save(f"{base_dir}/{episode_seed:04d}/episode_metadata.npy", np.array(episode_metadata, dtype=object), allow_pickle=True)
+        np.save(f"{base_dir}/{episode_seed:04d}/episode_metadata.npy", np.array([episode_metadata], dtype=object), allow_pickle=True)
         np.save(f"{base_dir}/{episode_seed:04d}/play_infos.npy", np.array(play_infos, dtype=object), allow_pickle=True)
     env.close()
 

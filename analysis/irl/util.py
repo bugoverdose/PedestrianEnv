@@ -1,19 +1,18 @@
-import json
 import numpy as np
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-ACTIONS = "actions.npy"
 EPISODE_METADATA = "episode_metadata.npy"
-OBSERVATIONS = "observations.npy"
 PLAY_INFOS = "play_infos.npy"
+OBSERVATIONS = "observations.npy"
+ACTIONS = "actions.npy"
 REWARDS = "rewards.npy"
 
 def data_dir(subjId):
     current_file = Path(__file__).resolve()
     current_dir = current_file.parent
-    data_dir = current_dir.parent / "data" / str(subjId)
+    data_dir = current_dir.parent.parent / "data" / str(subjId)
     return data_dir
 
 def get_sorted_episodes(subj_data_dir):
@@ -23,13 +22,12 @@ def get_sorted_episodes(subj_data_dir):
             episodes.append(sub_dir.name)
     return sorted(episodes)
 
-def load_episode_play_log(subj_data_dir, episode):
+def load_episode_full_log(subj_data_dir, episode):
     episode_dir = subj_data_dir / episode
-    with open(episode_dir / EPISODE_METADATA, "r") as f:
-        metadata = json.load(f)
+    episode_metadata = np.load(episode_dir / EPISODE_METADATA, allow_pickle=True)[0]
     return {
-        "road_metadata": metadata["road_metadata"],
-        "car_metadata": metadata["car_metadata"],
+        "env_configuration": episode_metadata["env_configuration"],
+        "episode_configuration": episode_metadata["episode_configuration"],
         "observations": np.load(episode_dir / OBSERVATIONS),
         "play_infos": np.load(episode_dir / PLAY_INFOS, allow_pickle=True),
         "actions": np.load(episode_dir / ACTIONS),
