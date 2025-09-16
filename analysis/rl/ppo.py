@@ -10,7 +10,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from pedestrian_env.envs import PedestrianEnv
 
 def run_PPO(seed=42,
@@ -48,7 +48,7 @@ def run_PPO(seed=42,
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
-    env = VecNormalize(env, norm_obs=True, norm_reward=True)
+    env = VecNormalize(env, norm_obs=False, norm_reward=True)
     model = PPO("MlpPolicy", env,
                 learning_rate=learning_rate,
                 n_steps=n_steps,
@@ -138,7 +138,7 @@ def _load_PPO_model(saved_model_name, seed=42, render_mode_human=True):
 
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
-    env = VecNormalize(env, norm_obs=True, norm_reward=True)
+    env = VecNormalize(env, norm_obs=False, norm_reward=True)
     model = PPO.load(f"saved/ppo/{saved_model_name}", env=env)
     return model, env
 
@@ -179,8 +179,15 @@ def tuning(
     )
     test_policy(model_name)
 
+# # linear_schedule(2e-4, 1e-4)
+# def linear_schedule(start, end):
+#     def f(progress):
+#         return end + (start - end) * progress # progress: 1->0
+#     return f
+
 if __name__ == "__main__":
-    model_name="ppo_v9_LeakyReLU_1"
+    # Takes time to learn, but optimal solution
+    model_name="ppo_v9_LeakyReLU_norm_obs_F_1" # norm_obs=False
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
     #        n_steps=512,
@@ -188,11 +195,25 @@ if __name__ == "__main__":
     #        n_epochs=4,
     #        activation_fn=nn.LeakyReLU,
     #        total_timesteps=1_000_000)
-    # ppo_v9_LeakyReLU_1
-    # test score: 1781.5000
+    # ppo_v9_LeakyReLU_norm_obs_F_1
+    # test score: 1755.0000
     test_policy(model_name)
-    # test score: 1833.0000
+    # test score: 1912.0000
     visualize_test(model_name)
+
+    # model_name="ppo_v9_LeakyReLU_1"
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=32,
+    #        n_epochs=4,
+    #        activation_fn=nn.LeakyReLU,
+    #        total_timesteps=1_000_000)
+    # # ppo_v9_LeakyReLU_1
+    # # test score: 1781.5000
+    # test_policy(model_name)
+    # # test score: 1833.0000
+    # visualize_test(model_name)
 
     # ======================
     # model_name="ppo_v9_LeakyReLU_4"

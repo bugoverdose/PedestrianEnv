@@ -10,7 +10,7 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from pedestrian_env.envs import PedestrianEnv
 
 def run_DQN(seed=42,
