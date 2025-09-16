@@ -1,4 +1,4 @@
-name: pedestrian_game
+name: pedestrian_task_env
 channels:
   - conda-forge
 dependencies:

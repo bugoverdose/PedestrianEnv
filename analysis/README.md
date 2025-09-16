@@ -7,6 +7,7 @@ Install and activate conda environment with following commands
 ```bash
 cd analysis
 conda env create -f pedestrian_analysis.yml
+# or mamba env create -f pedestrian_analysis.yml
 conda activate pedestrian_analysis
 # conda env update -f pedestrian_analysis.yml
 ```

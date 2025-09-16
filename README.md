@@ -5,14 +5,14 @@
 Install and activate conda environment with following commands
 
 ```bash
-conda env create -f pedestrian_game.yml
-conda activate pedestrian_game
+conda env create -f pedestrian_task_env.yml
+conda activate pedestrian_task_env
 ```
 
 Update dependencies or remove the created environment with following commands
 ```bash
-conda env update -f pedestrian_game.yml
-conda remove -n pedestrian_game --all
+conda env update -f pedestrian_task_env.yml
+conda remove -n pedestrian_task_env --all
 ```
 
 ## Play game
@@ -40,13 +40,15 @@ python run_pedestrian.py --debug
 Setup and activate environment
 
 ```bash
-conda env create -f experiment_env.yml
-conda activate pedestrian_experiment
+conda env create -f pedestrian_task_env.yml
+conda env create -f behavioral_task_env.yml
 ```
 
 Run Pedestrian Task
 
 ```bash
+conda activate pedestrian_task_env
+
 # practice session: 5 minutes
 python main.py --subjId=1001 --sessionId=0
 
@@ -62,6 +64,8 @@ python main.py --subjId=1001 --sessionId=2
 Run Behavioral Tasks
 
 ```bash
+conda activate behavioral_task_env
+
 # CRA + ADO
 python behavioral_tasks/cra/cra.py --subjId=1001
 
