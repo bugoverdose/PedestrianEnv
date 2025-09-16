@@ -4,11 +4,10 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-EPISODE_METADATA = "episode_metadata.json"
+ACTIONS = "actions.npy"
+EPISODE_METADATA = "episode_metadata.npy"
 OBSERVATIONS = "observations.npy"
 PLAY_INFOS = "play_infos.npy"
-CAR_INFOS = "car_infos.npy"
-ACTIONS = "actions.npy"
 REWARDS = "rewards.npy"
 
 def data_dir(subjId):
@@ -33,7 +32,6 @@ def load_episode_play_log(subj_data_dir, episode):
         "car_metadata": metadata["car_metadata"],
         "observations": np.load(episode_dir / OBSERVATIONS),
         "play_infos": np.load(episode_dir / PLAY_INFOS, allow_pickle=True),
-        "car_infos": np.load(episode_dir / CAR_INFOS, allow_pickle=True),
         "actions": np.load(episode_dir / ACTIONS),
         "rewards": np.load(episode_dir / REWARDS).astype(np.float32),
     }

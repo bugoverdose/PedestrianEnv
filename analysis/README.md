@@ -22,8 +22,7 @@ conda activate pedestrian_analysis_gpu
 Run [TensorBoard](http://localhost:6006)
 
 ```bash
-cd rl
-tensorboard --logdir=./tb_logs/
+tensorboard --logdir=./rl/tb_logs/
 ```
 
 ## AIRL
@@ -38,5 +37,5 @@ Run [TensorBoard](http://localhost:6006)
 
 ```bash
 cd irl
-tensorboard --logdir=./logs
+tensorboard --logdir=./irl/tb_logs
 ```
