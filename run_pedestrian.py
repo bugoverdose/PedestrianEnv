@@ -68,23 +68,24 @@ def play_game(base_dir, session_id, max_seconds, max_episodes=-1, base_seed=0, d
     episode_duration_sec = 10 if debug else 30
     env = PedestrianEnv(render_mode="human", realtime=True, episode_duration_sec=episode_duration_sec, debug=debug)
     start_timestamp = int(time.time())
-    episode_id = session_id * 1000 # assumes that each session is less than 1000 episodes
+    episode_count = 0
     while True:
-        if max_episodes > 0 and episode_id >= max_episodes: break
+        if max_episodes > 0 and episode_count >= max_episodes: break
+        episode_count += 1
         if max_seconds > 0:
             time_passed = int(time.time()) - start_timestamp
             if time_passed >= max_seconds: break
-        episode_id += 1
+        episode_id = session_id * 1000 + episode_count # assumes that each session is less than 1000 episodes
         episode_seed = base_seed + episode_id
         quit_game, episode_metadata, observations, actions, rewards, play_infos = play_episode(env, episode_seed, verbose)
         if quit_game: break
         # NOTE: .npy is more lightweight than CSV because it stores data in pure binary format
-        os.makedirs(f"{base_dir}/{episode_seed:04d}", exist_ok=True)
-        np.save(f"{base_dir}/{episode_seed:04d}/observations.npy", np.array(observations))
-        np.save(f"{base_dir}/{episode_seed:04d}/actions.npy", np.array(actions))
-        np.save(f"{base_dir}/{episode_seed:04d}/rewards.npy", np.array(rewards))
-        np.save(f"{base_dir}/{episode_seed:04d}/episode_metadata.npy", np.array([episode_metadata], dtype=object), allow_pickle=True)
-        np.save(f"{base_dir}/{episode_seed:04d}/play_infos.npy", np.array(play_infos, dtype=object), allow_pickle=True)
+        os.makedirs(f"{base_dir}/{episode_id:04d}", exist_ok=True)
+        np.save(f"{base_dir}/{episode_id:04d}/observations.npy", np.array(observations))
+        np.save(f"{base_dir}/{episode_id:04d}/actions.npy", np.array(actions))
+        np.save(f"{base_dir}/{episode_id:04d}/rewards.npy", np.array(rewards))
+        np.save(f"{base_dir}/{episode_id:04d}/episode_metadata.npy", np.array([episode_metadata], dtype=object), allow_pickle=True)
+        np.save(f"{base_dir}/{episode_id:04d}/play_infos.npy", np.array(play_infos, dtype=object), allow_pickle=True)
     env.close()
 
 if __name__ == "__main__":
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     arg_parser.add_argument('--debug', action='store_true', help='enable debugging mode')
     arg_parser.add_argument('--seed', type=int, default=0, help='seed value added')
     arg_parser.add_argument('--max_episodes', type=int, default=-1, help='total number of episodes')
-    arg_parser.add_argument('--max_seconds', type=int, default=600, help='ends after reaching max seconds (default: 10 min)')
+    arg_parser.add_argument('--max_seconds', type=int, default=900, help='ends after reaching max seconds (default: 15 min)')
     args = arg_parser.parse_args()
 
     base_dir = f"data/{args.subjId}"

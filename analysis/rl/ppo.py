@@ -4,6 +4,7 @@ import os
 
 import numpy as np
 import random
+from pathlib import Path
 
 import torch.nn as nn
 from stable_baselines3 import PPO
@@ -108,23 +109,24 @@ def run_PPO(seed=42,
         env.save(f"saved/ppo/{saved_model_name}.pkl")
 
 def test_policy(model_name, n_eval_episodes=100, seed=42):
-    model, env = _load_PPO_model(model_name, render_mode_human=False, seed=seed)
+    model, env = load_PPO_model(model_name, render_mode_human=False, seed=seed)
     mean_reward, _ = evaluate_policy(model, env, n_eval_episodes=n_eval_episodes, deterministic=True)
     print(f"{model_name}\ntest score: {mean_reward:.4f}")
 
 def visualize_test(model_name, episode_count=20, seed=42):
-    model, env = _load_PPO_model(model_name, seed=seed)
+    model, env = load_PPO_model(model_name, seed=seed)
     obs = env.reset()
     episode_count = 0
     while episode_count < 10:
         action, _states = model.predict(obs, deterministic=True)
-        obs, reward, done, info = env.step(action)
-        [agent_x, agent_y] = info[0]["play_infos"]["agent"]["cur_location"]
+        obs, reward, dones, infos = env.step(action)
+        done, info = dones[0], infos[0]
+        [agent_x, agent_y] = info["play_infos"]["agent"]["cur_location"]
         print(f"action={action}, reward={reward}, agent=({agent_x}, {agent_y})")
         if done:
             episode_count += 1
 
-def _load_PPO_model(saved_model_name, seed=42, render_mode_human=True):
+def load_PPO_model(saved_model_name, seed=42, render_mode_human=True):
     np.random.seed(seed)
     random.seed(seed)
 
@@ -139,7 +141,10 @@ def _load_PPO_model(saved_model_name, seed=42, render_mode_human=True):
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
     env = VecNormalize(env, norm_obs=False, norm_reward=True)
-    model = PPO.load(f"saved/ppo/{saved_model_name}", env=env)
+
+    base_dir = Path(__file__).resolve().parent
+    model_path = base_dir / "saved" / "ppo" / saved_model_name
+    model = PPO.load(str(model_path), env=env)
     return model, env
 
 # NOTE: tuning tips

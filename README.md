@@ -33,6 +33,7 @@ python run_pedestrian.py --debug
 - 100~999 : analysis test
   - 100: always use crosswalk
   - 101: never cross RED without crosswalk
+  - 500: PPO model simulation (optimal policy)
 - 1000 ~ : experiment
 
 ## Run experiment
