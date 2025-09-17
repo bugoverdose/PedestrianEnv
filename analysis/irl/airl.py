@@ -1,0 +1,150 @@
+# needed to import `pedestrian_env` module
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+import random
+import numpy as np
+
+import torch
+import torch.nn as nn
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecMonitor
+from stable_baselines3.common.evaluation import evaluate_policy
+from imitation.algorithms.adversarial import airl
+from imitation.rewards.reward_nets import BasicRewardNet
+from imitation.util import logger
+
+from pedestrian_env.envs import PedestrianEnv
+from util import load_subject_play_log, load_traj, FixedHorizonEnvWrapper
+
+def run_AIRL(
+        subjId,
+        ppo_n_steps,
+        gen_train_timesteps,
+        airl_train_n_rounds,
+        gen_replay_buffer_capacity=1,
+        seed=42,
+    ):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    log_dir = f"./tb_logs/{subjId}/"
+    save_dir = f"./saved/{subjId}/"
+    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(save_dir, exist_ok=True)
+
+    def make_env():
+        _, max_traj_size, episodes = load_subject_play_log(subjId = subjId)
+        env = PedestrianEnv(fixed_episode_seed_range=episodes)
+        env = FixedHorizonEnvWrapper(env, max_traj_size)
+        env.reset(seed=None) # use seed from `fixed_episode_seed_range`
+        return env
+    env = DummyVecEnv([make_env])
+    env = VecMonitor(env)
+    env = VecNormalize(env, norm_obs=False, norm_reward=True) # `norm_obs=False` finds the optimal policy for PPO
+
+    gen_algo = PPO(
+        "MlpPolicy",
+        env,
+        learning_rate=1e-4,
+        n_steps=ppo_n_steps,
+        batch_size=32,
+        n_epochs=8,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        ent_coef=0.01,
+        vf_coef=0.5,
+        tensorboard_log=f"{log_dir}ppo/",
+        policy_kwargs=dict(net_arch=[256, 256, 256], activation_fn=nn.Tanh), # or nn.LeakyReLU
+        verbose=1,
+        seed=seed,
+    )
+    reward_net = BasicRewardNet(
+        env.observation_space,
+        env.action_space,
+        use_state=True,
+        use_action=True,
+        use_next_state=False,
+        use_done=False,
+    )
+    custom_logger = logger.configure(
+        folder=log_dir,
+        format_strs=["stdout", "csv", "tensorboard"],
+    )
+    trainer = airl.AIRL(
+        demonstrations=load_traj(subjId = subjId),
+        demo_batch_size=256,
+        # demo_minibatch_size=demo_batch_size,
+        venv=env,
+        gen_algo=gen_algo,
+        reward_net=reward_net,
+
+        # The number of discriminator updates after each round of generator updates in AdversarialTrainer.learn().
+        # # default: 2
+        # n_disc_updates_per_round=2,
+
+        # The number of steps to train the generator policy for each iteration.
+        # If None, then defaults to the batch size (for on-policy) or number of environments (for off-policy).
+        # default: gen_algo.n_steps * gen_algo_env.num_envs
+        gen_train_timesteps=gen_train_timesteps,
+
+        # The capacity of the generator replay buffer (the number of obs-action-obs samples from
+        # the generator that can be stored). By default this is equal to `gen_train_timesteps`, meaning that we sample only from the most recent batch of generator samples.
+        # # default: gen_train_timesteps
+        gen_replay_buffer_capacity=gen_train_timesteps * gen_replay_buffer_capacity,
+
+        log_dir=log_dir,
+        custom_logger=custom_logger,
+        init_tensorboard=True, # If True, makes various discriminator TensorBoard summaries.
+        init_tensorboard_graph=True, # If both this and `init_tensorboard` are True, then write a Tensorboard graph summary to disk.
+    )
+
+    # train: `train_gen(self.gen_train_timesteps)` => `train_disc` => `callback(round)`
+    eval_env = make_env()
+    trainer.train(
+        total_timesteps=gen_train_timesteps * airl_train_n_rounds,
+        callback=evaluate_callback(gen_algo, eval_env, custom_logger, n_episodes=100)
+    )
+    eval_env.close()
+
+    torch.save({
+        'model_state_dict': reward_net.state_dict(),
+        'obs_space': reward_net.observation_space,
+        'action_space': reward_net.action_space
+    }, f"{save_dir}reward_net.pt")
+    gen_algo.save(f"{save_dir}generator_ppo.zip")
+
+def evaluate_callback(gen_algo, eval_env, log, n_episodes=100):
+    def _callback_fn(round):
+        mean_rew, std_rew = evaluate_policy(
+            gen_algo,
+            eval_env,
+            n_eval_episodes=n_episodes,
+            deterministic=True
+        )
+        log.record("eval/mean_reward", float(mean_rew))
+        log.record("eval/std_reward", float(std_rew))
+        log.dump(step=int(gen_algo.num_timesteps))
+    return _callback_fn
+
+if __name__ == "__main__":
+    ppo_n_steps=512
+    gen_train_timesteps = ppo_n_steps * 1
+    airl_train_n_rounds = 2000 # about (1_000_000 // gen_train_timesteps) + 1
+
+    total_timesteps = gen_train_timesteps * airl_train_n_rounds
+    # print(f"gen_train_timesteps={gen_train_timesteps}, airl_train_n_rounds={airl_train_n_rounds}, total_timesteps={total_timesteps}")
+    # gen_train_timesteps=512, airl_train_n_rounds=2000, total_timesteps=1024000
+
+    # load_traj(subjId=1)
+    run_AIRL(
+        subjId=500,
+        ppo_n_steps=ppo_n_steps,
+        gen_train_timesteps=gen_train_timesteps,
+        airl_train_n_rounds=airl_train_n_rounds,
+    )
