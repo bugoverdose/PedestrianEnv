@@ -186,7 +186,7 @@ def tuning(
 #     return f
 
 if __name__ == "__main__":
-    # Takes time to learn, but optimal solution
+    # # Takes time to learn, but optimal solution
     model_name="ppo_v9_LeakyReLU_norm_obs_F_1" # norm_obs=False
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
@@ -201,6 +201,21 @@ if __name__ == "__main__":
     # test score: 1912.0000
     visualize_test(model_name)
 
+    # # almost optimal : goes back even when the car is only on the front lane and can't hit the agent
+    # model_name="ppo_v9_Tanh_norm_obs_F_1" # norm_obs=False
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=32,
+    #        n_epochs=4,
+    #        activation_fn=nn.Tanh,
+    #        total_timesteps=1_000_000)
+    # # ppo_v9_Tanh_norm_obs_F_1
+    # # test score: 1817.5000
+    # test_policy(model_name)
+    # # test score: 1702.5000
+    # visualize_test(model_name)
+
     # model_name="ppo_v9_LeakyReLU_1"
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
@@ -214,6 +229,20 @@ if __name__ == "__main__":
     # test_policy(model_name)
     # # test score: 1833.0000
     # visualize_test(model_name)
+
+    # ======================
+
+    # model_name="ppo_v9_ReLU_norm_obs_F_1" # norm_obs=False
+    # tuning(model_name=model_name,
+    #        net_arch=[256, 256, 256],
+    #        n_steps=512,
+    #        batch_size=32,
+    #        n_epochs=4,
+    #        activation_fn=nn.ReLU,
+    #        total_timesteps=1_000_000)
+    # ppo_v9_ReLU_norm_obs_F_1
+    # test score: 1581.5000
+    # test score: 1595.0000
 
     # ======================
     # model_name="ppo_v9_LeakyReLU_4"
