@@ -19,7 +19,7 @@ def load_subject_play_log(subjId):
     episodes = [int(e.strip()) for e in episodes]
     return full_log_list, max_traj_size, episodes
 
-def load_traj(subjId):
+def load_traj(subjId, fixed_horizon=True):
     full_log_list, max_traj_size, _ = load_subject_play_log(subjId)
     expert_trajectories = []
     for full_log in full_log_list:
@@ -28,7 +28,16 @@ def load_traj(subjId):
         actions = full_log["actions"]
         rewards = full_log["rewards"]
         infos = [{"play_infos": pl, "episode_metadata": episode_metadata} for pl in full_log["play_infos"][1:]]
-        traj = create_fixed_horizon_trajectory(observations, actions, rewards, infos, max_traj_size)
+        if fixed_horizon:
+            traj = create_fixed_horizon_trajectory(observations, actions, rewards, infos, max_traj_size)
+        else:
+            traj = TrajectoryWithRew(
+                obs=np.asarray(observations),
+                acts=actions,
+                rews=rewards,
+                infos=infos,
+                terminal=True
+            )
         expert_trajectories.append(traj)
     return expert_trajectories
 

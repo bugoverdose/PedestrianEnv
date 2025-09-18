@@ -23,10 +23,13 @@ def train_AIRL(
         ppo_n_steps,
         gen_train_timesteps,
         airl_train_n_rounds,
-        gen_replay_buffer_capacity=1,
+        gen_replay_buffer_capacity=None,
         n_disc_updates_per_round=2,
+        disc_optimizer_lr=1e-3,
+        disc_optimizer_weight_decay=0,
         reward_net_hid_sizes=[32, 32],
         reward_net_activation=nn.Tanh,
+        use_fixed_episodes=True,
         seed=42,
         sub_dir=None,
     ):
@@ -43,9 +46,14 @@ def train_AIRL(
 
     def make_env():
         _, max_traj_size, episodes = load_subject_play_log(subjId = subjId)
-        env = PedestrianEnv(fixed_episode_seed_range=episodes)
-        env = FixedHorizonEnvWrapper(env, max_traj_size)
-        env.reset(seed=None) # use seed from `fixed_episode_seed_range`
+        if use_fixed_episodes:
+            env = PedestrianEnv(fixed_episode_seed_range=episodes)
+            env = FixedHorizonEnvWrapper(env, max_traj_size)
+            env.reset(seed=None) # use seed from `fixed_episode_seed_range`
+        else:
+            env = PedestrianEnv()
+            env = FixedHorizonEnvWrapper(env, max_traj_size)
+            env.reset(seed=seed)
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
@@ -91,10 +99,13 @@ def train_AIRL(
         # default: gen_algo.n_steps * gen_algo_env.num_envs
         gen_train_timesteps=gen_train_timesteps,
 
-        # The capacity of the generator replay buffer (the number of obs-action-obs samples from
-        # the generator that can be stored). By default this is equal to `gen_train_timesteps`, meaning that we sample only from the most recent batch of generator samples.
-        # # default: gen_train_timesteps
+        # The capacity of the generator replay buffer (the number of obs-action-obs samples from the generator that can be stored). 
+        # By default this is equal to `gen_train_timesteps`, meaning that we sample only from the most recent batch of generator samples.
+        # default: gen_train_timesteps
         gen_replay_buffer_capacity=gen_train_timesteps * gen_replay_buffer_capacity,
+
+        # default for Adam: dict(lr=1e-3, weight_decay=0),
+        disc_opt_kwargs=dict(lr=disc_optimizer_lr, weight_decay=disc_optimizer_weight_decay),
 
         log_dir=log_dir,
         custom_logger=logger.configure(
@@ -113,8 +124,8 @@ def train_AIRL(
     )
     def evaluate_callback(round):
         mean_rew, std_rew = evaluate_policy(gen_algo, eval_env, n_eval_episodes=100, deterministic=True)
-        eval_log.record("mean_reward", float(mean_rew))
-        eval_log.record("std_reward", float(std_rew))
+        eval_log.record("eval/mean_reward", float(mean_rew))
+        eval_log.record("eval/std_reward", float(std_rew))
         eval_log.dump(step=int(gen_algo.num_timesteps))
     trainer.train(total_timesteps=gen_train_timesteps * airl_train_n_rounds, callback=evaluate_callback)
     eval_env.close()
@@ -128,35 +139,221 @@ def train_AIRL(
 
 if __name__ == "__main__":
     ppo_n_steps=512
-    gen_train_timesteps = ppo_n_steps * 1
-    airl_train_n_rounds = 3000 # about (1_500_000 // gen_train_timesteps)
-
-    total_timesteps = gen_train_timesteps * airl_train_n_rounds
+    # gen_train_timesteps = ppo_n_steps * 1
+    # airl_train_n_rounds = 3000 # about (1_500_000 // gen_train_timesteps)
+    # total_timesteps = gen_train_timesteps * airl_train_n_rounds
     # print(f"gen_train_timesteps={gen_train_timesteps}, airl_train_n_rounds={airl_train_n_rounds}, total_timesteps={total_timesteps}")
-    # gen_train_timesteps=512, airl_train_n_rounds=3000, total_timesteps=1536000
+
+    # Best so far
+    # raw/disc/disc_acc_expert = 0.5 정도
+    # raw/disc/disc_acc_gen = 0.6 => 0.7로 우상향 => 해결 필요
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     disc_optimizer_lr=1e-3,
+    #     disc_optimizer_weight_decay=1e-4,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3_1_disc_lr1e-3_disc_wd1e-4/",
+    # )
+
+    train_AIRL(
+        subjId=500,
+        ppo_n_steps=ppo_n_steps,
+        gen_train_timesteps=ppo_n_steps * 1,
+        gen_replay_buffer_capacity=3,
+        airl_train_n_rounds=4000,
+        n_disc_updates_per_round=1,
+        disc_optimizer_lr=1e-3,
+        disc_optimizer_weight_decay=1e-4,
+        reward_net_hid_sizes=[256, 256, 256],
+        reward_net_activation=nn.Tanh,
+        use_fixed_episodes=False,
+        sub_dir="3_256_3_1_disc_lr1e-3_disc_wd1e-4_F/",
+    )
+
+    # ===========================================
+
+    # mean_reward = 1500 => 805.8081
+    # mean/disc/disc_acc = 0.6756
+    # mean/disc/disc_acc_expert = 0.6142
+    # mean/disc/disc_acc_gen = 0.737
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     disc_optimizer_lr=1e-3,
+    #     disc_optimizer_weight_decay=0,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3_1/",
+    # )
+
+    # similar to 3_256_3_1
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     disc_optimizer_lr=1e-3,
+    #     disc_optimizer_weight_decay=0,
+    #     reward_net_hid_sizes=[256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="2_256_3_1/",
+    # )
+
+    # ===========================================
+
+    # takes almost 4000 rounds for the accuracy to drop near 0.5
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     disc_optimizer_lr=1e-4,
+    #     disc_optimizer_weight_decay=0,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3_1_disc_lr1e-4_disc_wd0/",
+    # )
+
+    # didn't drop to 0.5 during 4000 steps
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     disc_optimizer_lr=1e-4,
+    #     disc_optimizer_weight_decay=1e-4,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3_1_disc_lr1e-4_disc_wd1e-4/",
+    # )
+
+    # BAD: hid_sizes=[128, 128]
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[128, 128],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="2_128_3_1/",
+    # )
+
+    # worse than 3_256_3_1
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=10,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_10_1/",
+    # )
+
+    # episode reward < 1000, accuracy = 0.8
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 2,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3_2/",
+    # )
+
+    # episode reward < 1000, accuracy = 0.8
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 4,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3_4/",
+    # )
+
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=3,
+    #     airl_train_n_rounds=12000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_3/",
+    # )
+
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=1,
+    #     airl_train_n_rounds=4000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_1/",
+    # )
+
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     gen_replay_buffer_capacity=2,
+    #     airl_train_n_rounds=8000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_256_2/",
+    # )
+
 
     # airl_train_n_rounds = 3000
     # train_AIRL(
     #     subjId=500,
     #     ppo_n_steps=ppo_n_steps,
-    #     gen_train_timesteps=gen_train_timesteps,
-    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     airl_train_n_rounds=3000,
     #     n_disc_updates_per_round=1,
     #     reward_net_hid_sizes=[128, 128, 128],
     #     reward_net_activation=nn.Tanh,
     #     sub_dir="3_128_2/",
     # )
 
-    train_AIRL(
-        subjId=500,
-        ppo_n_steps=ppo_n_steps,
-        gen_train_timesteps=gen_train_timesteps,
-        airl_train_n_rounds=airl_train_n_rounds,
-        n_disc_updates_per_round=1,
-        reward_net_hid_sizes=[256, 256, 256],
-        reward_net_activation=nn.Tanh,
-        sub_dir="3_128_4/",
-    )
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     airl_train_n_rounds=3000,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[256, 256, 256],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_128_4/",
+    # )
 
     # Terrible
     # 500/3_128_3
@@ -164,8 +361,8 @@ if __name__ == "__main__":
     # train_AIRL(
     #     subjId=500,
     #     ppo_n_steps=ppo_n_steps,
-    #     gen_train_timesteps=gen_train_timesteps,
-    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     airl_train_n_rounds=3000,
     #     n_disc_updates_per_round=1,
     #     reward_net_hid_sizes=[128, 128, 128],
     #     reward_net_activation=nn.LeakyReLU,
@@ -176,8 +373,8 @@ if __name__ == "__main__":
     # train_AIRL(
     #     subjId=500,
     #     ppo_n_steps=ppo_n_steps,
-    #     gen_train_timesteps=gen_train_timesteps,
-    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     airl_train_n_rounds=3000,
     #     n_disc_updates_per_round=2,
     #     reward_net_hid_sizes=[128, 128, 128],
     #     reward_net_activation=nn.Tanh,
@@ -188,8 +385,8 @@ if __name__ == "__main__":
     # train_AIRL(
     #     subjId=500,
     #     ppo_n_steps=ppo_n_steps,
-    #     gen_train_timesteps=gen_train_timesteps,
-    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     airl_train_n_rounds=2000,
     #     n_disc_updates_per_round=2,
     #     reward_net_hid_sizes=[32, 32],
     #     reward_net_activation=nn.ReLU,
@@ -200,8 +397,8 @@ if __name__ == "__main__":
     # train_AIRL(
     #     subjId=500,
     #     ppo_n_steps=ppo_n_steps,
-    #     gen_train_timesteps=gen_train_timesteps,
-    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     gen_train_timesteps=ppo_n_steps * 1,
+    #     airl_train_n_rounds=3000,
     #     n_disc_updates_per_round=1,
     #     reward_net_hid_sizes=[32, 32],
     #     reward_net_activation=nn.ReLU,
