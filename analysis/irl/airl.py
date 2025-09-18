@@ -18,13 +18,17 @@ from imitation.util import logger
 from pedestrian_env.envs import PedestrianEnv
 from util import load_subject_play_log, load_traj, FixedHorizonEnvWrapper
 
-def run_AIRL(
+def train_AIRL(
         subjId,
         ppo_n_steps,
         gen_train_timesteps,
         airl_train_n_rounds,
         gen_replay_buffer_capacity=1,
+        n_disc_updates_per_round=2,
+        reward_net_hid_sizes=[32, 32],
+        reward_net_activation=nn.Tanh,
         seed=42,
+        sub_dir=None,
     ):
     np.random.seed(seed)
     random.seed(seed)
@@ -32,8 +36,8 @@ def run_AIRL(
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-    log_dir = f"./tb_logs/{subjId}/"
-    save_dir = f"./saved/{subjId}/"
+    log_dir = f"./tb_logs/{subjId}/{sub_dir}"
+    save_dir = f"./saved/{subjId}/{sub_dir}"
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(save_dir, exist_ok=True)
 
@@ -67,14 +71,8 @@ def run_AIRL(
     reward_net = BasicRewardNet(
         env.observation_space,
         env.action_space,
-        use_state=True,
-        use_action=True,
-        use_next_state=False,
-        use_done=False,
-    )
-    custom_logger = logger.configure(
-        folder=log_dir,
-        format_strs=["stdout", "csv", "tensorboard"],
+        hid_sizes=reward_net_hid_sizes, # (128, 128)
+        activation=reward_net_activation, # nn.Tanh
     )
     trainer = airl.AIRL(
         demonstrations=load_traj(subjId = subjId),
@@ -86,7 +84,7 @@ def run_AIRL(
 
         # The number of discriminator updates after each round of generator updates in AdversarialTrainer.learn().
         # # default: 2
-        # n_disc_updates_per_round=2,
+        n_disc_updates_per_round=n_disc_updates_per_round,
 
         # The number of steps to train the generator policy for each iteration.
         # If None, then defaults to the batch size (for on-policy) or number of environments (for off-policy).
@@ -99,17 +97,26 @@ def run_AIRL(
         gen_replay_buffer_capacity=gen_train_timesteps * gen_replay_buffer_capacity,
 
         log_dir=log_dir,
-        custom_logger=custom_logger,
+        custom_logger=logger.configure(
+            folder=log_dir,
+            format_strs=["stdout", "csv", "tensorboard"],
+        ),
         init_tensorboard=True, # If True, makes various discriminator TensorBoard summaries.
         init_tensorboard_graph=True, # If both this and `init_tensorboard` are True, then write a Tensorboard graph summary to disk.
     )
 
     # train: `train_gen(self.gen_train_timesteps)` => `train_disc` => `callback(round)`
     eval_env = make_env()
-    trainer.train(
-        total_timesteps=gen_train_timesteps * airl_train_n_rounds,
-        callback=evaluate_callback(gen_algo, eval_env, custom_logger, n_episodes=100)
+    eval_log = logger.configure(
+        folder=f"{log_dir}/eval",
+        format_strs=["stdout", "csv", "tensorboard"],
     )
+    def evaluate_callback(round):
+        mean_rew, std_rew = evaluate_policy(gen_algo, eval_env, n_eval_episodes=100, deterministic=True)
+        eval_log.record("mean_reward", float(mean_rew))
+        eval_log.record("std_reward", float(std_rew))
+        eval_log.dump(step=int(gen_algo.num_timesteps))
+    trainer.train(total_timesteps=gen_train_timesteps * airl_train_n_rounds, callback=evaluate_callback)
     eval_env.close()
 
     torch.save({
@@ -119,32 +126,86 @@ def run_AIRL(
     }, f"{save_dir}reward_net.pt")
     gen_algo.save(f"{save_dir}generator_ppo.zip")
 
-def evaluate_callback(gen_algo, eval_env, log, n_episodes=100):
-    def _callback_fn(round):
-        mean_rew, std_rew = evaluate_policy(
-            gen_algo,
-            eval_env,
-            n_eval_episodes=n_episodes,
-            deterministic=True
-        )
-        log.record("eval/mean_reward", float(mean_rew))
-        log.record("eval/std_reward", float(std_rew))
-        log.dump(step=int(gen_algo.num_timesteps))
-    return _callback_fn
-
 if __name__ == "__main__":
     ppo_n_steps=512
     gen_train_timesteps = ppo_n_steps * 1
-    airl_train_n_rounds = 2000 # about (1_000_000 // gen_train_timesteps) + 1
+    airl_train_n_rounds = 3000 # about (1_500_000 // gen_train_timesteps)
 
     total_timesteps = gen_train_timesteps * airl_train_n_rounds
     # print(f"gen_train_timesteps={gen_train_timesteps}, airl_train_n_rounds={airl_train_n_rounds}, total_timesteps={total_timesteps}")
-    # gen_train_timesteps=512, airl_train_n_rounds=2000, total_timesteps=1024000
+    # gen_train_timesteps=512, airl_train_n_rounds=3000, total_timesteps=1536000
 
-    # load_traj(subjId=1)
-    run_AIRL(
+    # airl_train_n_rounds = 3000
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=gen_train_timesteps,
+    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[128, 128, 128],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_128_2/",
+    # )
+
+    train_AIRL(
         subjId=500,
         ppo_n_steps=ppo_n_steps,
         gen_train_timesteps=gen_train_timesteps,
         airl_train_n_rounds=airl_train_n_rounds,
+        n_disc_updates_per_round=1,
+        reward_net_hid_sizes=[256, 256, 256],
+        reward_net_activation=nn.Tanh,
+        sub_dir="3_128_4/",
     )
+
+    # Terrible
+    # 500/3_128_3
+    # airl_train_n_rounds = 3000
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=gen_train_timesteps,
+    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[128, 128, 128],
+    #     reward_net_activation=nn.LeakyReLU,
+    #     sub_dir="3_128_3/",
+    # )
+
+    # # airl_train_n_rounds = 3000
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=gen_train_timesteps,
+    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     n_disc_updates_per_round=2,
+    #     reward_net_hid_sizes=[128, 128, 128],
+    #     reward_net_activation=nn.Tanh,
+    #     sub_dir="3_128_1/",
+    # )
+
+    # airl_train_n_rounds = 2000
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=gen_train_timesteps,
+    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     n_disc_updates_per_round=2,
+    #     reward_net_hid_sizes=[32, 32],
+    #     reward_net_activation=nn.ReLU,
+    #     sub_dir="1/",
+    # )
+    
+    # airl_train_n_rounds = 3000
+    # train_AIRL(
+    #     subjId=500,
+    #     ppo_n_steps=ppo_n_steps,
+    #     gen_train_timesteps=gen_train_timesteps,
+    #     airl_train_n_rounds=airl_train_n_rounds,
+    #     n_disc_updates_per_round=1,
+    #     reward_net_hid_sizes=[32, 32],
+    #     reward_net_activation=nn.ReLU,
+    #     sub_dir="2/",
+    # )
+    
+    # load_traj(subjId=1)
