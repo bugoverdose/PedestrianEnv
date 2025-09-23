@@ -593,26 +593,26 @@ class PedestrianEnv(gym.Env):
         assert len(obs) == 13
 
         # Target road info
-        prev_road = None # the road that the agent previously crossed
-        target_road = None # the road that the agent is crossing or should cross
+        self.prev_road = None # the road that the agent previously crossed
+        self.target_road = None # the road that the agent is crossing or should cross
+        self.target_road_crosswalk_visible = False
         for i in range(len(self.world.roads.elements), 0, -1):
             road = self.world.roads.elements[i-1]
             if road.top_y > agent_y:
-                prev_road = road
+                self.prev_road = road
                 continue # already crossed
-            target_road = road
+            self.target_road = road
             break
         if target_road_info:
-            crosswalk_visible = 0.0
             penalty = 0.0
             dist_end_of_target_road = 1.0
             dist_start_of_target_road = 0.0
             visible_car_count = 0
             dangerous_car_counts = [0, 0, 0, 0, 0, 0]
-            if target_road is not None:
-                if target_road.crosswalk is not None:
-                    if is_overlapping(target_road.crosswalk.left_end, target_road.crosswalk.right_end, grid_x_left_end, grid_x_right_end):
-                        crosswalk_visible = 1.0
+            if self.target_road is not None:
+                if self.target_road.crosswalk is not None:
+                    if is_overlapping(self.target_road.crosswalk.left_end, self.target_road.crosswalk.right_end, grid_x_left_end, grid_x_right_end):
+                        self.target_road_crosswalk_visible = True
                 penalty = road.risk_detail.penalty.value / self.max_car_penalty
                 is_crossing = road.bottom_y >= agent_y >= road.top_y
                 if is_crossing:
@@ -647,6 +647,7 @@ class PedestrianEnv(gym.Env):
                 # NOTE: each road can have maximum of 6 cars
                 visible_car_count /= 6
                 dangerous_car_counts = [cnt / 6 for cnt in dangerous_car_counts]
+            crosswalk_visible = 1.0 if self.target_road_crosswalk_visible else 0.0
             obs += [crosswalk_visible, penalty, dist_end_of_target_road, dist_start_of_target_road, visible_car_count]
             obs += dangerous_car_counts
             # print("crosswalk_visible:", crosswalk_visible)
@@ -727,8 +728,8 @@ class PedestrianEnv(gym.Env):
                 left_cars = []
                 right_cars = []
                 # only consider the roads near the agent
-                is_prev_road = prev_road is not None and prev_road.top_y <= grid_y <= prev_road.bottom_y
-                is_target_road = target_road is not None and target_road.top_y <= grid_y <= target_road.bottom_y
+                is_prev_road = self.prev_road is not None and self.prev_road.top_y <= grid_y <= self.prev_road.bottom_y
+                is_target_road = self.target_road is not None and self.target_road.top_y <= grid_y <= self.target_road.bottom_y
                 if is_prev_road or is_target_road:
                     for car in self.world.row_to_cars_dict[grid_y]:
                         car_left_x, car_right_x = car.get_cur_x_pos()
@@ -868,20 +869,11 @@ class PedestrianEnv(gym.Env):
         [visible_top_y_end, visible_bottom_y_end, visible_x_left_end, visible_x_right_end] = game_screen_rect
 
         visible_cars_per_lane = {}
-        prev_road = None # the road that the agent previously crossed
-        target_road = None # the road that the agent is crossing or should cross
-        for i in range(len(self.world.roads.elements), 0, -1):
-            road = self.world.roads.elements[i-1]
-            if road.top_y > agent_grid_y:
-                prev_road = road
-                continue # already crossed
-            target_road = road
-            break
         # only consider until 4 rows ahead of agent since maximum road size is 4
         for grid_y in range(agent_grid_y - 4, grid_bottom_y + 1):
             # only consider the roads near the agent
-            is_prev_road = prev_road is not None and prev_road.top_y <= grid_y <= prev_road.bottom_y
-            is_target_road = target_road is not None and target_road.top_y <= grid_y <= target_road.bottom_y
+            is_prev_road = self.prev_road is not None and self.prev_road.top_y <= grid_y <= self.prev_road.bottom_y
+            is_target_road = self.target_road is not None and self.target_road.top_y <= grid_y <= self.target_road.bottom_y
             if not is_prev_road and not is_target_road: continue
             cars = []
             for car in self.world.row_to_cars_dict[grid_y]:
@@ -923,6 +915,8 @@ class PedestrianEnv(gym.Env):
                 "visible_x_left_end": visible_x_left_end, 
                 "visible_x_right_end": visible_x_right_end,
 
+                "target_road_uid": self.target_road.uid if self.target_road is not None else None,
+                "target_road_crosswalk_visible": self.target_road_crosswalk_visible,
                 "activated_crosswalk_uid": self.world.roads.activated_crosswalk_uid,
             },
             "agent": {
