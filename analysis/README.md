@@ -36,3 +36,9 @@ The training process for each model can be analyzed using [TensorBoard](http://l
 tensorboard --logdir=./rl/tb_logs
 tensorboard --logdir=./irl/tb_logs
 ```
+
+## Jupyter Notebook
+
+```bash
+jupyter notebook ~.ipynb
+```
