@@ -4,36 +4,38 @@ from datetime import datetime
 
 import numpy as np
 
+from pedestrian_env.envs import PedestrianEnv
 from analysis.rl.ppo import load_PPO_model, test_policy
 
-def play_episode(model, env):
-    obs = env.reset()
-    episode_metadata = None
-    play_infos = [{}]
-    observations = [obs[0]]
+def play_episode(model, env, episode_seed):
+    obs, info = env.reset(seed=episode_seed)
+    episode_metadata = {"env_configuration": info["env_configuration"], "episode_configuration": info["episode_configuration"]}
+    play_infos = [info["play_infos"]]
+    observations = [obs]
     actions = []
     rewards = []
 
     while True:
         action, _states = model.predict(obs, deterministic=True)
-        obs, reward, dones, infos = env.step(action)
-        done, info = dones[0], infos[0]
+        obs, reward, terminated, truncated, info = env.step(int(action))
         if episode_metadata is None:
             episode_metadata = {"env_configuration": info["env_configuration"], "episode_configuration": info["episode_configuration"]}
         play_infos.append(info["play_infos"])
-        observations.append(obs[0])
-        actions.append(action[0])
-        rewards.append(reward[0])
-        if done: break
+        observations.append(obs)
+        actions.append(action)
+        rewards.append(reward)
+        if terminated or truncated: break
     return episode_metadata, observations, actions, rewards, play_infos
 
-def play_game(model, env, base_dir, session_id, max_episodes, base_seed=0):
+def play_game(model, base_dir, session_id, max_episodes, base_seed=0):
     episode_count = 0
+    env = PedestrianEnv()
     while True:
         if episode_count >= max_episodes: break
         episode_count += 1
         episode_id = session_id * 1000 + episode_count # assumes that each session is less than 1000 episodes
-        episode_metadata, observations, actions, rewards, play_infos = play_episode(model, env)
+        episode_seed = base_seed + episode_id
+        episode_metadata, observations, actions, rewards, play_infos = play_episode(model, env, episode_seed)
         # NOTE: .npy is more lightweight than CSV because it stores data in pure binary format
         os.makedirs(f"{base_dir}/{episode_id:04d}", exist_ok=True)
         np.save(f"{base_dir}/{episode_id:04d}/observations.npy", np.array(observations))
@@ -46,9 +48,9 @@ def play_game(model, env, base_dir, session_id, max_episodes, base_seed=0):
 if __name__ == "__main__":
     optimal_policy_model_name = "ppo_v9_LeakyReLU_norm_obs_F_1"
     test_policy(optimal_policy_model_name)
-    model, env = load_PPO_model(optimal_policy_model_name, render_mode_human=False)
+    model, _ = load_PPO_model(optimal_policy_model_name, render_mode_human=False)
 
-    subj_id = 500
+    subj_id = 502
     seed = 0
     max_episodes = 50
     base_dir = f"data/{subj_id}"
@@ -61,4 +63,4 @@ if __name__ == "__main__":
                     + f"Subject ID: {subj_id}\n"
                     + f"Session ID: {session_id}\n"
                     + f"Play start time: {dt.year}.{dt.month}.{dt.day} {dt.hour}:{dt.minute}:{dt.second}")
-        play_game(model, env, base_dir=base_dir, session_id=session_id, base_seed=seed, max_episodes=max_episodes)
+        play_game(model, base_dir=base_dir, session_id=session_id, base_seed=seed, max_episodes=max_episodes)

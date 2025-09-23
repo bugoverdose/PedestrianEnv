@@ -25,6 +25,7 @@ python run_pedestrian.py --subjId=100 --sessionId=1 --max_seconds=900
 python run_pedestrian.py --subjId=100 --sessionId=2 --max_seconds=900
 python run_pedestrian.py --max_episodes=10 --seed=1000
 python run_pedestrian.py --debug
+python run_pedestrian_with_trained_model.py
 ```
 
 ### Subject ID
@@ -33,7 +34,8 @@ python run_pedestrian.py --debug
 - 100~999 : analysis test
   - 100: always use crosswalk
   - 101: never cross RED without crosswalk
-  - 500: PPO model simulation (optimal policy)
+  - 500: PPO model simulation (optimal policy with Vectorized Env)
+  - 502: PPO model simulation (optimal policy with PedestrianEnv)
 - 1000 ~ : experiment
 
 ## Run experiment
