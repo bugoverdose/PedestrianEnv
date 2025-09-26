@@ -22,8 +22,8 @@ def preprocess(test = False):
 
         **_calculate_BIS(df),
         **_calculate_STAI(df),
+        **_calculate_DOSPERT(df),
         "game_play_time":  df["playtime_5"].astype(int),
-        # **expand("DOSPERT", 30),
         # **expand("CES-D", 20),
         # **expand("K-IGDS", 27),
         # **expand("K-IAT", 20),
@@ -51,6 +51,7 @@ def _calculate_BIS(df):
     for q in reverse_scored_questions:
         _apply_reverse_scoring(df, f"BIS_{q}", min_score = 1, max_score = 4)
     print(f"BIS_1: {prev_BIS_1} => {df['BIS_1'].to_list()}")
+
     # 허심양, 오주용, & 김지혜. (2012). 한국판 Barratt 충동성 검사-11 의 신뢰도 및 타당도 연구. 한국심리학회지: 일반, 31(3), 769-782.
     motor_impulsivity_questions = [2, 3, 4, 16, 17, 19, 21, 22, 23, 25, 30] # 운동 충동성 (11)
     nonplanning_impulsivity_questions = [1, 7, 8, 10, 12, 13, 14, 15, 18, 27, 29] # 무계획성 충동성 (11)
@@ -92,6 +93,33 @@ def _calculate_STAI(df):
         "STAI_T": STAI_T, # 20 ~ 80
     }
 
+def _calculate_DOSPERT(df):
+    all_questions = [f"DOSPERT_{i+1}" for i in range(30)]
+    df[all_questions] = df[all_questions].astype(int)
+
+    # Hong et al (2010). BART와 K-DOSPERT로 알아본 한국인의 위험감수경향
+    ethical_questions = [6, 9, 10, 16, 29, 30] # 윤리, ETH (6)
+    financial_questions = [3, 4, 8, 12, 14, 18] # 경제, FIN (6)
+    health_safety_questions = [5, 15, 17, 20, 23, 26] # 건강/안전, HEA (6)
+    recreational_questions = [2, 11, 13, 19, 24, 25] # 오락, REC (6)
+    social_questions = [1, 7, 21, 22, 27, 28] # 사회성, SOC (6)
+    assert len(set(ethical_questions + financial_questions + health_safety_questions + recreational_questions + social_questions)) == 30
+
+    DOSPERT_total = df[all_questions].sum(axis=1)
+    DOSPERT_ethical = df[[f"DOSPERT_{i}" for i in ethical_questions]].sum(axis=1)
+    DOSPERT_financial = df[[f"DOSPERT_{i}" for i in financial_questions]].sum(axis=1)
+    DOSPERT_health_safety = df[[f"DOSPERT_{i}" for i in health_safety_questions]].sum(axis=1)
+    DOSPERT_recreational = df[[f"DOSPERT_{i}" for i in recreational_questions]].sum(axis=1)
+    DOSPERT_social = df[[f"DOSPERT_{i}" for i in social_questions]].sum(axis=1)
+    return {
+        "DOSPERT":     DOSPERT_total, # 30 ~ 150
+        "DOSPERT_ETH": DOSPERT_ethical, # 6 ~ 30
+        "DOSPERT_FIN": DOSPERT_financial, # 6 ~ 30
+        "DOSPERT_HEA": DOSPERT_health_safety, # 6 ~ 30
+        "DOSPERT_REC": DOSPERT_recreational, # 6 ~ 30
+        "DOSPERT_SOC": DOSPERT_social, # 6 ~ 30
+    }
+
 def group_analysis(df):
     print(f"\nTotal Subjects: {len(df)} ({df['subj_id'].tolist()})")
 
@@ -107,6 +135,10 @@ def group_analysis(df):
 
     print("\n#################################### STAI ####################################")
     for col in ["STAI", "STAI_S", "STAI_T"]:
+        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
+
+    print("\n################################### DOSPERT ##################################")
+    for col in ["DOSPERT", "DOSPERT_ETH", "DOSPERT_FIN", "DOSPERT_HEA", "DOSPERT_REC", "DOSPERT_SOC"]:
         print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
 
 def _apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
