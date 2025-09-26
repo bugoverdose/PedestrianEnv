@@ -32,7 +32,11 @@ def check_episode_full_log(subjId):
 def basic_statistics(subjId):
     subj_data_dir = data_dir(subjId)
     episodes = get_sorted_episodes(subj_data_dir)
-    episode_score_list = []
+    episode_scores_dict = {
+        "full": [],
+        "1": [],
+        "2": [],
+    }
     bonus_score_episode_cnt = 0
     run_over_episode_cnt = 0
     penalty_cnt_dict = {-100: 0, -500: 0, -1000: 0}
@@ -40,7 +44,9 @@ def basic_statistics(subjId):
     movement_list = []
     for episode in episodes:
         full_log = load_episode_full_log(subj_data_dir, episode)
-        episode_score_list.append(int(sum(full_log["rewards"])))
+        episode_reward = int(sum(full_log["rewards"]))
+        episode_scores_dict["full"].append(episode_reward)
+        episode_scores_dict[episode[0]].append(episode_reward)
 
         game_end_extra_score = full_log["play_infos"][-1]["game_info"]["game_end_extra_score"]
         if game_end_extra_score > 0:
@@ -58,13 +64,18 @@ def basic_statistics(subjId):
             movement.append(cur_pos)
         movement_list.append(movement)
 
-    total_score = sum(episode_score_list)
-    best_score = max(episode_score_list)
-    average_score = statistics.mean(episode_score_list)
-    score_stdev = statistics.stdev(episode_score_list)
-    scores = [total_score, best_score, average_score, score_stdev]
+    total_score_full = sum(episode_scores_dict["full"])
+    best_score_full = max(episode_scores_dict["full"])
+    average_score_full = statistics.mean(episode_scores_dict["full"])
+    score_stdev = statistics.stdev(episode_scores_dict["full"])
+    total_score_session1 = sum(episode_scores_dict["1"])
+    average_score_session1 = statistics.mean(episode_scores_dict["1"])
+    total_score_session2 = sum(episode_scores_dict["2"])
+    average_score_session2 = statistics.mean(episode_scores_dict["2"])
+    scores = [[total_score_full, best_score_full, average_score_full, score_stdev],
+              [total_score_session1, average_score_session1, total_score_session2, average_score_session2]]
 
-    total_episode_cnt = len(episode_score_list)
+    total_episode_cnt = len(episode_scores_dict["full"])
     bonus_score_episode_ratio = bonus_score_episode_cnt / total_episode_cnt
     timeover_episode_cnt = total_episode_cnt - (bonus_score_episode_cnt + run_over_episode_cnt)
     assert timeover_episode_cnt >= 0
@@ -227,13 +238,19 @@ def move_up_statistics(subjId):
 if __name__ == "__main__":
     # check_episode_full_log(502)
 
-    # scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics(502)
-    # [total_score, best_score, average_score, score_stdev] = scores
-    # print(f"Total Score: {total_score}")
-    # print(f"Best Score: {best_score}")
-    # print(f"Score Mean: {average_score}")
-    # print(f"Score STD: {score_stdev}")
-    # print()
+    scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics(502)
+    [full_scores, session_scores] = scores
+    [total_score, best_score, average_score, score_stdev] = full_scores
+    print(f"Total Score: {total_score}")
+    print(f"Best Score: {best_score}")
+    print(f"Score Mean: {average_score}")
+    print(f"Score STD: {score_stdev}")
+    [total_score_session1, average_score_session1, total_score_session2, average_score_session2] = session_scores
+    print(f"Total Score (Session 1): {total_score_session1}")
+    print(f"Score Mean (Session 1): {average_score_session1}")
+    print(f"Total Score (Session 2): {total_score_session2}")
+    print(f"Score Mean (Session 2): {average_score_session2}")
+    print()
 
     # [total_episode_cnt, bonus_score_episode_cnt, bonus_score_episode_ratio, timeover_episode_cnt, timeover_episode_ratio, run_over_episode_cnt, run_over_episode_ratio] = episode_results
     # print(f"Total Episodes: {total_episode_cnt}")
@@ -257,9 +274,9 @@ if __name__ == "__main__":
     # print(f"Visited Unique Tile Count Mean: {visited_unique_tile_cnt_mean}")
     # print(f"Visited Tile Unique Ratio Mean: {visited_tile_unique_ratio_mean}")
 
-    target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts = crosswalk_statistics(502)
-    print(f"Target Road total counts: {target_road_total_counts}")
-    print(f"Enter road with crosswalk: {enter_road_with_crosswalk_counts}")
-    print(f"Enter road without crosswalk: {enter_road_without_crosswalk_counts}")
-    print(f"Crosswalk used: {crosswalk_used_counts}")
-    print(f"Jaywalking: {jaywalking_counts}")
+    # target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts = crosswalk_statistics(502)
+    # print(f"Target Road total counts: {target_road_total_counts}")
+    # print(f"Enter road with crosswalk: {enter_road_with_crosswalk_counts}")
+    # print(f"Enter road without crosswalk: {enter_road_without_crosswalk_counts}")
+    # print(f"Crosswalk used: {crosswalk_used_counts}")
+    # print(f"Jaywalking: {jaywalking_counts}")
