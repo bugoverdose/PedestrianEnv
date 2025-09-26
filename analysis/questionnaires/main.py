@@ -41,13 +41,6 @@ def _calculate_age(df):
     age[response_month < birth_month] -= 1
     return age.astype(int)
 
-def demographics(df):
-    print(f"Total Subjects: {len(df)} ({df['subj_id'].tolist()})")
-    age = df["age"]
-    print(f"Age: mean = {age.mean()} ({age.min()} ~ {age.max()})")
-    gender = df["gender"]
-    print(f"Gender: {len(df[gender == 2])} males & {len(df[gender == 1])} females")
-
 def _calculate_BIS(df):
     all_questions = [f"BIS_{i+1}" for i in range(30)]
     df[all_questions] = df[all_questions].astype(int)
@@ -55,7 +48,7 @@ def _calculate_BIS(df):
     # 이소라, 이원혜, 박정수, 김설민, 김종우, 심재현 (2012). 한국판 Barratt Impulsiveness Scale-11-Revised의 신뢰도 및 타당도 연구 ; 일반성인집단을 중심으로
     reverse_scored_questions = [1, 7, 8, 9, 10, 12, 13, 15, 20, 29, 30]
     for q in reverse_scored_questions:
-        apply_reverse_scoring(df, f"BIS_{q}", min_score = 1, max_score = 4)
+        _apply_reverse_scoring(df, f"BIS_{q}", min_score = 1, max_score = 4)
 
     # 허심양, 오주용, & 김지혜. (2012). 한국판 Barratt 충동성 검사-11 의 신뢰도 및 타당도 연구. 한국심리학회지: 일반, 31(3), 769-782.
     motor_impulsivity_questions = [2, 3, 4, 16, 17, 19, 21, 22, 23, 25, 30] # 운동 충동성 (11)
@@ -73,10 +66,23 @@ def _calculate_BIS(df):
         "BIS_attentional_impulsivity": BIS_attentional_impulsivity, # 8 ~ 32
     }
 
-def apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
+def group_analysis(df):
+    print(f"Total Subjects: {len(df)} ({df['subj_id'].tolist()})")
+
+    # demographics
+    age = df["age"]
+    print(f"Age: mean = {age.mean()}, std = {age.std()} (min={age.min()} ~ max={age.max()})")
+    gender = df["gender"]
+    print(f"Gender Ratio: {len(df[gender == 2])} males & {len(df[gender == 1])} females")
+
+    # BIS
+    for col in ["BIS_total", "BIS_motor_impulsivity", "BIS_nonplanning_impulsivity", "BIS_attentional_impulsivity"]:
+        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
+
+def _apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
     df[col] = max_score + min_score - df[col]
 
 if __name__ == "__main__":
     # df = preprocess()
     df = preprocess(test = True)
-    demographics(df)
+    group_analysis(df)
