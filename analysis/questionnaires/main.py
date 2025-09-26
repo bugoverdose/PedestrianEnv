@@ -12,24 +12,17 @@ def preprocess(test = False):
     else:
         df = df[(df[RAW_SUBJECT_ID_COLNAME] >= 1000)]
 
-    def expand(questionnaire_name, question_count):
-        return {f"raw_{questionnaire_name}_{i+1}": df[f"{questionnaire_name}_{i+1}"].astype(int) for i in range(question_count)}
-    df = pd.DataFrame({
-        "subj_id":         df[RAW_SUBJECT_ID_COLNAME].astype(int),
-        "age":             _calculate_age(df),
-        "gender":          df["demo_1"].astype(int), # NOTE: let's not debate about anything regarding this wording
-        "school_year":     df["demo_3_1"].astype(int),
-
+    return pd.DataFrame({
+        "subj_id": df[RAW_SUBJECT_ID_COLNAME].astype(int),
+        "age": _calculate_age(df),
+        "gender": df["demo_1"].astype(int), # NOTE: let's not debate about anything regarding this wording
+        "school_year": df["demo_3_1"].astype(int),
         **_calculate_BIS(df),
         **_calculate_STAI(df),
         **_calculate_DOSPERT(df),
-        "game_play_time":  df["playtime_5"].astype(int),
-        # **expand("CES-D", 20),
-        # **expand("K-IGDS", 27),
-        # **expand("K-IAT", 20),
+        **_calculate_CES_D(df),
+        "game_play_time": df["playtime_5"].astype(int),
     })
-    # print(df)
-    return df
 
 def _calculate_age(df):
     response_date = pd.to_datetime(df["EndDate"], errors='coerce') # format: 2025-09-26 14:38:19
@@ -50,7 +43,7 @@ def _calculate_BIS(df):
     reverse_scored_questions = [1, 7, 8, 9, 10, 12, 13, 15, 20, 29, 30]
     for q in reverse_scored_questions:
         _apply_reverse_scoring(df, f"BIS_{q}", min_score = 1, max_score = 4)
-    print(f"BIS_1: {prev_BIS_1} => {df['BIS_1'].to_list()}")
+    print(f"reversing BIS_1: {prev_BIS_1} => {df['BIS_1'].to_list()}")
 
     # 허심양, 오주용, & 김지혜. (2012). 한국판 Barratt 충동성 검사-11 의 신뢰도 및 타당도 연구. 한국심리학회지: 일반, 31(3), 769-782.
     motor_impulsivity_questions = [2, 3, 4, 16, 17, 19, 21, 22, 23, 25, 30] # 운동 충동성 (11)
@@ -82,7 +75,7 @@ def _calculate_STAI(df):
     reverse_scored_questions = [1, 2, 5, 8, 10, 11, 15, 16, 19, 20, 21, 23, 26, 27, 30, 33, 34, 36, 39]
     for q in reverse_scored_questions:
         _apply_reverse_scoring(df, f"STAI_{q}", min_score = 1, max_score = 4)
-    print(f"STAI_1: {prev_STAI_1} => {df['STAI_1'].to_list()}")
+    print(f"reversing STAI_1: {prev_STAI_1} => {df['STAI_1'].to_list()}")
 
     STAI_total = df[all_questions].sum(axis=1)
     STAI_S = df[[f"STAI_{i + 1}" for i in range(20)]].sum(axis=1)
@@ -120,26 +113,48 @@ def _calculate_DOSPERT(df):
         "DOSPERT_SOC": DOSPERT_social, # 6 ~ 30
     }
 
+def _calculate_CES_D(df):
+    all_questions = [f"CES-D_{i+1}" for i in range(20)]
+    df[all_questions] = df[all_questions].astype(int)
+
+    prev_CES_D_1 = df["CES-D_1"].to_list()
+    reverse_scored_questions = [4, 8, 12, 16]
+    for q in reverse_scored_questions:
+        _apply_reverse_scoring(df, f"CES-D_{q}", min_score = 1, max_score = 4)
+    print(f"reversing CES-D_1: {prev_CES_D_1} => {df['CES-D_1'].to_list()}")
+
+    CES_D_total = df[all_questions].sum(axis=1)
+    return {
+        "CES-D": CES_D_total, # 20 ~ 80
+        # NOTE: only use the total score since it's used only for screening purposes.
+        # should also consider K-IGDS_1 ~ K-IGDS_27, K-IAT_1 ~ K-IAT_20 for screening.
+    }
+
 def group_analysis(df):
     print(f"\nTotal Subjects: {len(df)} ({df['subj_id'].tolist()})")
 
+    def print_stats(col):
+        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
+
     print("\n################################ Demographics ################################")
-    age = df["age"]
-    print(f"Age: mean = {age.mean()}, std = {age.std()} (min={age.min()} ~ max={age.max()})")
+    print_stats("age")
     gender = df["gender"]
     print(f"Gender Ratio: {len(df[gender == 2])} males & {len(df[gender == 1])} females")
 
     print("\n#################################### BIS #####################################")
     for col in ["BIS", "BIS_motor_impulsivity", "BIS_nonplanning_impulsivity", "BIS_attentional_impulsivity"]:
-        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
+        print_stats(col)
 
     print("\n#################################### STAI ####################################")
     for col in ["STAI", "STAI_S", "STAI_T"]:
-        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
+        print_stats(col)
 
     print("\n################################### DOSPERT ##################################")
     for col in ["DOSPERT", "DOSPERT_ETH", "DOSPERT_FIN", "DOSPERT_HEA", "DOSPERT_REC", "DOSPERT_SOC"]:
-        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
+        print_stats(col)
+
+    print("\n#################################### CES-D ##################################")
+    print_stats("CES-D")
 
 def _apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
     df[col] = max_score + min_score - df[col]
