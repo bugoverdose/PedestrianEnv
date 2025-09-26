@@ -5,7 +5,7 @@ import pandas as pd
 DATAFILE = "qualtrics.csv"
 RAW_SUBJECT_ID_COLNAME = "SubjID_4"
 
-def preprocess(test = False):
+def load_survey_results(test = False):
     # NOTE: download from Qualtrics (https://snuss1.qualtrics.com/responses/#/surveys/SV_a9RzRm8sDPWWh8y)
     df = pd.read_csv(os.path.join(os.path.dirname(__file__), DATAFILE))
     df[RAW_SUBJECT_ID_COLNAME] = pd.to_numeric(df[RAW_SUBJECT_ID_COLNAME], errors="coerce")
@@ -14,6 +14,7 @@ def preprocess(test = False):
     else:
         df = df[(df[RAW_SUBJECT_ID_COLNAME] >= 1000)]
 
+    print(f"\nTotal Subjects: {len(df)} ({df[RAW_SUBJECT_ID_COLNAME].astype(int).tolist()})")
     return pd.DataFrame({
         "subj_id": df[RAW_SUBJECT_ID_COLNAME].astype(int),
         "age": _calculate_age(df),
@@ -53,14 +54,14 @@ def _calculate_BIS(df):
     attentional_impulsivity_questions = [5, 6, 9, 11, 20, 24, 26, 28] # 인지 충동성 (8)
 
     BIS_total = df[all_questions].sum(axis=1)
-    BIS_motor_impulsivity = df[[f"BIS_{i}" for i in motor_impulsivity_questions]].sum(axis=1)
-    BIS_nonplanning_impulsivity = df[[f"BIS_{i}" for i in nonplanning_impulsivity_questions]].sum(axis=1)
-    BIS_attentional_impulsivity = df[[f"BIS_{i}" for i in attentional_impulsivity_questions]].sum(axis=1)
+    BIS_motor = df[[f"BIS_{i}" for i in motor_impulsivity_questions]].sum(axis=1)
+    BIS_nonplanning = df[[f"BIS_{i}" for i in nonplanning_impulsivity_questions]].sum(axis=1)
+    BIS_attentional = df[[f"BIS_{i}" for i in attentional_impulsivity_questions]].sum(axis=1)
     return {
         "BIS":                         BIS_total, # 30 ~ 120
-        "BIS_motor_impulsivity":       BIS_motor_impulsivity, # 11 ~ 44
-        "BIS_nonplanning_impulsivity": BIS_nonplanning_impulsivity, # 11 ~ 44
-        "BIS_attentional_impulsivity": BIS_attentional_impulsivity, # 8 ~ 32
+        "BIS_motor":       BIS_motor, # 11 ~ 44
+        "BIS_nonplanning": BIS_nonplanning, # 11 ~ 44
+        "BIS_attentional": BIS_attentional, # 8 ~ 32
     }
 
 def _calculate_STAI(df):
@@ -119,22 +120,20 @@ def _calculate_CES_D(df):
     all_questions = [f"CES-D_{i+1}" for i in range(20)]
     df[all_questions] = df[all_questions].astype(int)
 
-    prev_CES_D_1 = df["CES-D_1"].to_list()
+    prev_CES_D_1 = df["CES-D_4"].to_list()
     reverse_scored_questions = [4, 8, 12, 16]
     for q in reverse_scored_questions:
         _apply_reverse_scoring(df, f"CES-D_{q}", min_score = 1, max_score = 4)
-    print(f"reversing CES-D_1: {prev_CES_D_1} => {df['CES-D_1'].to_list()}")
+    print(f"reversing CES-D_4: {prev_CES_D_1} => {df['CES-D_4'].to_list()}")
 
     CES_D_total = df[all_questions].sum(axis=1)
     return {
-        "CES-D": CES_D_total, # 20 ~ 80
+        "CES_D": CES_D_total, # 20 ~ 80
         # NOTE: only use the total score since it's used only for screening purposes.
         # should also consider K-IGDS_1 ~ K-IGDS_27, K-IAT_1 ~ K-IAT_20 for screening.
     }
 
 def group_analysis(df):
-    print(f"\nTotal Subjects: {len(df)} ({df['subj_id'].tolist()})")
-
     def print_stats(col):
         print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
 
@@ -144,7 +143,7 @@ def group_analysis(df):
     print(f"Gender Ratio: {len(df[gender == 2])} males & {len(df[gender == 1])} females")
 
     print("\n#################################### BIS #####################################")
-    for col in ["BIS", "BIS_motor_impulsivity", "BIS_nonplanning_impulsivity", "BIS_attentional_impulsivity"]:
+    for col in ["BIS", "BIS_motor", "BIS_nonplanning", "BIS_attentional"]:
         print_stats(col)
 
     print("\n#################################### STAI ####################################")
@@ -156,12 +155,12 @@ def group_analysis(df):
         print_stats(col)
 
     print("\n#################################### CES-D ##################################")
-    print_stats("CES-D")
+    print_stats("CES_D")
 
 def _apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
     df[col] = max_score + min_score - df[col]
 
 if __name__ == "__main__":
-    # df = preprocess()
-    df = preprocess(test = True)
+    # df = load_survey_results()
+    df = load_survey_results(test = True)
     group_analysis(df)

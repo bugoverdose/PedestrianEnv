@@ -1,9 +1,31 @@
+import pandas as pd
+
 import statistics
 from collections import Counter
 
 from util import data_dir, get_sorted_episodes, load_episode_full_log
 
-def basic_statistics(subjId):
+def basic_statistics(subjIds):
+    scores_dfs = []
+    episode_result_dfs = []
+    penalty_dfs = []
+    action_proportion_dfs = []
+    visited_tiles_dfs = []
+    for subjId in subjIds:
+        scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics_ind(subjId)
+        scores_dfs.append(pd.DataFrame(scores))
+        episode_result_dfs.append(pd.DataFrame(episode_results))
+        penalty_dfs.append(pd.DataFrame(penalties))
+        action_proportion_dfs.append(pd.DataFrame(action_proportions))
+        visited_tiles_dfs.append(pd.DataFrame(visited_tiles))
+    scores_df = pd.concat(scores_dfs, ignore_index=True)
+    episode_result_df = pd.concat(episode_result_dfs, ignore_index=True)
+    penalty_df = pd.concat(penalty_dfs, ignore_index=True)
+    action_proportion_df = pd.concat(action_proportion_dfs, ignore_index=True)
+    visited_tiles_df = pd.concat(visited_tiles_dfs, ignore_index=True)
+    return scores_df, episode_result_df, penalty_df, action_proportion_df, visited_tiles_df
+
+def basic_statistics_ind(subjId):
     subj_data_dir = data_dir(subjId)
     episodes = get_sorted_episodes(subj_data_dir)
     episode_scores_dict = {
@@ -38,45 +60,64 @@ def basic_statistics(subjId):
             movement.append(cur_pos)
         movement_list.append(movement)
 
-    total_score_full = sum(episode_scores_dict["full"])
-    best_score_full = max(episode_scores_dict["full"])
-    average_score_full = statistics.mean(episode_scores_dict["full"])
-    score_stdev = statistics.stdev(episode_scores_dict["full"])
-    total_score_session1 = sum(episode_scores_dict["1"])
-    average_score_session1 = statistics.mean(episode_scores_dict["1"])
-    total_score_session2 = sum(episode_scores_dict["2"])
-    average_score_session2 = statistics.mean(episode_scores_dict["2"])
-    scores = [[total_score_full, best_score_full, average_score_full, score_stdev],
-              [total_score_session1, average_score_session1, total_score_session2, average_score_session2]]
-
+    scores = {
+        "subj_id": [subjId],
+        "total_score_full": [sum(episode_scores_dict["full"])],
+        "best_score_full": [max(episode_scores_dict["full"])],
+        "average_score_full": [statistics.mean(episode_scores_dict["full"])],
+        "std_score_full": [statistics.stdev(episode_scores_dict["full"])],
+        "total_score_session1": [sum(episode_scores_dict["1"])],
+        "average_score_session1": [statistics.mean(episode_scores_dict["1"])],
+        "total_score_session2": [sum(episode_scores_dict["2"])],
+        "average_score_session2": [statistics.mean(episode_scores_dict["2"])],
+    }
     total_episode_cnt = len(episode_scores_dict["full"])
     bonus_score_episode_ratio = bonus_score_episode_cnt / total_episode_cnt
     timeover_episode_cnt = total_episode_cnt - (bonus_score_episode_cnt + run_over_episode_cnt)
     assert timeover_episode_cnt >= 0
     timeover_episode_ratio = timeover_episode_cnt / total_episode_cnt
     run_over_episode_ratio = run_over_episode_cnt / total_episode_cnt
-    episode_results = [total_episode_cnt, bonus_score_episode_cnt, bonus_score_episode_ratio, timeover_episode_cnt, timeover_episode_ratio, run_over_episode_cnt, run_over_episode_ratio]
+    episode_results = {
+        "subj_id": [subjId],
+        "total_episode_cnt": [total_episode_cnt], 
+        "bonus_score_episode_cnt": [bonus_score_episode_cnt], 
+        "bonus_score_episode_ratio": [bonus_score_episode_ratio], 
+        "timeover_episode_cnt": [timeover_episode_cnt], 
+        "timeover_episode_ratio": [timeover_episode_ratio], 
+        "run_over_episode_cnt": [run_over_episode_cnt], 
+        "run_over_episode_ratio": [run_over_episode_ratio], 
+    }
 
     low_penalty_cnt = penalty_cnt_dict[-100]
-    low_penalty_ratio = low_penalty_cnt / run_over_episode_cnt
+    low_penalty_ratio = low_penalty_cnt / run_over_episode_cnt if run_over_episode_cnt > 0 else 0
     low_penalty_full_ratio = low_penalty_cnt / total_episode_cnt
     mid_penalty_cnt = penalty_cnt_dict[-500]
-    mid_penalty_ratio = mid_penalty_cnt / run_over_episode_cnt
+    mid_penalty_ratio = mid_penalty_cnt / run_over_episode_cnt if run_over_episode_cnt > 0 else 0
     mid_penalty_full_ratio = mid_penalty_cnt / total_episode_cnt
     high_penalty_cnt = penalty_cnt_dict[-1000]
-    high_penalty_ratio = high_penalty_cnt / run_over_episode_cnt
+    high_penalty_ratio = high_penalty_cnt / run_over_episode_cnt if run_over_episode_cnt > 0 else 0
     high_penalty_full_ratio = high_penalty_cnt / total_episode_cnt
-    penalties = [low_penalty_cnt, low_penalty_ratio, low_penalty_full_ratio,
-                 mid_penalty_cnt, mid_penalty_ratio, mid_penalty_full_ratio,
-                 high_penalty_cnt, high_penalty_ratio, high_penalty_full_ratio]
+    penalties = {
+        "subj_id": [subjId],
+        "low_penalty_cnt": [low_penalty_cnt],
+        "low_penalty_ratio": [low_penalty_ratio],
+        "low_penalty_full_ratio": [low_penalty_full_ratio],
+        "mid_penalty_cnt": [mid_penalty_cnt],
+        "mid_penalty_ratio": [mid_penalty_ratio],
+        "mid_penalty_full_ratio": [mid_penalty_full_ratio],
+        "high_penalty_cnt": [high_penalty_cnt],
+        "high_penalty_ratio": [high_penalty_ratio],
+        "high_penalty_full_ratio": [high_penalty_full_ratio],
+    }
 
     action_counter = Counter(actions_list)
     action_proportions = {
-        "Nothing": action_counter[0],
-        "UP": action_counter[1],
-        "DOWN": action_counter[2],
-        "RIGHT": action_counter[3],
-        "LEFT": action_counter[4],
+        "subj_id": [subjId],
+        "action_Nothing_cnt": [action_counter[0]],
+        "action_UP_cnt": [action_counter[1]],
+        "action_DOWN_cnt": [action_counter[2]],
+        "action_RIGHT_cnt": [action_counter[3]],
+        "action_LEFT_cnt": [action_counter[4]],
     }
 
     visited_tile_cnt_list = []
@@ -91,8 +132,12 @@ def basic_statistics(subjId):
     visited_tile_cnt_mean = statistics.mean(visited_tile_cnt_list)
     visited_unique_tile_cnt_mean = statistics.mean(visited_unique_tile_cnt_list)
     visited_tile_unique_ratio_mean = statistics.mean(visited_tile_unique_ratio_list)
-    visited_tiles = [visited_tile_cnt_mean, visited_unique_tile_cnt_mean, visited_tile_unique_ratio_mean]
-
+    visited_tiles = {
+        "subj_id": [subjId],
+        "visited_tile_cnt_mean": [visited_tile_cnt_mean], 
+        "visited_unique_tile_cnt_mean": [visited_unique_tile_cnt_mean], 
+        "visited_tile_unique_ratio_mean": [visited_tile_unique_ratio_mean],
+    }
     return scores, episode_results, penalties, action_proportions, visited_tiles
 
 def crosswalk_statistics(subjId):
@@ -210,45 +255,38 @@ def move_up_statistics(subjId):
             play_info = full_log["play_infos"][i]
 
 if __name__ == "__main__":
-    scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics(502)
-    [full_scores, session_scores] = scores
-    [total_score, best_score, average_score, score_stdev] = full_scores
-    print(f"Total Score: {total_score}")
-    print(f"Best Score: {best_score}")
-    print(f"Score Mean: {average_score}")
-    print(f"Score STD: {score_stdev}")
-    [total_score_session1, average_score_session1, total_score_session2, average_score_session2] = session_scores
-    print(f"Total Score (Session 1): {total_score_session1}")
-    print(f"Score Mean (Session 1): {average_score_session1}")
-    print(f"Total Score (Session 2): {total_score_session2}")
-    print(f"Score Mean (Session 2): {average_score_session2}")
+    scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics_ind(502)
+    print(f"Total Score: {scores['total_score_full'][0]}")
+    print(f"Best Score: {scores['best_score_full'][0]}")
+    print(f"Score Mean: {scores['average_score_full'][0]}")
+    print(f"Score STD: {scores['std_score_full'][0]}")
+    print(f"Total Score (Session 1): {scores['total_score_session1'][0]}")
+    print(f"Score Mean (Session 1): {scores['average_score_session1'][0]}")
+    print(f"Total Score (Session 2): {scores['total_score_session2'][0]}")
+    print(f"Score Mean (Session 2): {scores['average_score_session2'][0]}")
     print()
 
-    # [total_episode_cnt, bonus_score_episode_cnt, bonus_score_episode_ratio, timeover_episode_cnt, timeover_episode_ratio, run_over_episode_cnt, run_over_episode_ratio] = episode_results
-    # print(f"Total Episodes: {total_episode_cnt}")
-    # print(f"Bonus Episodes: {bonus_score_episode_cnt} (ratio={bonus_score_episode_ratio})")
-    # print(f"Time Over Episodes: {timeover_episode_cnt} (ratio={timeover_episode_ratio})")
-    # print(f"Run Over Episodes: {run_over_episode_cnt} (ratio={run_over_episode_ratio})")
-    # [low_penalty_cnt, low_penalty_ratio, low_penalty_full_ratio,
-    #  mid_penalty_cnt, mid_penalty_ratio, mid_penalty_full_ratio,
-    #  high_penalty_cnt, high_penalty_ratio, high_penalty_full_ratio] = penalties
-    # print(f"- Low Penalty(100): {low_penalty_cnt} (ratio={low_penalty_ratio} / full ratio={low_penalty_full_ratio})")
-    # print(f"- Mid Penalty(500): {mid_penalty_cnt} (ratio={mid_penalty_ratio} / full ratio={mid_penalty_full_ratio})")
-    # print(f"- High Penalty(1000): {high_penalty_cnt} (ratio={high_penalty_ratio} / full ratio={high_penalty_full_ratio})")
-    # print()
+    print(f"Total Episodes: {episode_results['total_episode_cnt'][0]}")
+    print(f"Bonus Episodes: {episode_results['bonus_score_episode_cnt'][0]} (ratio={episode_results['bonus_score_episode_ratio'][0]})")
+    print(f"Time Over Episodes: {episode_results['timeover_episode_cnt'][0]} (ratio={episode_results['timeover_episode_ratio'][0]})")
+    print(f"Run Over Episodes: {episode_results['run_over_episode_cnt'][0]} (ratio={episode_results['run_over_episode_ratio'][0]})")
+    
+    print(f"- Low Penalty(100): {penalties['low_penalty_cnt'][0]} (ratio={penalties['low_penalty_ratio'][0]} / full ratio={penalties['low_penalty_full_ratio'][0]})")
+    print(f"- Mid Penalty(500): {penalties['mid_penalty_cnt'][0]} (ratio={penalties['mid_penalty_ratio'][0]} / full ratio={penalties['mid_penalty_full_ratio'][0]})")
+    print(f"- High Penalty(1000): {penalties['high_penalty_cnt'][0]} (ratio={penalties['high_penalty_ratio'][0]} / full ratio={penalties['high_penalty_full_ratio'][0]})")
+    print()
 
-    # print(f"Action Proportions: {action_proportions}")
-    # print()
+    print(f"Action Proportions: {action_proportions}")
+    print()
 
-    # # Number of visited tiles per episode (e.g., exploration)
-    # [visited_tile_cnt_mean, visited_unique_tile_cnt_mean, visited_tile_unique_ratio_mean] = visited_tiles
-    # print(f"Visited Tile Count Mean: {visited_tile_cnt_mean}")
-    # print(f"Visited Unique Tile Count Mean: {visited_unique_tile_cnt_mean}")
-    # print(f"Visited Tile Unique Ratio Mean: {visited_tile_unique_ratio_mean}")
+    # Number of visited tiles per episode (e.g., exploration)
+    print(f"Visited Tile Count Mean: {visited_tiles['visited_tile_cnt_mean'][0]}")
+    print(f"Visited Unique Tile Count Mean: {visited_tiles['visited_unique_tile_cnt_mean'][0]}")
+    print(f"Visited Tile Unique Ratio Mean: {visited_tiles['visited_tile_unique_ratio_mean'][0]}")
 
-    # target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts = crosswalk_statistics(502)
-    # print(f"Target Road total counts: {target_road_total_counts}")
-    # print(f"Enter road with crosswalk: {enter_road_with_crosswalk_counts}")
-    # print(f"Enter road without crosswalk: {enter_road_without_crosswalk_counts}")
-    # print(f"Crosswalk used: {crosswalk_used_counts}")
-    # print(f"Jaywalking: {jaywalking_counts}")
+    target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts = crosswalk_statistics(502)
+    print(f"Target Road total counts: {target_road_total_counts}")
+    print(f"Enter road with crosswalk: {enter_road_with_crosswalk_counts}")
+    print(f"Enter road without crosswalk: {enter_road_without_crosswalk_counts}")
+    print(f"Crosswalk used: {crosswalk_used_counts}")
+    print(f"Jaywalking: {jaywalking_counts}")

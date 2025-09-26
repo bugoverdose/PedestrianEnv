@@ -6,10 +6,9 @@ Install and activate conda environment with following commands
 
 ```bash
 cd analysis
-conda env create -f pedestrian_analysis.yml
-# or mamba env create -f pedestrian_analysis.yml
+mamba env create -f pedestrian_analysis.yml
+# mamba env update -f pedestrian_analysis.yml
 conda activate pedestrian_analysis
-# conda env update -f pedestrian_analysis.yml
 ```
 
 GPU environment setup
@@ -40,5 +39,5 @@ tensorboard --logdir=./irl/tb_logs
 ## Jupyter Notebook
 
 ```bash
-jupyter notebook ~.ipynb
+jupyter notebook correlations.ipynb 
 ```

@@ -1,6 +1,6 @@
 import numpy as np
 
-from questionnaires import preprocess
+from questionnaires import load_survey_results
 from util import data_dir, get_sorted_episodes, load_episode_full_log
 
 def check_episode_full_log(subjId):
@@ -29,4 +29,4 @@ def check_episode_full_log(subjId):
 
 if __name__ == "__main__":
     # check_episode_full_log(502)
-    preprocess(test = True)
+    load_survey_results(test = True)
