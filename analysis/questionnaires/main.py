@@ -19,14 +19,14 @@ def preprocess(test = False):
         "gender":          df["demo_1"].astype(int), # NOTE: let's not debate about anything regarding this wording
         "school_year":     df["demo_3_1"].astype(int),
 
+        **_calculate_BIS(df),
         "game_play_time":  df["playtime_5"].astype(int),
-        **expand("BIS", 30),
-        **expand("STAI-S", 20),
-        **expand("STAI-T", 20),
-        **expand("DOSPERT", 30),
-        **expand("CES-D", 20),
-        **expand("K-IGDS", 27),
-        **expand("K-IAT", 20),
+        # **expand("STAI-S", 20),
+        # **expand("STAI-T", 20),
+        # **expand("DOSPERT", 30),
+        # **expand("CES-D", 20),
+        # **expand("K-IGDS", 27),
+        # **expand("K-IAT", 20),
     })
     print(df)
     return df
@@ -47,6 +47,34 @@ def demographics(df):
     print(f"Age: mean = {age.mean()} ({age.min()} ~ {age.max()})")
     gender = df["gender"]
     print(f"Gender: {len(df[gender == 2])} males & {len(df[gender == 1])} females")
+
+def _calculate_BIS(df):
+    all_questions = [f"BIS_{i+1}" for i in range(30)]
+    df[all_questions] = df[all_questions].astype(int)
+
+    # 이소라, 이원혜, 박정수, 김설민, 김종우, 심재현 (2012). 한국판 Barratt Impulsiveness Scale-11-Revised의 신뢰도 및 타당도 연구 ; 일반성인집단을 중심으로
+    reverse_scored_questions = [1, 7, 8, 9, 10, 12, 13, 15, 20, 29, 30]
+    for q in reverse_scored_questions:
+        apply_reverse_scoring(df, f"BIS_{q}", min_score = 1, max_score = 4)
+
+    # 허심양, 오주용, & 김지혜. (2012). 한국판 Barratt 충동성 검사-11 의 신뢰도 및 타당도 연구. 한국심리학회지: 일반, 31(3), 769-782.
+    motor_impulsivity_questions = [2, 3, 4, 16, 17, 19, 21, 22, 23, 25, 30] # 운동 충동성 (11)
+    nonplanning_impulsivity_questions = [1, 7, 8, 10, 12, 13, 14, 15, 18, 27, 29] # 무계획성 충동성 (11)
+    attentional_impulsivity_questions = [5, 6, 9, 11, 20, 24, 26, 28] # 인지 충동성 (8)
+
+    BIS_total = df[all_questions].sum(axis=1)
+    BIS_motor_impulsivity = df[[f"BIS_{i}" for i in motor_impulsivity_questions]].sum(axis=1)
+    BIS_nonplanning_impulsivity = df[[f"BIS_{i}" for i in nonplanning_impulsivity_questions]].sum(axis=1)
+    BIS_attentional_impulsivity = df[[f"BIS_{i}" for i in attentional_impulsivity_questions]].sum(axis=1)
+    return {
+        "BIS_total":                   BIS_total, # 30 ~ 120
+        "BIS_motor_impulsivity":       BIS_motor_impulsivity, # 11 ~ 44
+        "BIS_nonplanning_impulsivity": BIS_nonplanning_impulsivity, # 11 ~ 44
+        "BIS_attentional_impulsivity": BIS_attentional_impulsivity, # 8 ~ 32
+    }
+
+def apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
+    df[col] = max_score + min_score - df[col]
 
 if __name__ == "__main__":
     # df = preprocess()
