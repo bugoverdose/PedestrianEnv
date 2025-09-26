@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 
 DATAFILE = "qualtrics.csv"
@@ -5,7 +7,7 @@ RAW_SUBJECT_ID_COLNAME = "SubjID_4"
 
 def preprocess(test = False):
     # NOTE: download from Qualtrics (https://snuss1.qualtrics.com/responses/#/surveys/SV_a9RzRm8sDPWWh8y)
-    df = pd.read_csv(DATAFILE)
+    df = pd.read_csv(os.path.join(os.path.dirname(__file__), DATAFILE))
     df[RAW_SUBJECT_ID_COLNAME] = pd.to_numeric(df[RAW_SUBJECT_ID_COLNAME], errors="coerce")
     if test:
         df = df[(df[RAW_SUBJECT_ID_COLNAME] < 1000)]
