@@ -1,0 +1,2 @@
+# responses contain sensitive information. hide raw data from github
+*.csv
