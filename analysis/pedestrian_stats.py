@@ -5,6 +5,15 @@ from collections import Counter
 
 from util import data_dir, get_sorted_episodes, load_episode_full_log
 
+def build_pedestrian_task_results(df, subjIds):
+    scores_df, episode_result_df, penalty_df, action_proportion_df, visited_tiles_df = basic_statistics(subjIds)
+    df = pd.merge(df, scores_df, on="subj_id", how="inner")
+    df = pd.merge(df, episode_result_df, on="subj_id", how="inner")
+    df = pd.merge(df, penalty_df, on="subj_id", how="inner")
+    df = pd.merge(df, action_proportion_df, on="subj_id", how="inner")
+    df = pd.merge(df, visited_tiles_df, on="subj_id", how="inner")
+    return df
+
 def basic_statistics(subjIds):
     scores_dfs = []
     episode_result_dfs = []

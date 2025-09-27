@@ -2,6 +2,11 @@ import pandas as pd
 
 from util import data_dir
 
+def build_behavioral_task_results(df, subjIds):
+    behavioral_task_df = load_behavioral_task_results(subjIds)
+    df = pd.merge(df, behavioral_task_df, on="subj_id", how="inner")
+    return df
+
 def load_behavioral_task_results(subjIds):
     dfs = []
     for subjId in subjIds:
