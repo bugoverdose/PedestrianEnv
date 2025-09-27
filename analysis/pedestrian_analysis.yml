@@ -17,6 +17,7 @@ dependencies:
   - requests
   - charset-normalizer=2
   - jupyter # run `jupyter notebook xxx.ipynb`
+  - pingouin==0.5.0 # ICC
   - pip
   - pip:
       - gymnasium==0.29.1

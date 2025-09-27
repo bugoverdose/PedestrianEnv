@@ -265,16 +265,6 @@ def move_up_statistics(subjId):
 
 if __name__ == "__main__":
     scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics_ind(502)
-    print(f"Total Score: {scores['total_score_full'][0]}")
-    print(f"Best Score: {scores['best_score_full'][0]}")
-    print(f"Score Mean: {scores['average_score_full'][0]}")
-    print(f"Score STD: {scores['std_score_full'][0]}")
-    print(f"Total Score (Session 1): {scores['total_score_session1'][0]}")
-    print(f"Score Mean (Session 1): {scores['average_score_session1'][0]}")
-    print(f"Total Score (Session 2): {scores['total_score_session2'][0]}")
-    print(f"Score Mean (Session 2): {scores['average_score_session2'][0]}")
-    print()
-
     print(f"Total Episodes: {episode_results['total_episode_cnt'][0]}")
     print(f"Bonus Episodes: {episode_results['bonus_score_episode_cnt'][0]} (ratio={episode_results['bonus_score_episode_ratio'][0]})")
     print(f"Time Over Episodes: {episode_results['timeover_episode_cnt'][0]} (ratio={episode_results['timeover_episode_ratio'][0]})")

@@ -39,5 +39,6 @@ tensorboard --logdir=./irl/tb_logs
 ## Jupyter Notebook
 
 ```bash
+jupyter notebook summary.ipynb
 jupyter notebook correlations.ipynb 
 ```

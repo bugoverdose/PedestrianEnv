@@ -133,34 +133,5 @@ def _calculate_CES_D(df):
         # should also consider K-IGDS_1 ~ K-IGDS_27, K-IAT_1 ~ K-IAT_20 for screening.
     }
 
-def group_analysis(df):
-    def print_stats(col):
-        print(f"{col}: mean = {df[col].mean()}, std = {df[col].std()} (min={df[col].min()} ~ max={df[col].max()})")
-
-    print("\n################################ Demographics ################################")
-    print_stats("age")
-    gender = df["gender"]
-    print(f"Gender Ratio: {len(df[gender == 2])} males & {len(df[gender == 1])} females")
-
-    print("\n#################################### BIS #####################################")
-    for col in ["BIS", "BIS_motor", "BIS_nonplanning", "BIS_attentional"]:
-        print_stats(col)
-
-    print("\n#################################### STAI ####################################")
-    for col in ["STAI", "STAI_S", "STAI_T"]:
-        print_stats(col)
-
-    print("\n################################### DOSPERT ##################################")
-    for col in ["DOSPERT", "DOSPERT_ETH", "DOSPERT_FIN", "DOSPERT_HEA", "DOSPERT_REC", "DOSPERT_SOC"]:
-        print_stats(col)
-
-    print("\n#################################### CES-D ##################################")
-    print_stats("CES_D")
-
 def _apply_reverse_scoring(df, col, min_score = 1, max_score = 4):
     df[col] = max_score + min_score - df[col]
-
-if __name__ == "__main__":
-    # df = load_survey_results()
-    df = load_survey_results(test = True)
-    group_analysis(df)
