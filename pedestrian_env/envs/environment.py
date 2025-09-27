@@ -26,8 +26,8 @@ class PedestrianEnv(gym.Env):
     def __init__(self,
                  title="Pedestrian Task",
                  width=25,
-                 height=21, # 28
-                 initial_height_padding=0, # 5
+                 height=25, # 21 was too easy
+                 initial_height_padding=0, # 5 for same starting states
                  camera_width=11,
                  camera_height=7,
                  steps_per_second=10,

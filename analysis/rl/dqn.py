@@ -37,7 +37,7 @@ def run_DQN(seed=42,
     np.random.seed(seed)
     random.seed(seed)
     def make_env():
-        env = PedestrianEnv()
+        env = PedestrianEnv(height=21, initial_height_padding=0)
         env.reset(seed=seed)
         return env
     env = DummyVecEnv([make_env])
@@ -106,9 +106,9 @@ def _load_DQN_model(saved_model_name, seed=42, render_mode_human=True):
 
     def make_env():
         if render_mode_human:
-            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000)
+            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, height=21, initial_height_padding=0)
         else:
-            env = PedestrianEnv()
+            env = PedestrianEnv(height=21, initial_height_padding=0)
         env.reset(seed=seed)
         return env
 

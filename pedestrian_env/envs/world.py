@@ -52,7 +52,7 @@ class World:
         for road in self.roads.elements:
             road_crossed_y = road.top_y - 1
             reward_y[road_crossed_y] = True
-            cum_reward = int(self.steps_per_second * (self.initial_agent_y - road_crossed_y)) * self.UP_REWARD_PER_UNIT
+            cum_reward = int(self.steps_per_second * (self.initial_agent_y - initial_height_padding - road_crossed_y)) * self.UP_REWARD_PER_UNIT
             self.reward_per_y[road_crossed_y] = cum_reward
         for y in range(map_grid_height-1, 0, -1):
             self.reward_per_y[y-1] = max(self.reward_per_y[y], self.reward_per_y[y-1])

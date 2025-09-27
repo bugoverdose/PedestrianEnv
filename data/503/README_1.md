@@ -1,4 +1,4 @@
-Model: ppo_v9_LeakyReLU_norm_obs_F_1
+Model: best_PPO
 Subject ID: 503
 Session ID: 1
-Play start time: 2025.9.27 19:27:29
+Play start time: 2025.9.27 21:4:36

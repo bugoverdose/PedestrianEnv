@@ -14,7 +14,8 @@ from stable_baselines3.common.evaluation import evaluate_policy
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from pedestrian_env.envs import PedestrianEnv
 
-def run_PPO(seed=42,
+def run_PPO(height=21, initial_height_padding=0,
+            seed=42,
             net_arch=[256, 256, 256],
             activation_fn=nn.Tanh, # default=nn.Tanh
             learning_rate=1e-4, # default=3e-4
@@ -44,7 +45,7 @@ def run_PPO(seed=42,
     np.random.seed(seed)
     random.seed(seed)
     def make_env():
-        env = PedestrianEnv()
+        env = PedestrianEnv(height=height, initial_height_padding=initial_height_padding)
         env.reset(seed=seed)
         return env
     env = DummyVecEnv([make_env])
@@ -126,15 +127,15 @@ def visualize_test(model_name, episode_count=20, seed=42):
         if done:
             episode_count += 1
 
-def load_PPO_model(saved_model_name, seed=42, render_mode_human=True):
+def load_PPO_model(saved_model_name, seed=42, render_mode_human=True, height=21, initial_height_padding=0):
     np.random.seed(seed)
     random.seed(seed)
 
     def make_env():
         if render_mode_human:
-            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000)
+            env = PedestrianEnv(render_mode = "human", realtime=True, gameover_screen_time=2000, height=height, initial_height_padding=initial_height_padding)
         else:
-            env = PedestrianEnv()
+            env = PedestrianEnv(height=height, initial_height_padding=initial_height_padding)
         env.reset(seed=seed)
         return env
 
@@ -190,7 +191,8 @@ def tuning(
 #         return end + (start - end) * progress # progress: 1->0
 #     return f
 
-if __name__ == "__main__":
+def best_model():
+    # height=21, initial_height_padding=0
     # # Takes time to learn, but optimal solution for [height=21, initial_height_padding=0]
     model_name="best_PPO"# "ppo_v9_LeakyReLU_norm_obs_F_1" # norm_obs=False
     # tuning(model_name=model_name,
@@ -205,6 +207,9 @@ if __name__ == "__main__":
     # test score: 1912.0000
     visualize_test(model_name)
 
+if __name__ == "__main__":
+    best_model()
+    #########################################
     # # almost optimal : goes back even when the car is only on the front lane and can't hit the agent
     # model_name="ppo_v9_Tanh_norm_obs_F_1" # norm_obs=False
     # tuning(model_name=model_name,
@@ -233,185 +238,3 @@ if __name__ == "__main__":
     # test_policy(model_name)
     # # test score: 1833.0000
     # visualize_test(model_name)
-
-    # ======================
-
-    # model_name="ppo_v9_ReLU_norm_obs_F_1" # norm_obs=False
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=32,
-    #        n_epochs=4,
-    #        activation_fn=nn.ReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v9_ReLU_norm_obs_F_1
-    # test score: 1581.5000
-    # test score: 1595.0000
-
-    # ======================
-    # model_name="ppo_v9_LeakyReLU_4"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=1024,
-    #        batch_size=64,
-    #        n_epochs=4,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v9_LeakyReLU_4
-    # test score: 1741.5000
-    # test score: 1679.0000
-
-    # model_name="ppo_v9_LeakyReLU_2"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=16,
-    #        n_epochs=4,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v9_LeakyReLU_2
-    # test score: 1710.5000
-    # test score: 1463.5000
-
-    # model_name="ppo_v9_LeakyReLU_3"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=64,
-    #        n_epochs=4,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v9_LeakyReLU_3
-    # est score: 1706.5000
-    # test score: 1711.0000
-
-    # model_name="ppo_v9_LeakyReLU_5"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=256,
-    #        batch_size=16,
-    #        n_epochs=4,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v9_LeakyReLU_5
-    # test score: 1561.5000
-    # test score: 1380.0000
-
-    # =====================================
-    # model_name="ppo_v8_LeakyReLU_7"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=32,
-    #        n_epochs=4,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_7
-    # test score: 1748.5000
-    # test score: 1664.0000
-
-    # model_name="ppo_v8_LeakyReLU_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=32,
-    #        n_epochs=8,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_1
-    # test score: 1747.5000
-    # test score: 1616.0000
-
-    # model_name="ppo_v8_LeakyReLU_5"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=1024,
-    #        batch_size=64,
-    #        n_epochs=10,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_5
-    # test score: 1700.0000
-    # test score: 1644.5000
-
-    # model_name="ppo_v8_LeakyReLU_6"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=1024,
-    #        batch_size=64,
-    #        n_epochs=4,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_6
-    # test score: 1790.0000
-    # test score: 1589.5000
-
-    # model_name="ppo_v8_LeakyReLU_2"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=1024,
-    #        batch_size=32,
-    #        n_epochs=8,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_2
-    # test score: 1638.5000
-    # test score: 1511.0000
-
-    # model_name="ppo_v8_LeakyReLU_3"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=64,
-    #        n_epochs=8,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_3
-    # test score: 1597.0000
-    # test score: 1429.0000
-
-    # model_name="ppo_v8_LeakyReLU_4"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=1024,
-    #        batch_size=64,
-    #        n_epochs=8,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # test_policy(model_name, nn.LeakyReLU)
-    # ppo_v8_LeakyReLU_4
-    # test score: 1826.5000
-    # test score: 1311.5000
-
-    # model_name="ppo_v8_Tanh_1"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        activation_fn=nn.Tanh,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_Tanh_1
-    # test score: 1676.0000
-    # test score: 1590.5000
-
-    # model_name="ppo_v8_LeakyReLU_8"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=512,
-    #        batch_size=32,
-    #        n_epochs=10,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_8
-    # test score: 1644.0000
-    # test score: 1630.5000
-
-    # model_name="ppo_v8_LeakyReLU_9"
-    # tuning(model_name=model_name,
-    #        net_arch=[256, 256, 256],
-    #        n_steps=2048,
-    #        batch_size=32,
-    #        n_epochs=8,
-    #        activation_fn=nn.LeakyReLU,
-    #        total_timesteps=1_000_000)
-    # ppo_v8_LeakyReLU_9
-    # test score: 1690.0000
-    # test score: 1048.0000
