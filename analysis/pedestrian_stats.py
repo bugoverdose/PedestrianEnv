@@ -7,11 +7,13 @@ from util import data_dir, get_sorted_episodes, load_episode_full_log
 
 def build_pedestrian_task_results(df, subjIds):
     scores_df, episode_result_df, penalty_df, action_proportion_df, visited_tiles_df = basic_statistics(subjIds)
+    crosswalk_df = crosswalk_statistics(subjIds)
     df = pd.merge(df, scores_df, on="subj_id", how="inner")
     df = pd.merge(df, episode_result_df, on="subj_id", how="inner")
     df = pd.merge(df, penalty_df, on="subj_id", how="inner")
     df = pd.merge(df, action_proportion_df, on="subj_id", how="inner")
     df = pd.merge(df, visited_tiles_df, on="subj_id", how="inner")
+    df = pd.merge(df, crosswalk_df, on="subj_id", how="inner")
     return df
 
 def basic_statistics(subjIds):
@@ -149,7 +151,14 @@ def basic_statistics_ind(subjId):
     }
     return scores, episode_results, penalties, action_proportions, visited_tiles
 
-def crosswalk_statistics(subjId):
+def crosswalk_statistics(subjIds):
+    dfs = []
+    for subjId in subjIds:
+        df = crosswalk_statistics_ind(subjId)
+        dfs.append(pd.DataFrame(df))
+    return pd.concat(dfs, ignore_index=True)
+
+def crosswalk_statistics_ind(subjId):
     subj_data_dir = data_dir(subjId)
     episodes = get_sorted_episodes(subj_data_dir)
     # all the target roads that the player started to cross (includes getting hit by car)
@@ -247,7 +256,52 @@ def crosswalk_statistics(subjId):
                     # went back to previously crossed road. should be ignored from the statistics.
                     last_crossing_road_info = None
 
-    return target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts
+    for dictionary in [target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts]:
+        assert dictionary["total"] == dictionary["easy"] + dictionary["hard"]
+        assert dictionary["total"] == dictionary["low_penalty"] + dictionary["mid_penalty"] + dictionary["high_penalty"]
+
+    def ratio(dictionary, col):
+        if target_road_total_counts[col] == 0: return 0
+        return dictionary[col] / target_road_total_counts[col]
+
+    return {
+        "subj_id": [subjId],
+
+        "total_target_roads_total": target_road_total_counts["total"],
+        "total_target_roads_easy": target_road_total_counts["easy"],
+        "total_target_roads_hard": target_road_total_counts["hard"],
+        "total_target_roads_low_penalty": target_road_total_counts["low_penalty"],
+        "total_target_roads_mid_penalty": target_road_total_counts["mid_penalty"],
+        "total_target_roads_high_penalty": target_road_total_counts["high_penalty"],
+
+        "entered_road_with_crosswalk_total": ratio(enter_road_with_crosswalk_counts, "total"),
+        "entered_road_with_crosswalk_easy": ratio(enter_road_with_crosswalk_counts, "easy"),
+        "entered_road_with_crosswalk_hard": ratio(enter_road_with_crosswalk_counts, "hard"),
+        "entered_road_with_crosswalk_low_penalty": ratio(enter_road_with_crosswalk_counts, "low_penalty"),
+        "entered_road_with_crosswalk_mid_penalty": ratio(enter_road_with_crosswalk_counts, "mid_penalty"),
+        "entered_road_with_crosswalk_high_penalty": ratio(enter_road_with_crosswalk_counts, "high_penalty"),
+
+        "entered_road_ignoring_crosswalk_total": ratio(enter_road_without_crosswalk_counts, "total"),
+        "entered_road_ignoring_crosswalk_easy": ratio(enter_road_without_crosswalk_counts, "easy"),
+        "entered_road_ignoring_crosswalk_hard": ratio(enter_road_without_crosswalk_counts, "hard"),
+        "entered_road_ignoring_crosswalk_low_penalty": ratio(enter_road_without_crosswalk_counts, "low_penalty"),
+        "entered_road_ignoring_crosswalk_mid_penalty": ratio(enter_road_without_crosswalk_counts, "mid_penalty"),
+        "entered_road_ignoring_crosswalk_high_penalty": ratio(enter_road_without_crosswalk_counts, "high_penalty"),
+
+        "crosswalk_used_ratio_total": ratio(crosswalk_used_counts, "total"),
+        "crosswalk_used_ratio_easy": ratio(crosswalk_used_counts, "easy"),
+        "crosswalk_used_ratio_hard": ratio(crosswalk_used_counts, "hard"),
+        "crosswalk_used_ratio_low_penalty": ratio(crosswalk_used_counts, "low_penalty"),
+        "crosswalk_used_ratio_mid_penalty": ratio(crosswalk_used_counts, "mid_penalty"),
+        "crosswalk_used_ratio_high_penalty": ratio(crosswalk_used_counts, "high_penalty"),
+
+        "jaywalking_ratio_total": ratio(jaywalking_counts, "total"),
+        "jaywalking_ratio_easy": ratio(jaywalking_counts, "easy"),
+        "jaywalking_ratio_hard": ratio(jaywalking_counts, "hard"),
+        "jaywalking_ratio_low_penalty": ratio(jaywalking_counts, "low_penalty"),
+        "jaywalking_ratio_mid_penalty": ratio(jaywalking_counts, "mid_penalty"),
+        "jaywalking_ratio_high_penalty": ratio(jaywalking_counts, "high_penalty"),
+    }
 
 # TODO: 바로 앞줄에서 플레이어를 향해 달려오는 자동차가 있음에도 앞으로 이동한 비율
 # TODO: 바로 앞칸에 아직 자동차가 남아있음에도 충분히 기다리지 못하고 앞으로 이동한 비율
@@ -265,16 +319,6 @@ def move_up_statistics(subjId):
 
 if __name__ == "__main__":
     scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics_ind(502)
-    print(f"Total Episodes: {episode_results['total_episode_cnt'][0]}")
-    print(f"Bonus Episodes: {episode_results['bonus_score_episode_cnt'][0]} (ratio={episode_results['bonus_score_episode_ratio'][0]})")
-    print(f"Time Over Episodes: {episode_results['timeover_episode_cnt'][0]} (ratio={episode_results['timeover_episode_ratio'][0]})")
-    print(f"Run Over Episodes: {episode_results['run_over_episode_cnt'][0]} (ratio={episode_results['run_over_episode_ratio'][0]})")
-    
-    print(f"- Low Penalty(100): {penalties['low_penalty_cnt'][0]} (ratio={penalties['low_penalty_ratio'][0]} / full ratio={penalties['low_penalty_full_ratio'][0]})")
-    print(f"- Mid Penalty(500): {penalties['mid_penalty_cnt'][0]} (ratio={penalties['mid_penalty_ratio'][0]} / full ratio={penalties['mid_penalty_full_ratio'][0]})")
-    print(f"- High Penalty(1000): {penalties['high_penalty_cnt'][0]} (ratio={penalties['high_penalty_ratio'][0]} / full ratio={penalties['high_penalty_full_ratio'][0]})")
-    print()
-
     print(f"Action Proportions: {action_proportions}")
     print()
 
@@ -282,10 +326,3 @@ if __name__ == "__main__":
     print(f"Visited Tile Count Mean: {visited_tiles['visited_tile_cnt_mean'][0]}")
     print(f"Visited Unique Tile Count Mean: {visited_tiles['visited_unique_tile_cnt_mean'][0]}")
     print(f"Visited Tile Unique Ratio Mean: {visited_tiles['visited_tile_unique_ratio_mean'][0]}")
-
-    target_road_total_counts, enter_road_with_crosswalk_counts, enter_road_without_crosswalk_counts, crosswalk_used_counts, jaywalking_counts = crosswalk_statistics(502)
-    print(f"Target Road total counts: {target_road_total_counts}")
-    print(f"Enter road with crosswalk: {enter_road_with_crosswalk_counts}")
-    print(f"Enter road without crosswalk: {enter_road_without_crosswalk_counts}")
-    print(f"Crosswalk used: {crosswalk_used_counts}")
-    print(f"Jaywalking: {jaywalking_counts}")

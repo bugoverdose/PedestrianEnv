@@ -1,5 +1,5 @@
 from questionnaires import load_survey_results
-from pedestrian_stats import build_pedestrian_task_results, crosswalk_statistics
+from pedestrian_stats import build_pedestrian_task_results
 from behavior_tasks import build_behavioral_task_results
 
 DATAFILE = "data.csv"
