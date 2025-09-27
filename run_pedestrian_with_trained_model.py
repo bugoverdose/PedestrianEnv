@@ -46,7 +46,7 @@ def play_game(model, base_dir, session_id, max_episodes, base_seed=0):
     env.close()
 
 if __name__ == "__main__":
-    optimal_policy_model_name = "ppo_v9_LeakyReLU_norm_obs_F_1"
+    optimal_policy_model_name = "best_PPO"
     test_policy(optimal_policy_model_name)
     model, _ = load_PPO_model(optimal_policy_model_name, render_mode_human=False)
 

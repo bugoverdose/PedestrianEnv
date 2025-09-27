@@ -192,7 +192,7 @@ def tuning(
 
 if __name__ == "__main__":
     # # Takes time to learn, but optimal solution for [height=21, initial_height_padding=0]
-    model_name="ppo_v9_LeakyReLU_norm_obs_F_1" # norm_obs=False
+    model_name="best_PPO"# "ppo_v9_LeakyReLU_norm_obs_F_1" # norm_obs=False
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],
     #        n_steps=512,
@@ -200,7 +200,6 @@ if __name__ == "__main__":
     #        n_epochs=4,
     #        activation_fn=nn.LeakyReLU,
     #        total_timesteps=1_000_000)
-    # ppo_v9_LeakyReLU_norm_obs_F_1
     # test score: 1755.0000
     test_policy(model_name)
     # test score: 1912.0000
