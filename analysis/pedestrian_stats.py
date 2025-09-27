@@ -122,32 +122,37 @@ def basic_statistics_ind(subjId):
     }
 
     action_counter = Counter(actions_list)
+    total_actions = len(actions_list)
     action_proportions = {
         "subj_id": [subjId],
         "action_Nothing_cnt": [action_counter[0]],
+        "action_Nothing_ratio": [action_counter[0] / total_actions],
         "action_UP_cnt": [action_counter[1]],
+        "action_UP_ratio": [action_counter[1] / total_actions],
         "action_DOWN_cnt": [action_counter[2]],
+        "action_DOWN_ratio": [action_counter[2] / total_actions],
         "action_RIGHT_cnt": [action_counter[3]],
+        "action_RIGHT_ratio": [action_counter[3] / total_actions],
         "action_LEFT_cnt": [action_counter[4]],
+        "action_LEFT_ratio": [action_counter[4] / total_actions],
     }
 
     visited_tile_cnt_list = []
     visited_unique_tile_cnt_list = []
-    visited_tile_unique_ratio_list = []
     for movement in movement_list:
+        movement = movement[1:] # remove starting point
         visited_tile_cnt = len(movement)
         visited_unique_tile_cnt = len(set(movement))
         visited_tile_cnt_list.append(visited_tile_cnt)
         visited_unique_tile_cnt_list.append(visited_unique_tile_cnt)
-        visited_tile_unique_ratio_list.append(visited_unique_tile_cnt / visited_tile_cnt)
     visited_tile_cnt_mean = statistics.mean(visited_tile_cnt_list)
     visited_unique_tile_cnt_mean = statistics.mean(visited_unique_tile_cnt_list)
-    visited_tile_unique_ratio_mean = statistics.mean(visited_tile_unique_ratio_list)
+    visited_unique_tile_ratio = sum(visited_unique_tile_cnt_list) / sum(visited_tile_cnt_list)
     visited_tiles = {
         "subj_id": [subjId],
-        "visited_tile_cnt_mean": [visited_tile_cnt_mean], 
-        "visited_unique_tile_cnt_mean": [visited_unique_tile_cnt_mean], 
-        "visited_tile_unique_ratio_mean": [visited_tile_unique_ratio_mean],
+        "visited_tile_cnt_mean": [visited_tile_cnt_mean],
+        "visited_unique_tile_cnt_mean": [visited_unique_tile_cnt_mean],
+        "visited_unique_tile_ratio": [visited_unique_tile_ratio],
     }
     return scores, episode_results, penalties, action_proportions, visited_tiles
 
@@ -316,13 +321,3 @@ def move_up_statistics(subjId):
             is_up = action == 1
             if not is_up: continue
             play_info = full_log["play_infos"][i]
-
-if __name__ == "__main__":
-    scores, episode_results, penalties, action_proportions, visited_tiles = basic_statistics_ind(502)
-    print(f"Action Proportions: {action_proportions}")
-    print()
-
-    # Number of visited tiles per episode (e.g., exploration)
-    print(f"Visited Tile Count Mean: {visited_tiles['visited_tile_cnt_mean'][0]}")
-    print(f"Visited Unique Tile Count Mean: {visited_tiles['visited_unique_tile_cnt_mean'][0]}")
-    print(f"Visited Tile Unique Ratio Mean: {visited_tiles['visited_tile_unique_ratio_mean'][0]}")
