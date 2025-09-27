@@ -34,8 +34,9 @@ python run_pedestrian_with_trained_model.py
 - 100~999 : analysis test
   - 100: only cross the road using crosswalk (continue searching for crosswalk, minor mistakes)
   - 101: never cross RED without crosswalk
-  - 500: PPO model simulation (optimal policy with Vectorized Env)
-  - 502: PPO model simulation (optimal policy with PedestrianEnv)
+  - 500: PPO model simulation (optimal policy on Vectorized Env)
+  - 502: PPO model simulation (optimal policy on PedestrianEnv)
+  - 503: PPO model simulation (optimal policy on modified PedestrianEnv (height=21+7))
 - 1000 ~ : experiment
 
 ## Run experiment

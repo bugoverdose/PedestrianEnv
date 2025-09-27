@@ -191,7 +191,7 @@ def tuning(
 #     return f
 
 if __name__ == "__main__":
-    # # Takes time to learn, but optimal solution
+    # # Takes time to learn, but optimal solution for [height=21, initial_height_padding=0]
     model_name="ppo_v9_LeakyReLU_norm_obs_F_1" # norm_obs=False
     # tuning(model_name=model_name,
     #        net_arch=[256, 256, 256],

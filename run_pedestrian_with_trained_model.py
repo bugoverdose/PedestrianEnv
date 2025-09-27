@@ -50,7 +50,7 @@ if __name__ == "__main__":
     test_policy(optimal_policy_model_name)
     model, _ = load_PPO_model(optimal_policy_model_name, render_mode_human=False)
 
-    subj_id = 502
+    subj_id = 503
     seed = 0
     max_episodes = 50
     base_dir = f"data/{subj_id}"
