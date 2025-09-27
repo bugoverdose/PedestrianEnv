@@ -10,15 +10,15 @@ class RowType(Enum):
     CAR_GOING_LEFT = 2
 
 class Roads:
-    SAFE_END_LANE_COUNT = 1
-    SAFE_START_LANE_COUNT = 1
     MIN_ROAD_SIZE = 2
     MAX_ROAD_SIZE = 4
     ROAD_GRAY_COLOR = (89, 89, 89)
     ROAD_WHITE_COLOR = (250, 250, 250)
     SAFE_WHITE_COLOR = (217, 217, 217)
 
-    def __init__(self, agent, camera_width, map_grid_height, random):
+    def __init__(self, agent, camera_width, map_grid_height, initial_height_padding, random):
+        safe_end_lane_count = 1
+        safe_start_lane_count = 1 + initial_height_padding
         max_car_grid_height = get_max_car_grid_height()
         if max_car_grid_height > self.MIN_ROAD_SIZE:
             raise Exception(f"maximum car height can not be bigger than minimum road size {max_car_grid_height} > {self.MIN_ROAD_SIZE}")
@@ -26,7 +26,7 @@ class Roads:
         row_types = [RowType.SAFE] * map_grid_height
         consecutive_danger_lanes = 0
         consecutive_safe_lanes = 1
-        cur_row_idx = self.SAFE_END_LANE_COUNT
+        cur_row_idx = safe_end_lane_count
         while cur_row_idx < map_grid_height:
             # go back to add roads on too much consecutive safe zones
             if consecutive_safe_lanes >= self.MIN_ROAD_SIZE + 1:
@@ -34,7 +34,7 @@ class Roads:
                 cur_row_idx -= go_back
                 consecutive_safe_lanes -= go_back
 
-            available_rows = map_grid_height - self.SAFE_START_LANE_COUNT - cur_row_idx # save safe zones near start lane
+            available_rows = map_grid_height - safe_start_lane_count - cur_row_idx # save safe zones near start lane
             if available_rows <= 0: break 
             if available_rows >= self.MIN_ROAD_SIZE and consecutive_danger_lanes < self.MAX_ROAD_SIZE:
                 if cur_row_idx == 1 or available_rows == self.MIN_ROAD_SIZE:

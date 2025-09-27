@@ -26,7 +26,8 @@ class PedestrianEnv(gym.Env):
     def __init__(self,
                  title="Pedestrian Task",
                  width=25,
-                 height=21,
+                 height=21, # 28
+                 initial_height_padding=0, # 5
                  camera_width=11,
                  camera_height=7,
                  steps_per_second=10,
@@ -40,12 +41,14 @@ class PedestrianEnv(gym.Env):
                  debug=False):
         if width < 12: raise Exception("minimum width is 13")
         if height < 6: raise Exception("minimum height is 6")
+        if initial_height_padding < 0: raise Exception("initial_height_padding can not be negative")
         if camera_height < 7: raise Exception("minimum camera_height is 7")
         if camera_height%2 == 0: raise Exception("minimum camera_height should be an odd number")
         if episode_duration_sec < 10: raise Exception("minimum episode_duration_sec is 10")
         self.title = title
         self.map_grid_width = width
         self.map_grid_height = height
+        self.initial_height_padding = initial_height_padding
         self.steps_per_second = steps_per_second
         self.step_ms =  1000 / self.steps_per_second # default: step once every 100ms
         self.realtime = realtime
@@ -119,16 +122,19 @@ class PedestrianEnv(gym.Env):
         self.game_end_extra_score = 0
         self.real_time_step_passed = 0
 
-        self.world = World(self.agent_x_range,
-                           self.map_grid_width,
-                           self.map_grid_height,
-                           self.camera_width,
-                           self.pix_square_size,
-                           self.steps_per_second,
-                           self.np_random,
-                           self.debug,
-                           self.player_asset_info,
-                           self.car_details_dict)
+        self.world = World(
+            self.agent_x_range,
+            self.map_grid_width,
+            self.map_grid_height,
+            self.initial_height_padding,
+            self.camera_width,
+            self.pix_square_size,
+            self.steps_per_second,
+            self.np_random,
+            self.debug,
+            self.player_asset_info,
+            self.car_details_dict,
+        )
 
         if self.render_sprite:
             self.render()
