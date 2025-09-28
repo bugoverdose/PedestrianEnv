@@ -57,7 +57,8 @@ def train_AIRL(
         return env
     env = DummyVecEnv([make_env])
     env = VecMonitor(env)
-    env = VecNormalize(env, norm_obs=False, norm_reward=True) # `norm_obs=False` finds the optimal policy for PPO
+    # `norm_obs=False` finds the optimal policy for PPO, but is hard to learn
+    env = VecNormalize(env, norm_obs=True, norm_reward=True) 
 
     gen_algo = PPO(
         "MlpPolicy",
@@ -144,6 +145,8 @@ if __name__ == "__main__":
     # total_timesteps = gen_train_timesteps * airl_train_n_rounds
     # print(f"gen_train_timesteps={gen_train_timesteps}, airl_train_n_rounds={airl_train_n_rounds}, total_timesteps={total_timesteps}")
 
+    # ==========================
+    # norm_obs=False
     # Best so far
     # raw/disc/disc_acc_expert = 0.5 정도
     # raw/disc/disc_acc_gen = 0.6 => 0.7로 우상향 => 해결 필요
