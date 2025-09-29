@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from datetime import datetime
-from psychopy import core, visual, event, data, gui
+from psychopy import core, visual, event
 import yaml
 
 from adopy.tasks.cra import TaskCRA, ModelLinear
@@ -768,12 +768,7 @@ class CraRunner:
 
             self.save_record()
 
-def main():
-    arg_parser = argparse.ArgumentParser(description="Run for experiment")
-    arg_parser.add_argument('--subjId', type=int, default=1, help='subject ID')
-    args = arg_parser.parse_args()
-
-    subj = args.subjId
+def run_cra_ado(subj, window):
     n_block = 1
     n_trial = 30
     n_train_trial = 5
@@ -787,16 +782,6 @@ def main():
     fn_data = f"CRA_{time_now_iso}.csv"
     path_data.mkdir(exist_ok=True)
     path_output = str(path_data / fn_data)
-
-    # Open a window
-    window = visual.Window(size=[1512, 982],
-                           units='deg',
-                           monitor='testMonitor',
-                           color=Color.background.value,
-                           screen=0,
-                           allowGUI=False,
-                           fullscr=True) 
-    event.globalKeys.add(key='escape', func=core.quit, name='shutdown')
 
     block_types = ['ado'] * n_block
 
@@ -820,4 +805,19 @@ def main():
             runner.show_outro()
 
 if __name__ == '__main__':
-    main()
+    arg_parser = argparse.ArgumentParser(description="Run for experiment")
+    arg_parser.add_argument('--subjId', type=int, default=1, help='subject ID')
+    args = arg_parser.parse_args()
+
+    # Open a window
+    window = visual.Window(size=[1512, 982],
+                           units='deg',
+                           monitor='testMonitor',
+                           color="black",
+                           screen=0,
+                           allowGUI=False,
+                           fullscr=True) 
+    event.globalKeys.clear()
+    event.globalKeys.add(key='escape', func=core.quit, name='shutdown')
+
+    run_cra_ado(args.subjId, window)

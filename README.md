@@ -41,40 +41,48 @@ python run_pedestrian_with_trained_model.py
 
 ## Run experiment
 
-Setup and activate environment
+Setup environment
 
 ```bash
 conda env create -f pedestrian_task_env.yml
 conda env create -f behavioral_task_env.yml
 ```
 
-Run Pedestrian Task
+### Run Pedestrian Task
+
+Practice session (5 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-
-# practice session: 5 minutes
-python main.py --subjId=1001 --sessionId=0
-
-# main session 1: 15 minutes
-python main.py --subjId=1001 --sessionId=1
-
-# Rest Time: 5 minutes
-
-# main session 2: 15 minutes
-python main.py --subjId=1001 --sessionId=2
+python main.py --sessionId=0 --subjId=XXXX
 ```
 
-Run Behavioral Tasks
+Session 1 (15 minutes)
+
+```bash
+conda activate pedestrian_task_env
+python main.py --sessionId=1 --subjId=XXXX
+```
+
+Session 2 (15 minutes)
+
+```bash
+conda activate pedestrian_task_env
+python main.py --sessionId=2 --subjId=XXXX
+```
+
+### Run Traditional Behavioral Tasks
+
+DDT (ADO version)
 
 ```bash
 conda activate behavioral_task_env
+python behavioral_tasks/ddt/ddt.py --subjId=XXXX
+```
 
-# CRA + ADO
-python behavioral_tasks/cra/cra.py --subjId=1001
+CRA (ADO version)
 
-# Rest Time: 5 minutes
-
-# DDT + ADO
-python behavioral_tasks/ddt/ddt.py --subjId=1001
+```bash
+conda activate behavioral_task_env
+python behavioral_tasks/cra/cra.py --subjId=XXXX
 ```
