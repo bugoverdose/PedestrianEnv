@@ -582,7 +582,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
 
     # Open a window
-    window = visual.Window(size=[1512, 982],
+    window = visual.Window(size=[1920, 1000],
                            units='deg',
                            monitor='testMonitor',
                            color="black",

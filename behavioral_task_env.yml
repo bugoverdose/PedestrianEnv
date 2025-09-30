@@ -1,15 +1,13 @@
-# MacOS (M4)
-name: behavioral_task_env 
+name: behavioral_task_env
 channels:
   - conda-forge
-  - default
 dependencies:
-  - python==3.9.23
-  - numpy==2.0.2
-  - scipy==1.13.1
-  - hdf5 # 1.14.3
-  - pytables
+  - python=3.10
+  - numpy=1.26.4
+  - scipy=1.13.1
+  - hdf5=1.14.3
+  - pytables=3.8.0
   - pip
   - pip:
-    - psychopy==2025.1.1
-    - git+https://github.com/adopy/adopy.git@develop # adopy
+      - psychopy==2025.1.1
+      - git+https://github.com/adopy/adopy.git@develop

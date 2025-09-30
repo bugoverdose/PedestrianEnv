@@ -2,9 +2,9 @@ name: pedestrian_task_env
 channels:
   - conda-forge
 dependencies:
-  - python==3.9.7
-  - pygame==2.1.3
-  - numpy==1.24.1
+  - python=3.9.7
+  - pygame=2.1.3
+  - numpy=1.24.1
   - pip
   - pip:
       - gymnasium==0.29.1

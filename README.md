@@ -37,7 +37,8 @@ python run_pedestrian_with_trained_model.py
   - 500: PPO model simulation (optimal policy on Vectorized Env)
   - 502: PPO model simulation (optimal policy on PedestrianEnv (height=21))
   - 503: PPO model simulation (optimal policy on PedestrianEnv (height=25))
-- 1000 ~ : experiment
+- 900 ~ 999: Pilot
+- 1000 ~ : Experiment
 
 ## Run experiment
 
@@ -54,21 +55,21 @@ Practice session (5 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-python main.py --sessionId=0 --subjId=XXXX
+python main.py --sessionId=0 --subjId=900
 ```
 
 Session 1 (15 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-python main.py --sessionId=1 --subjId=XXXX
+python main.py --sessionId=1 --subjId=900
 ```
 
 Session 2 (15 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-python main.py --sessionId=2 --subjId=XXXX
+python main.py --sessionId=2 --subjId=900
 ```
 
 ### Run Traditional Behavioral Tasks
@@ -77,12 +78,12 @@ DDT (ADO version)
 
 ```bash
 conda activate behavioral_task_env
-python behavioral_tasks/ddt/ddt.py --subjId=XXXX
+python behavioral_tasks/ddt/ddt.py --subjId=900
 ```
 
 CRA (ADO version)
 
 ```bash
 conda activate behavioral_task_env
-python behavioral_tasks/cra/cra.py --subjId=XXXX
+python behavioral_tasks/cra/cra.py --subjId=900
 ```

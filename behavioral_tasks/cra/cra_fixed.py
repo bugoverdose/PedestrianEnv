@@ -864,7 +864,7 @@ def main():
     path_output = str(PATH_DATA / fn_data)
 
     # Open a window
-    window = visual.Window(size=[1512, 982],
+    window = visual.Window(size=[1920, 1000],
                            units='deg',
                            monitor='testMonitor',
                            color=Color.background.value,
