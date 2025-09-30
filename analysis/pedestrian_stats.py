@@ -53,7 +53,12 @@ def basic_statistics_ind(subjId):
         full_log = load_episode_full_log(subj_data_dir, episode)
         episode_reward = int(sum(full_log["rewards"]))
         episode_scores_dict["full"].append(episode_reward)
-        episode_scores_dict[episode[0]].append(episode_reward)
+        # Practice: 0001, 0002, ...
+        # Session 1: 1001, 1002, ...
+        # Session 2: 2001, 2002, ...
+        session_id = episode[0]
+        if session_id == "0": continue
+        episode_scores_dict[session_id].append(episode_reward)
 
         game_end_extra_score = full_log["play_infos"][-1]["game_info"]["game_end_extra_score"]
         if game_end_extra_score > 0:
