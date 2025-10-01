@@ -58,14 +58,14 @@ conda activate pedestrian_task_env
 python main.py --sessionId=0 --subjId=902
 ```
 
-Session 1 (15 minutes)
+Session 1 (20 minutes)
 
 ```bash
 conda activate pedestrian_task_env
 python main.py --sessionId=1 --subjId=902
 ```
 
-Session 2 (15 minutes)
+Session 2 (20 minutes)
 
 ```bash
 conda activate pedestrian_task_env

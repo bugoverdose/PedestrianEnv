@@ -22,6 +22,6 @@ if __name__ == "__main__":
                 + f"Play start time: {dt.year}.{dt.month}.{dt.day} {dt.hour}:{dt.minute}:{dt.second}")
 
     # practice session: 5 minutes
-    # main session: 15 minutes
-    max_seconds = 300 if args.sessionId == 0 else 900
+    # main session: 20 minutes
+    max_seconds = 300 if args.sessionId == 0 else 1200
     play_game(base_dir=base_dir, session_id=args.sessionId, max_seconds=max_seconds)
