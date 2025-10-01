@@ -55,21 +55,21 @@ Practice session (5 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-python main.py --sessionId=0 --subjId=900
+python main.py --sessionId=0 --subjId=902
 ```
 
 Session 1 (15 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-python main.py --sessionId=1 --subjId=900
+python main.py --sessionId=1 --subjId=902
 ```
 
 Session 2 (15 minutes)
 
 ```bash
 conda activate pedestrian_task_env
-python main.py --sessionId=2 --subjId=900
+python main.py --sessionId=2 --subjId=902
 ```
 
 ### Run Traditional Behavioral Tasks
@@ -78,12 +78,12 @@ DDT (ADO version)
 
 ```bash
 conda activate behavioral_task_env
-python behavioral_tasks/ddt/ddt.py --subjId=900
+python behavioral_tasks/ddt/ddt.py --subjId=902
 ```
 
 CRA (ADO version)
 
 ```bash
 conda activate behavioral_task_env
-python behavioral_tasks/cra/cra.py --subjId=900
+python behavioral_tasks/cra/cra.py --subjId=902
 ```
