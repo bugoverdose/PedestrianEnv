@@ -18,15 +18,10 @@ class World:
         self.agent = Agent(agent_x_range, map_grid_width, map_grid_height, pix_square_size, steps_per_second, player_asset_info, debug)
         self.initial_agent_y = self.agent.cur_location[1]
         self.roads = Roads(self.agent, camera_width, map_grid_height, initial_height_padding, self.random)
-        self.cars = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random)
+        cars, road_uid_to_cars_dict = Cars.generate_cars(self.agent, self.roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random)
+        self.cars = cars
+        self.road_uid_to_cars_dict = road_uid_to_cars_dict
 
-        self.road_uid_to_cars_dict = {}
-        for car in self.cars.elements:
-            road_uid = car.road.uid
-            if road_uid not in self.road_uid_to_cars_dict:
-                self.road_uid_to_cars_dict[road_uid] = []
-            self.road_uid_to_cars_dict[road_uid].append(car)
-            
         self.row_to_cars_dict = {}
         for car in self.cars.elements:
             for row in car.rows:

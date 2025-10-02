@@ -246,8 +246,10 @@ class Cars:
     @staticmethod
     def generate_cars(agent, roads, pix_square_size, map_grid_width, steps_per_second, car_details_dict, random):
         cars = []
-        uid = 0
+        car_uid = 0
+        road_uid_to_cars_dict = {}
         for road in roads.elements:
+            road_uid_to_cars_dict[road.uid] = []
             road_height = road.bottom_y - road.top_y + 1
             for i in range(0, road_height, Road.COMPOSITION_SIZE):
                 going_right = road.going_right[i]
@@ -255,11 +257,20 @@ class Cars:
                 for j in cars_per_lane_pair.keys():
                     start_row_idx = road.top_y + i + j
                     for height in cars_per_lane_pair[j]:
-                        uid += 1
+                        car_uid += 1
                         (car_name, _) = random.choice(CAR_CANDIDATES[height])
-                        initial_x = random.integers(0, map_grid_width)
-                        car_details = car_details_dict[car_name][road.car_color_type][going_right]
-                        cars.append(Car(uid, initial_x, start_row_idx, height, road, map_grid_width, pix_square_size, steps_per_second, car_details, random))
+                        # NOTE: try to reduce overlap between cars
+                        overlapped = False
+                        for k in range(3):
+                            initial_x = random.integers(0, map_grid_width)
+                            car_details = car_details_dict[car_name][road.car_color_type][going_right]
+                            new_car = Car(car_uid, initial_x, start_row_idx, height, road, map_grid_width, pix_square_size, steps_per_second, car_details, random)
+                            for same_road_car in road_uid_to_cars_dict[road.uid]:
+                                overlapped = Cars._check_overlapping(same_road_car, new_car)
+                                if overlapped: break
+                            if not overlapped: break
+                        cars.append(new_car)
+                        road_uid_to_cars_dict[road.uid].append(new_car)
 
         for i in range(len(cars)):
             cur_car = cars[i]
@@ -270,7 +281,7 @@ class Cars:
                 top_y2, bottom_y2 = other_car.get_cur_y_pos()
                 if max(top_y1, top_y2) <= min(bottom_y1, bottom_y2):
                     cur_car.nearby_cars.append(other_car) # overlapping lane
-        return Cars(agent, cars)
+        return Cars(agent, cars), road_uid_to_cars_dict
 
     @staticmethod
     def _check_overlapping(car1, car2):
