@@ -39,6 +39,12 @@ def basic_statistics(subjIds):
 def basic_statistics_ind(subjId):
     subj_data_dir = data_dir(subjId)
     episodes = get_sorted_episodes(subj_data_dir)
+    # NOTE: data augmentation for pilot 900 (15 min => 20 min)
+    if subjId in [900]:
+        import random
+        n = len(episodes) // 3
+        sampled = random.sample(episodes, n)
+        episodes.extend(sampled)
     episode_scores_dict = {
         "full": [],
         "1": [],
